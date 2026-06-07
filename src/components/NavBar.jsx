@@ -89,11 +89,11 @@ export default function NavBar({ page, navigate }) {
           </button>
         ))}
         <button
-          className={`nav-item-mobile ${moreActive ? 'nav-item-mobile--on' : ''}`}
-          onClick={() => navigate('model-w')}
+          className={`nav-item-mobile ${page === 'alerts' ? 'nav-item-mobile--on' : ''}`}
+          onClick={() => navigate('alerts')}
         >
-          <span className="nav-icon-mobile">🤖</span>
-          <span className="nav-label-mobile">רובוטים</span>
+          <span className="nav-icon-mobile">🔔</span>
+          <span className="nav-label-mobile">התראות</span>
         </button>
       </nav>
     </>

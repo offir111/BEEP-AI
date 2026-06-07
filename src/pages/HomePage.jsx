@@ -134,7 +134,7 @@ export default function HomePage({ navigate }) {
         <FearGreedCard />
         <MarketCard symbol="BTC-USD"  label="Bitcoin" />
         <MarketCard symbol="^GSPC"    label="S&P 500" />
-        <MarketCard symbol="GC=F"     label="Gold" />
+        <MarketCard symbol="XAUUSD=X"  label="Gold" />
       </div>
 
       {/* Quick actions */}

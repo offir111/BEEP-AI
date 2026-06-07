@@ -72,11 +72,12 @@ export default function ChartsPage() {
   }, [active]);
 
   // Active non-triggered alerts for current symbol
+  const activeShort = active.binance
+    ? active.id.replace('USD','')
+    : active.priceApi.replace('^','').replace('=F','').replace('=X','');
+
   const symAlerts = alerts.filter(a =>
-    !a.triggered &&
-    (a.symbol === active.label.toUpperCase() ||
-     a.symbol === active.id.replace('USD','') ||
-     a.symbol === active.priceApi.replace('^','').replace('=F',''))
+    !a.triggered && a.symbol === activeShort.toUpperCase()
   );
 
   return (
@@ -143,21 +144,23 @@ export default function ChartsPage() {
 
       {/* Symbol buttons */}
       <div className="charts-symbols">
-        {SYMBOLS.map(s => (
-          <button key={s.id}
-            className={`charts-sym-btn ${active.id===s.id?'charts-sym-btn--on':''}`}
-            onClick={()=>setActive(s)}>
-            {s.label}
-            {alerts.filter(a=>!a.triggered&&(a.symbol===s.label.toUpperCase()||a.symbol===s.id.replace('USD',''))).length > 0 && (
-              <span className="charts-sym-badge">🔔</span>
-            )}
-          </button>
-        ))}
+        {SYMBOLS.map(s => {
+          const sShort = s.binance ? s.id.replace('USD','') : s.priceApi.replace('^','').replace('=F','').replace('=X','');
+          const sAlerts = alerts.filter(a => !a.triggered && a.symbol === sShort.toUpperCase()).length;
+          return (
+            <button key={s.id}
+              className={`charts-sym-btn ${active.id===s.id?'charts-sym-btn--on':''}`}
+              onClick={()=>setActive(s)}>
+              {s.label}
+              {sAlerts > 0 && <span className="charts-sym-badge">🔔</span>}
+            </button>
+          );
+        })}
       </div>
 
       {showAlert && (
         <QuickAlert
-          symbol={active.label.toUpperCase()}
+          symbol={active.binance ? active.id.replace('USD','') : active.priceApi.replace('^','').replace('=F','').replace('=X','')}
           currentPrice={livePrice}
           onClose={()=>setShowAlert(false)}
         />
