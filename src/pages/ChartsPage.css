@@ -1,11 +1,12 @@
 .charts-wrap {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   max-width: 960px;
   margin: 0 auto;
 }
 
+/* ── Header ── */
 .charts-hdr {
   display: flex;
   align-items: center;
@@ -14,63 +15,120 @@
   gap: 10px;
 }
 
-.charts-title { font-size: 1.1rem; font-weight: 600; }
+.charts-hdr-left { display: flex; align-items: center; gap: 12px; }
+.charts-hdr-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-.charts-intervals {
+.charts-title {
+  font-size: 1.1rem;
+  font-weight: 600;
   display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
+.charts-live-price {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  background: rgba(212,175,55,0.1);
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(212,175,55,0.3);
+}
+
+/* ── Intervals ── */
+.charts-intervals { display: flex; gap: 3px; flex-wrap: wrap; }
 .charts-iv-btn {
-  padding: 5px 10px;
+  padding: 5px 9px;
   border-radius: var(--radius-sm);
   background: var(--bg-card);
   border: 1px solid var(--border);
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   color: var(--text-secondary);
   transition: all 0.15s;
 }
+.charts-iv-btn:hover   { border-color: var(--accent-blue); color: var(--accent-blue); }
+.charts-iv-btn--on     { background: rgba(74,158,255,0.15); border-color: var(--accent-blue); color: var(--accent-blue); font-weight: 600; }
 
-.charts-iv-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
-.charts-iv-btn--on {
-  background: rgba(74,158,255,0.15);
-  border-color: var(--accent-blue);
-  color: var(--accent-blue);
+/* ── Alert button in header ── */
+.charts-alert-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(212,175,55,0.12);
+  border: 1px solid rgba(212,175,55,0.4);
+  border-radius: var(--radius-sm);
+  color: var(--accent-gold);
+  padding: 6px 12px;
+  font-size: 0.82rem;
   font-weight: 600;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.charts-alert-btn:hover {
+  background: rgba(212,175,55,0.22);
+  border-color: var(--accent-gold);
 }
 
-.charts-tv {
+/* ── Chart area ── */
+.charts-tv-wrap {
+  position: relative;
   border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border);
   background: #12121a;
 }
 
-.charts-symbols {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.charts-tv-iframe {
+  width: 100%;
+  height: 480px;
+  border: none;
+  display: block;
 }
 
+/* ── Floating bell ON the chart ── */
+.charts-float-bell {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  background: rgba(10,10,15,0.85);
+  border: 2px solid var(--accent-gold);
+  border-radius: var(--radius-md);
+  color: var(--accent-gold);
+  font-size: 1.1rem;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  z-index: 10;
+}
+.charts-float-bell:hover {
+  background: rgba(212,175,55,0.2);
+  transform: scale(1.05);
+}
+.charts-float-price {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* ── Symbol buttons ── */
+.charts-symbols { display: flex; flex-wrap: wrap; gap: 7px; }
 .charts-sym-btn {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 7px 14px;
-  font-size: 0.8rem;
+  padding: 6px 13px;
+  font-size: 0.78rem;
   color: var(--text-secondary);
   transition: all 0.15s;
 }
+.charts-sym-btn:hover   { border-color: var(--accent-blue); color: var(--accent-blue); }
+.charts-sym-btn--on     { background: rgba(212,175,55,0.12); border-color: var(--accent-gold); color: var(--accent-gold); font-weight: 600; }
 
-.charts-sym-btn:hover {
-  border-color: var(--accent-blue);
-  color: var(--accent-blue);
-}
-
-.charts-sym-btn--on {
-  background: rgba(212,175,55,0.12);
-  border-color: var(--accent-gold);
-  color: var(--accent-gold);
-  font-weight: 600;
+@media (max-width: 600px) {
+  .charts-tv-iframe { height: 340px; }
+  .charts-title     { font-size: 0.95rem; }
 }
