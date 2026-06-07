@@ -1,0 +1,12 @@
+{
+  "appId": "com.beepai.app",
+  "appName": "BEEP AI",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#0a0a0f"
+  }
+}

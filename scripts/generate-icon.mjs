@@ -1,0 +1,106 @@
+// Generates BEEP AI app icon as SVG + copies to public/
+import { writeFileSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const publicDir = join(__dirname, '..', 'public');
+mkdirSync(publicDir, { recursive: true });
+
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <!-- Orange glow filter -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur1"/>
+      <feGaussianBlur stdDeviation="16" result="blur2"/>
+      <feMerge>
+        <feMergeNode in="blur2"/>
+        <feMergeNode in="blur1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Inner glow for text -->
+    <filter id="textglow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Radial gradient for background -->
+    <radialGradient id="bgGrad" cx="50%" cy="40%" r="55%">
+      <stop offset="0%"   stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+    <!-- Orange ring gradient -->
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#ff9500"/>
+      <stop offset="35%"  stop-color="#ff6a00"/>
+      <stop offset="65%"  stop-color="#ffb347"/>
+      <stop offset="100%" stop-color="#ff4500"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Black background circle -->
+  <circle cx="256" cy="256" r="248" fill="url(#bgGrad)"/>
+
+  <!-- Orange glowing ring (outer) -->
+  <circle cx="256" cy="256" r="242"
+    fill="none"
+    stroke="url(#ringGrad)"
+    stroke-width="12"
+    filter="url(#glow)"
+    opacity="0.9"/>
+
+  <!-- Orange ring (crisp inner layer) -->
+  <circle cx="256" cy="256" r="242"
+    fill="none"
+    stroke="url(#ringGrad)"
+    stroke-width="5"/>
+
+  <!-- Lightning bolt icon -->
+  <g transform="translate(256,148) scale(0.9)">
+    <polygon
+      points="12,-60 -8,-4 10,-4 -12,60 8,4 -10,4"
+      fill="#ff9500"
+      filter="url(#glow)"
+      opacity="0.95"/>
+  </g>
+
+  <!-- BEEP text -->
+  <text
+    x="256" y="275"
+    text-anchor="middle"
+    font-family="'Arial Black', 'Impact', sans-serif"
+    font-size="96"
+    font-weight="900"
+    letter-spacing="6"
+    fill="#ffffff"
+    filter="url(#textglow)">BEEP</text>
+
+  <!-- AI text -->
+  <text
+    x="256" y="350"
+    text-anchor="middle"
+    font-family="'Arial Black', 'Impact', sans-serif"
+    font-size="72"
+    font-weight="900"
+    letter-spacing="12"
+    fill="#ff9500"
+    filter="url(#glow)">AI</text>
+
+  <!-- Subtle inner ring highlight -->
+  <circle cx="256" cy="256" r="230"
+    fill="none"
+    stroke="rgba(255,149,0,0.15)"
+    stroke-width="2"/>
+</svg>`;
+
+writeFileSync(join(publicDir, 'icon-512.svg'), svg);
+writeFileSync(join(publicDir, 'icon-512.png.svg'), svg); // fallback reference
+
+// Also write a smaller 192 version
+const svg192 = svg.replace('width="512" height="512"', 'width="192" height="192"');
+writeFileSync(join(publicDir, 'icon-192.svg'), svg192);
+
+console.log('✅ Icons generated in public/');

@@ -1,0 +1,18 @@
+{
+  "name": "BEEP AI — Stock Scanner",
+  "short_name": "BEEP AI",
+  "description": "סורק מניות וקריפטו חכם — נתונים חיים, התראות בזמן אמת",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0f",
+  "theme_color": "#D4AF37",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "categories": ["finance", "utilities"],
+  "screenshots": []
+}
