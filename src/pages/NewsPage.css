@@ -1,0 +1,3 @@
+.news-wrap { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.news-title { font-size: 1.1rem; font-weight: 600; }
+.news-widget { border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); }

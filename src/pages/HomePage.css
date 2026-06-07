@@ -1,0 +1,111 @@
+.hp-wrap {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.hp-welcome {
+  background: linear-gradient(135deg, #1a1a26, #12121a);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent-gold);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.hp-welcome-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  margin-bottom: 6px;
+}
+
+.hp-welcome-sub {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.hp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.hp-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.hp-card:hover { border-color: var(--accent-gold); }
+
+.hp-card-title {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.hp-fng-val, .hp-price {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.hp-fng-lbl, .hp-change {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.hp-actions-title {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.hp-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.hp-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 12px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+}
+
+.hp-action-btn span:first-child { font-size: 1.6rem; }
+
+.hp-action-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-blue);
+  transform: translateY(-1px);
+}
+
+.hp-action-btn--ai {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-style: dashed;
+  border-color: var(--accent-gold);
+}
+
+.hp-action-btn--ai small {
+  display: block;
+  font-size: 0.6rem;
+  color: var(--accent-gold);
+}

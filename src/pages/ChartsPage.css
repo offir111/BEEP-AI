@@ -1,0 +1,19 @@
+.charts-wrap { display: flex; flex-direction: column; gap: 16px; max-width: 900px; margin: 0 auto; }
+.charts-title { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+.charts-tv { border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border); }
+.charts-symbols {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.charts-sym-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+.charts-sym-btn:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
