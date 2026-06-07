@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAlerts } from '../context/AlertsContext';
 import './Header.css';
 
 function IsraelClock() {
@@ -15,8 +16,11 @@ function IsraelClock() {
 }
 
 export default function Header({ username, onLogout, navigate, page }) {
+  const { activeCount } = useAlerts();
+
   return (
     <header className="hdr">
+      {/* Brand */}
       <div className="hdr-brand" onClick={() => navigate('home')}>
         <span className="hdr-icon">⚡</span>
         <div>
@@ -25,16 +29,32 @@ export default function Header({ username, onLogout, navigate, page }) {
         </div>
       </div>
 
-      <div className="hdr-center">
-        {/* Future: live price strip here */}
-      </div>
+      <div className="hdr-center" />
 
+      {/* Right side */}
       <div className="hdr-right">
         <IsraelClock />
+
+        {/* Bell button */}
+        <button
+          className={`hdr-bell ${page === 'alerts' ? 'hdr-bell--on' : ''}`}
+          onClick={() => navigate('alerts')}
+          title="התראות מחיר"
+        >
+          <svg viewBox="0 0 24 24" className="hdr-bell-icon">
+            <path d="M12 2C10.9 2 10 2.9 10 4v.55C7.16 5.24 5 7.9 5 11v6l-1.71 1.71A1 1 0 0 0 4 20h16a1 1 0 0 0 .71-1.71L19 17v-6c0-3.1-2.16-5.76-5-6.45V4c0-1.1-.9-2-2-2zm0 20c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z"/>
+          </svg>
+          {activeCount > 0 && (
+            <span className="hdr-bell-badge">{activeCount > 9 ? '9+' : activeCount}</span>
+          )}
+        </button>
+
+        {/* User */}
         <div className="hdr-user" title={username}>
           <span className="hdr-avatar">{username?.[0]?.toUpperCase()}</span>
           <span className="hdr-username">{username}</span>
         </div>
+
         <button className="hdr-logout" onClick={onLogout} title="התנתק">✕</button>
       </div>
     </header>

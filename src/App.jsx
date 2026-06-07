@@ -1,11 +1,14 @@
 import { useState } from 'react';
+import { AlertsProvider } from './context/AlertsContext';
 import LoginScreen  from './components/LoginScreen';
 import Header       from './components/Header';
 import NavBar       from './components/NavBar';
+import AlertBanner  from './components/AlertBanner';
 import HomePage     from './pages/HomePage';
 import ChartsPage   from './pages/ChartsPage';
 import CryptoPage   from './pages/CryptoPage';
 import NewsPage     from './pages/NewsPage';
+import AlertsPage   from './pages/AlertsPage';
 import ModelWPage   from './pages/ModelWPage';
 import ModelBitPage from './pages/ModelBitPage';
 import ModelSmcPage from './pages/ModelSmcPage';
@@ -17,12 +20,12 @@ import NotFoundPage from './pages/NotFoundPage';
 import './App.css';
 
 const VALID_PAGES = [
-  'home','charts','crypto','news',
+  'home','charts','crypto','news','alerts',
   'model-w','model-bit','model-smc',
   'finviz','etoro','twitter','daily'
 ];
 
-export default function App() {
+function AppInner() {
   const [session, setSession] = useState(() => {
     try { return JSON.parse(localStorage.getItem('beepai_session')); } catch { return null; }
   });
@@ -49,11 +52,13 @@ export default function App() {
     <div className="app">
       <Header onLogout={logout} username={session.username} isAdmin={session.isAdmin} navigate={navigate} page={page} />
       <NavBar page={page} navigate={navigate} />
+      <AlertBanner />
       <main className="app-main">
         {page === 'home'      && <HomePage   navigate={navigate} />}
         {page === 'charts'    && <ChartsPage />}
         {page === 'crypto'    && <CryptoPage />}
         {page === 'news'      && <NewsPage   />}
+        {page === 'alerts'    && <AlertsPage />}
         {page === 'model-w'   && <ModelWPage />}
         {page === 'model-bit' && <ModelBitPage />}
         {page === 'model-smc' && <ModelSmcPage />}
@@ -64,5 +69,13 @@ export default function App() {
         {page === '404'       && <NotFoundPage navigate={navigate} />}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AlertsProvider>
+      <AppInner />
+    </AlertsProvider>
   );
 }
