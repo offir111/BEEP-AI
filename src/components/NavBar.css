@@ -11,9 +11,6 @@
   overflow-x: auto;
 }
 
-.nav-sep {
-  flex: 1;
-}
 
 .nav-item {
   display: flex;

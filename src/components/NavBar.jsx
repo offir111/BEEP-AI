@@ -48,8 +48,6 @@ export default function NavBar({ page, navigate }) {
           </button>
         ))}
 
-        <span className="nav-sep" />
-
         {/* More dropdown */}
         <div className="nav-more-wrap" ref={menuRef}>
           <button
