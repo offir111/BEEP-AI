@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import LoginScreen from './components/LoginScreen';
-import Header      from './components/Header';
-import NavBar      from './components/NavBar';
-import HomePage    from './pages/HomePage';
-import ChartsPage  from './pages/ChartsPage';
-import CryptoPage  from './pages/CryptoPage';
-import NewsPage    from './pages/NewsPage';
+import LoginScreen  from './components/LoginScreen';
+import Header       from './components/Header';
+import NavBar       from './components/NavBar';
+import HomePage     from './pages/HomePage';
+import ChartsPage   from './pages/ChartsPage';
+import CryptoPage   from './pages/CryptoPage';
+import NewsPage     from './pages/NewsPage';
+import NotFoundPage from './pages/NotFoundPage';
 import './App.css';
+
+const VALID_PAGES = ['home', 'charts', 'crypto', 'news'];
 
 export default function App() {
   const [session, setSession] = useState(() => {
@@ -19,7 +22,10 @@ export default function App() {
     setSession(null);
   };
 
-  const navigate = (p) => setPage(p);
+  const navigate = (p) => {
+    if (VALID_PAGES.includes(p)) setPage(p);
+    else setPage('404');
+  };
 
   if (!session) {
     return <LoginScreen onLogin={(s) => {
@@ -30,13 +36,20 @@ export default function App() {
 
   return (
     <div className="app">
-      <Header onLogout={logout} username={session.username} navigate={navigate} page={page} />
+      <Header
+        onLogout={logout}
+        username={session.username}
+        isAdmin={session.isAdmin}
+        navigate={navigate}
+        page={page}
+      />
       <NavBar page={page} navigate={navigate} />
       <main className="app-main">
         {page === 'home'   && <HomePage   navigate={navigate} />}
         {page === 'charts' && <ChartsPage />}
         {page === 'crypto' && <CryptoPage />}
         {page === 'news'   && <NewsPage   />}
+        {page === '404'    && <NotFoundPage navigate={navigate} />}
       </main>
     </div>
   );
