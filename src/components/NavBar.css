@@ -8,7 +8,9 @@
   height: 46px;
   flex-shrink: 0;
   gap: 2px;
-  overflow-x: auto;
+  overflow: visible;
+  position: relative;
+  z-index: 100;
 }
 
 
@@ -40,8 +42,8 @@
 
 .nav-dropdown {
   position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
+  top: calc(100% + 4px);
+  right: 0;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
