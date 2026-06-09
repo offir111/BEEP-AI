@@ -86,10 +86,19 @@ function AppInner() {
     setSession(null);
   };
 
+  // navigate: deep-link, adds to history (back button works)
   const navigate = (p) => {
     const target = VALID_PAGES.includes(p) ? p : '404';
     setPage(target);
     setNavHistory(prev => [...prev, target]);
+    window.scrollTo(0, 0);
+  };
+
+  // navigatePrimary: top-level NavBar click — resets history stack
+  const navigatePrimary = (p) => {
+    const target = VALID_PAGES.includes(p) ? p : '404';
+    setPage(target);
+    setNavHistory(['home', target]);
     window.scrollTo(0, 0);
   };
 
@@ -115,7 +124,7 @@ function AppInner() {
   return (
     <div className="app">
       <Header onLogout={logout} username={session.username} isAdmin={session.isAdmin} navigate={navigate} page={page} />
-      <NavBar page={page} navigate={navigate} />
+      <NavBar page={page} navigate={navigatePrimary} />
       <AlertBanner />
       <PageTopBar page={page} onBack={goBack} onClose={() => { setPage('home'); setNavHistory(['home']); window.scrollTo(0,0); }} />
       <main className="app-main">

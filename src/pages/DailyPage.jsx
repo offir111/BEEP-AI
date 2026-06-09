@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import './DailyPage.css';
 
 const NEWS = [
@@ -112,22 +112,6 @@ function NewsCard({ item, idx }) {
 }
 
 export default function DailyPage() {
-  const [countdown, setCountdown] = useState(180);
-  const timerRef = useRef(null);
-
-  useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setCountdown(c => {
-        if (c <= 1) return 180;
-        return c - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerRef.current);
-  }, []);
-
-  const mins = String(Math.floor(countdown / 60)).padStart(2, '0');
-  const secs = String(countdown % 60).padStart(2, '0');
-
   return (
     <div className="dp-wrap">
 
@@ -137,9 +121,8 @@ export default function DailyPage() {
           <h2 className="dp-title">🤖 Daily AI — חדשות מדורגות</h2>
           <p className="dp-sub">חדשות מדורגות על ידי AI לפי פוטנציאל מסחרי</p>
         </div>
-        <div className="dp-refresh-counter">
-          <span className="dp-counter-label">רענון אוטומטי</span>
-          <span className="dp-counter-val">{mins}:{secs}</span>
+        <div className="dp-curated-badge">
+          📌 ניתוח אצור
         </div>
       </div>
 

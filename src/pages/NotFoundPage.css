@@ -23,3 +23,23 @@
   margin-top: 8px;
 }
 .notfound-btn:hover { opacity: 0.85; }
+
+.notfound-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.notfound-quick-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.notfound-quick-btn:hover { border-color: var(--accent-gold); color: var(--accent-gold); }

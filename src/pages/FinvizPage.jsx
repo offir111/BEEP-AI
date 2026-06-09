@@ -177,7 +177,10 @@ export default function FinvizPage() {
       {/* Scan result */}
       {scanResult && (
         <div className="fv-scan-result">
-          <span className="fv-scan-found">נמצאו {scanResult.length} תבניות!</span>
+          <div className="fv-scan-top">
+            <span className="fv-scan-found">נמצאו {scanResult.length} תבניות</span>
+            <span className="fv-scan-demo-label">⚠️ Demo — לא סריקה אמיתית</span>
+          </div>
           <div className="fv-scan-tickers">
             {scanResult.map(s => (
               <span key={s} className="fv-scan-ticker">{s}</span>

@@ -150,6 +150,11 @@ export default function TwitterPage() {
         </div>
       </div>
 
+      {/* Demo disclaimer */}
+      <div className="tw-demo-disclaimer">
+        ⚠️ <strong>Demo</strong> — הטוויטים ונתוני ה-Whale Alerts הם דוגמאות בלבד ואינם בזמן אמת
+      </div>
+
       {/* Whale alerts */}
       <div className="tw-whale-section">
         <div className="tw-whale-title">🐋 Whale Alerts</div>

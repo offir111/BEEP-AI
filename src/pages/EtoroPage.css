@@ -336,6 +336,17 @@
 }
 
 /* Disclaimer */
+.et-data-disclaimer {
+  padding: 10px 16px;
+  background: rgba(251,191,36,0.08);
+  border: 1px solid rgba(251,191,36,0.25);
+  border-radius: 10px;
+  font-size: 0.76rem;
+  color: rgba(255,255,255,0.6);
+  line-height: 1.5;
+}
+.et-data-disclaimer strong { color: #fbbf24; }
+
 .et-disclaimer {
   font-size: 0.72rem;
   color: var(--text-muted);

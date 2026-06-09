@@ -5,6 +5,7 @@ import './HomePage.css';
 // ── Live BTC ticker ────────────────────────────────────────────
 function useBTC() {
   const [btc, setBtc] = useState(null);
+  const [btcError, setBtcError] = useState(false);
   const [flash, setFlash] = useState(null);
   const prevRef = useRef(null);
 
@@ -22,9 +23,10 @@ function useBTC() {
           setTimeout(() => setFlash(null), 600);
         }
         prevRef.current = price;
+        setBtcError(false);
         setBtc({ price, change, high, low });
       })
-      .catch(() => {});
+      .catch(() => setBtcError(true));
   }, []);
 
   useEffect(() => {
@@ -33,19 +35,26 @@ function useBTC() {
     return () => clearInterval(iv);
   }, [fetch_]);
 
-  return { btc, flash };
+  return { btc, btcError, flash };
 }
 
 // ── Small market pill ─────────────────────────────────────────
 function MarketPill({ symbol, label, prefix = '$' }) {
-  const [price,  setPrice]  = useState(null);
-  const [change, setChange] = useState(null);
+  const [price,   setPrice]   = useState(null);
+  const [change,  setChange]  = useState(null);
+  const [failed,  setFailed]  = useState(false);
 
   useEffect(() => {
+    const timer = setTimeout(() => setFailed(true), 6000);
     fetch(`/api/market?symbol=${encodeURIComponent(symbol)}`)
       .then(r => r.json())
-      .then(d => { if (d.price) { setPrice(d.price); setChange(d.change); } })
-      .catch(() => {});
+      .then(d => {
+        clearTimeout(timer);
+        if (d.price) { setPrice(d.price); setChange(d.change); setFailed(false); }
+        else setFailed(true);
+      })
+      .catch(() => { clearTimeout(timer); setFailed(true); });
+    return () => clearTimeout(timer);
   }, [symbol]);
 
   const up = (change || 0) >= 0;
@@ -59,6 +68,7 @@ function MarketPill({ symbol, label, prefix = '$' }) {
               {up ? '▲' : '▼'}{Math.abs(change).toFixed(1)}%
             </span>
           </>
+        : failed ? <span className="hp-pill-failed">—</span>
         : <span className="hp-pill-loading">…</span>
       }
     </div>
@@ -105,7 +115,7 @@ function RobotCard({ icon, name, desc, tag, tagColor, onClick }) {
 
 // ── Main ──────────────────────────────────────────────────────
 export default function HomePage({ navigate }) {
-  const { btc, flash } = useBTC();
+  const { btc, btcError, flash } = useBTC();
   const { alerts } = useAlerts();
   const activeAlerts = alerts.filter(a => !a.triggered).length;
   const up = btc ? btc.change >= 0 : true;
@@ -124,7 +134,10 @@ export default function HomePage({ navigate }) {
           </div>
           <div className="hp-btc-symbol">₿ Bitcoin</div>
           <div className="hp-btc-price">
-            {btc ? `$${fmt(btc.price)}` : <span className="hp-btc-loading">טוען…</span>}
+            {btcError
+            ? <span className="hp-btc-err">⚠ שגיאת חיבור</span>
+            : btc ? `$${fmt(btc.price)}` : <span className="hp-btc-loading">טוען…</span>
+          }
           </div>
           {btc && (
             <div className="hp-btc-change" style={{ color: up ? '#4ade80' : '#f87171' }}>

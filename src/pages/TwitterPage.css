@@ -1,3 +1,14 @@
+.tw-demo-disclaimer {
+  padding: 9px 14px;
+  background: rgba(251,191,36,0.08);
+  border: 1px solid rgba(251,191,36,0.25);
+  border-radius: 10px;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 4px;
+}
+.tw-demo-disclaimer strong { color: #fbbf24; }
+
 .tw-wrap {
   max-width: 780px;
   margin: 0 auto;

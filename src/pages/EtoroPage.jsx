@@ -127,6 +127,11 @@ export default function EtoroPage() {
         </div>
       </div>
 
+      {/* Demo data disclaimer */}
+      <div className="et-data-disclaimer">
+        ⚠️ הנתונים בעמוד זה הם <strong>דמו בלבד</strong> — שמות הטריידרים, התשואות והאחזקות הם נתונים לדוגמה ואינם אמיתיים
+      </div>
+
       {/* Top 3 recommendations */}
       <div className="et-section-title">🏆 Top 3 המלצות יומיות</div>
       <div className="et-top3-grid">

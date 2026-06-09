@@ -13,6 +13,7 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
   const [note,      setNote]      = useState('');
   const [editId,    setEditId]    = useState(null);
   const [success,   setSuccess]   = useState(false);
+  const [dupWarn,   setDupWarn]   = useState(false);
 
   // Init price when symbol/price changes
   useEffect(() => {
@@ -51,11 +52,18 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
 
     if (editId) {
       editAlert(editId, t);
+      setSuccess(true);
+      setTimeout(() => { setSuccess(false); setEditId(null); }, 1200);
     } else {
-      addAlert({ symbol: symbol.toUpperCase(), direction, target: t, duration, note });
+      const result = addAlert({ symbol: symbol.toUpperCase(), direction, target: t, duration, note });
+      if (result === null) {
+        setDupWarn(true);
+        setTimeout(() => setDupWarn(false), 2500);
+        return;
+      }
+      setSuccess(true);
+      setTimeout(() => { setSuccess(false); onClose?.(); }, 1200);
     }
-    setSuccess(true);
-    setTimeout(() => { setSuccess(false); setEditId(null); if (!editId) onClose?.(); }, 1200);
   };
 
   const allSlots = [...fixedSlots, ...customSlots].filter(Boolean);
@@ -145,10 +153,13 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
         <input className="qa-input qa-input--note" type="text" placeholder="הערה (אופציונלי)"
           value={note} onChange={e=>setNote(e.target.value)} maxLength={50} />
 
+        {dupWarn && (
+          <div className="qa-dup-warn">⚠️ התראה זהה כבר קיימת לסמל זה</div>
+        )}
         {success ? (
           <div className="qa-success">✅ {editId ? 'עודכן!' : 'נוסף!'}</div>
         ) : (
-          <button className="qa-submit" onClick={submit}>
+          <button className="qa-submit" onClick={submit} disabled={dupWarn}>
             {editId ? '✓ עדכן התראה' : '🔔 הוסף התראה'}
           </button>
         )}

@@ -64,6 +64,7 @@
   line-height: 1.1;
 }
 .hp-btc-loading { font-size: 1rem; color: rgba(255,255,255,0.3); font-weight: 400; }
+.hp-btc-err     { font-size: 0.9rem; color: #f87171; font-weight: 600; }
 
 .hp-btc-change { font-size: 0.82rem; font-weight: 700; }
 
@@ -125,6 +126,7 @@
 .hp-pill-price  { font-size: 0.82rem; font-weight: 800; color: #fff; }
 .hp-pill-change { font-size: 0.65rem; font-weight: 700; }
 .hp-pill-loading{ font-size: 0.75rem; color: rgba(255,255,255,0.2); }
+.hp-pill-failed { font-size: 0.82rem; color: rgba(255,255,255,0.2); font-weight: 600; }
 
 /* ── Feature cards ── */
 .hp-features {
