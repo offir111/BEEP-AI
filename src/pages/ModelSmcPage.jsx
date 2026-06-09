@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import IframeWithFallback from '../components/IframeWithFallback';
 import './ModelSmcPage.css';
 
 const STOCKS = [
@@ -141,13 +142,11 @@ export default function ModelSmcPage() {
             גרף {selected.symbol} — {selected.name} — 1D
           </div>
           <div className="smc-chart-container">
-            <iframe
-              key={selected.symbol}
-              title={`smc-chart-${selected.symbol}`}
+            <IframeWithFallback
+              iframeKey={selected.symbol}
+              title={`גרף ${selected.symbol} יומי`}
               src={`https://s.tradingview.com/widgetembed/?symbol=NASDAQ:${selected.symbol}&interval=D&theme=dark&locale=he_IL&toolbarbg=12121a`}
               className="smc-chart-iframe"
-              allowTransparency
-              frameBorder="0"
             />
           </div>
         </div>

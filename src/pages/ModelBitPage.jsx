@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import IframeWithFallback from '../components/IframeWithFallback';
 import './ModelBitPage.css';
 
 const DEMO_POSITIONS = [
@@ -168,12 +169,10 @@ export default function ModelBitPage() {
       <div className="mb-chart-wrap">
         <div className="mb-chart-title">גרף BTC/USDT — 1H</div>
         <div className="mb-chart-container">
-          <iframe
-            title="btc-chart"
+          <IframeWithFallback
+            title="גרף BTC/USDT שעתי"
             src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=60&theme=dark&locale=he_IL&toolbarbg=12121a"
             className="mb-chart-iframe"
-            allowTransparency
-            frameBorder="0"
           />
         </div>
       </div>

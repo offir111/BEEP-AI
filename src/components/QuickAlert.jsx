@@ -67,7 +67,7 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
         {/* Header */}
         <div className="qa-hdr">
           <div className="qa-title">🔔 התראה — <strong>{symbol}</strong></div>
-          <button className="qa-close" onClick={onClose}>✕</button>
+          <button className="qa-close" onClick={onClose} aria-label="סגור חלון התראה">✕</button>
         </div>
 
         {/* Slot shortcuts */}

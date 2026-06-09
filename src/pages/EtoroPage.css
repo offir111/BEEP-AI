@@ -31,26 +31,15 @@
   color: var(--text-secondary);
 }
 
-.et-live-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.et-demo-badge {
   font-size: 0.72rem;
   font-weight: 700;
-  color: var(--accent-green);
-  background: rgba(74,222,128,0.08);
-  border: 1px solid rgba(74,222,128,0.3);
+  color: var(--accent-gold);
+  background: rgba(212,175,55,0.1);
+  border: 1px solid rgba(212,175,55,0.3);
   border-radius: 20px;
   padding: 5px 12px;
   flex-shrink: 0;
-}
-
-.et-live-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--accent-green);
-  box-shadow: 0 0 6px var(--accent-green);
-  animation: et-pulse 1.8s infinite;
 }
 
 @keyframes et-pulse {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertsProvider } from './context/AlertsContext';
 import LoginScreen  from './components/LoginScreen';
 import Header       from './components/Header';
@@ -25,6 +25,32 @@ const VALID_PAGES = [
   'model-w','model-bit','model-smc',
   'finviz','etoro','twitter','daily','sot'
 ];
+
+// UX-07: Offline detection banner
+function OfflineBanner() {
+  const [offline, setOffline] = useState(!navigator.onLine);
+  useEffect(() => {
+    const goOffline = () => setOffline(true);
+    const goOnline  = () => setOffline(false);
+    window.addEventListener('offline', goOffline);
+    window.addEventListener('online',  goOnline);
+    return () => {
+      window.removeEventListener('offline', goOffline);
+      window.removeEventListener('online',  goOnline);
+    };
+  }, []);
+  if (!offline) return null;
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+      background: '#ef4444', color: '#fff', textAlign: 'center',
+      padding: '8px 16px', fontSize: '0.82rem', fontWeight: 600,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+    }} role="alert" aria-live="assertive">
+      ⚠️ אין חיבור לאינטרנט — הנתונים עשויים להיות לא מעודכנים
+    </div>
+  );
+}
 
 function AppInner() {
   const [session, setSession] = useState(() => {
@@ -77,6 +103,7 @@ function AppInner() {
 export default function App() {
   return (
     <AlertsProvider>
+      <OfflineBanner />
       <AppInner />
     </AlertsProvider>
   );

@@ -115,13 +115,20 @@ export function AlertsProvider({ children }) {
     window.addEventListener('click',      u, { once: true });
   }, []);
 
-  // ── Add alert ──
+  // ── Add alert (UX-05: deduplication check) ──
   const addAlert = useCallback((alert) => {
+    const sym = alert.symbol.toUpperCase().trim();
+    const tgt = parseFloat(alert.target);
+    const isDuplicate = alertsRef.current.some(
+      a => !a.triggered && a.symbol === sym && a.direction === alert.direction && Math.abs(a.target - tgt) < 0.0001
+    );
+    if (isDuplicate) return null; // caller can detect null to show warning toast
+
     const a = {
       id:        `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      symbol:    alert.symbol.toUpperCase().trim(),
+      symbol:    sym,
       direction: alert.direction,
-      target:    parseFloat(alert.target),
+      target:    tgt,
       duration:  alert.duration || 'forever',
       expiresAt: makeExpiry(alert.duration || 'forever'),
       note:      alert.note || '',

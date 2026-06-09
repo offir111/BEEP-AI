@@ -31,13 +31,25 @@ const SIG_BG = {
   'STRONG SELL': 'rgba(239,68,68,0.15)',
 };
 
+// BUG-02: Tabs now clearly styled as navigation links, not internal filters
 const SOT_TABS = [
-  { id: 'sot',       label: 'SOT',    active: true  },
-  { id: 'finviz',    label: 'FINVIZ', active: false },
-  { id: 'model-smc', label: 'SMC',    active: false },
-  { id: 'model-w',   label: 'GRID',   active: false },
-  { id: 'model-bit', label: 'BIT',    active: false },
+  { id: 'sot',       label: 'SOT',    current: true  },
+  { id: 'finviz',    label: 'FINVIZ', current: false },
+  { id: 'model-smc', label: 'SMC',    current: false },
+  { id: 'model-w',   label: 'GRID',   current: false },
+  { id: 'model-bit', label: 'BIT',    current: false },
 ];
+
+const SOT_CACHE_KEY = 'beepai_sot_cache';
+const SOT_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
+function loadSotCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem(SOT_CACHE_KEY));
+    if (c && Date.now() - c.ts < SOT_CACHE_TTL) return c;
+  } catch {}
+  return null;
+}
 
 // ---------- רקע חלקיקים ----------
 function ParticleNet() {
@@ -246,16 +258,18 @@ function Mini({ label, value, color }) {
 //  רכיב ראשי
 // ============================================================
 export default function ScanOfTodayPage({ navigate }) {
+  // UX-01: Load from cache on mount, auto-scan only if cache is stale
+  const cached = loadSotCache();
   const [customSym,   setCustomSym]   = useState('');
   const [scanning,    setScanning]    = useState(false);
-  const [stepDone,    setStepDone]    = useState([]);
+  const [stepDone,    setStepDone]    = useState(cached ? ['collect','analyze','forecast'] : []);
   const [currentStep, setCurrentStep] = useState(null);
-  const [results,     setResults]     = useState(null);
-  const [top3,        setTop3]        = useState(null);
-  const [aiText,      setAiText]      = useState('');
+  const [results,     setResults]     = useState(cached?.results || null);
+  const [top3,        setTop3]        = useState(cached?.top3    || null);
+  const [aiText,      setAiText]      = useState(cached?.aiText  || '');
   const [aiLoading,   setAiLoading]   = useState(false);
   const [error,       setError]       = useState('');
-  const [lastScan,    setLastScan]    = useState('');
+  const [lastScan,    setLastScan]    = useState(cached?.lastScan || '');
 
   const runScan = useCallback(async () => {
     if (scanning) return;
@@ -281,22 +295,33 @@ export default function ScanOfTodayPage({ navigate }) {
       setStepDone(['collect', 'analyze', 'forecast']);
       setCurrentStep(null);
 
+      const scanTime = new Date().toLocaleTimeString('he-IL', {
+        timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit',
+      });
       setResults(data.results);
       setTop3(data.top3);
-      setLastScan(new Date().toLocaleTimeString('he-IL', {
-        timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit',
-      }));
+      setLastScan(scanTime);
 
       setAiLoading(true);
+      let aiSummary = '';
       try {
         const aiResp = await fetch('/api/ai-diagnostic', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ top3: data.top3 }),
         });
         const aiData = await aiResp.json();
-        setAiText(aiData.summary || '');
+        aiSummary = aiData.summary || '';
+        setAiText(aiSummary);
       } catch { setAiText(''); }
       setAiLoading(false);
+
+      // UX-01: Save to cache
+      try {
+        localStorage.setItem(SOT_CACHE_KEY, JSON.stringify({
+          ts: Date.now(), results: data.results, top3: data.top3,
+          aiText: aiSummary, lastScan: scanTime,
+        }));
+      } catch {}
 
     } catch (e) {
       setError(e.message || 'שגיאה בסריקה');
@@ -305,7 +330,8 @@ export default function ScanOfTodayPage({ navigate }) {
     setScanning(false);
   }, [scanning, customSym]);
 
-  useEffect(() => { runScan(); }, []); // eslint-disable-line
+  // UX-01: auto-scan only when no fresh cache exists
+  useEffect(() => { if (!loadSotCache()) runScan(); }, []); // eslint-disable-line
 
   const IconBolt = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -348,14 +374,20 @@ export default function ScanOfTodayPage({ navigate }) {
         {/* ── טאב-בר ── */}
         <nav style={{ display: 'flex', gap: 7, overflowX: 'auto', padding: '14px 0 16px', scrollbarWidth: 'none' }}>
           {SOT_TABS.map(t => (
-            <button key={t.id} onClick={() => !t.active && navigate(t.id)} style={{
-              flex: '0 0 auto', padding: '8px 16px', borderRadius: 999,
-              fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              border: t.active ? '1px solid transparent' : '1px solid rgba(168,85,247,.25)',
-              background: t.active ? GRAD : 'rgba(255,255,255,.04)',
-              color: t.active ? '#fff' : '#c4b5d4',
-              boxShadow: t.active ? '0 4px 16px rgba(168,85,247,.4)' : 'none',
-            }}>{t.label}</button>
+            <button key={t.id} onClick={() => !t.current && navigate(t.id)}
+              aria-current={t.current ? 'page' : undefined}
+              style={{
+                flex: '0 0 auto', padding: '8px 16px', borderRadius: 999,
+                fontSize: 13, fontWeight: 700, cursor: t.current ? 'default' : 'pointer',
+                border: t.current ? '1px solid transparent' : '1px solid rgba(168,85,247,.25)',
+                background: t.current ? GRAD : 'rgba(255,255,255,.04)',
+                color: t.current ? '#fff' : '#c4b5d4',
+                boxShadow: t.current ? '0 4px 16px rgba(168,85,247,.4)' : 'none',
+                position: 'relative',
+              }}>
+              {t.label}
+              {!t.current && <span style={{ fontSize: 10, marginInlineStart: 4, opacity: 0.6 }}>↗</span>}
+            </button>
           ))}
         </nav>
 

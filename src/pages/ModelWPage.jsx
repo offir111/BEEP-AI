@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import IframeWithFallback from '../components/IframeWithFallback';
 import './ModelWPage.css';
 
 const COINS = [
@@ -163,13 +164,11 @@ export default function ModelWPage() {
             גרף {selected.short} — 1H
           </div>
           <div className="mw-chart-container">
-            <iframe
-              key={selected.symbol}
-              title={`chart-${selected.short}`}
+            <IframeWithFallback
+              iframeKey={selected.symbol}
+              title={`גרף ${selected.short} שעתי`}
               src={`https://s.tradingview.com/widgetembed/?symbol=${tvSymbol(selected.short)}&interval=60&theme=dark&locale=he_IL&toolbarbg=12121a&hide_top_toolbar=0&hide_legend=0&saveimage=0`}
               className="mw-chart-iframe"
-              allowTransparency
-              frameBorder="0"
             />
           </div>
         </div>

@@ -83,7 +83,7 @@ export default function AlertLine({ alert, containerH, currentPrice, onPriceChan
       </div>
 
       {/* Drag handle */}
-      <div className="alert-line__handle" title="גרור לשינוי מחיר">⠿</div>
+      <div className="alert-line__handle" title="גרור לשינוי מחיר" aria-label="גרור לשינוי מחיר">≡</div>
 
       {/* Delete */}
       <button

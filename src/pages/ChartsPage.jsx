@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAlerts } from '../context/AlertsContext';
-import AlertLine   from '../components/AlertLine';
-import QuickAlert  from '../components/QuickAlert';
+import AlertLine          from '../components/AlertLine';
+import QuickAlert         from '../components/QuickAlert';
+import IframeWithFallback from '../components/IframeWithFallback';
 import './ChartsPage.css';
 
 const SYMBOLS = [
@@ -108,14 +109,13 @@ export default function ChartsPage() {
         </div>
       </div>
 
-      {/* Chart + alert lines overlay */}
+      {/* Chart + alert lines overlay — BUG-04: IframeWithFallback */}
       <div className="charts-tv-wrap" ref={containerRef}>
-        <iframe
-          key={`${active.id}-${interval}`}
+        <IframeWithFallback
+          iframeKey={`${active.id}-${interval}`}
           src={buildTVUrl(active.id, active.exchange, interval)}
+          title={`גרף ${active.label}`}
           className="charts-tv-iframe"
-          title={`${active.label} chart`}
-          allowFullScreen
         />
 
         {/* Alert lines overlay */}

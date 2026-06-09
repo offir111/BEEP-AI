@@ -14,7 +14,7 @@ export default function AlertBanner() {
             <span className="ab-sym">{t.symbol}</span>
             <span className="ab-msg">{t.message}</span>
           </div>
-          <button className="ab-close" onClick={() => dismissToast(t.id)}>✕</button>
+          <button className="ab-close" onClick={() => dismissToast(t.id)} aria-label="סגור התראה">✕</button>
         </div>
       ))}
     </div>

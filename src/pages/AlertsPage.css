@@ -123,6 +123,7 @@
 }
 .al-card:hover { border-color:rgba(212,175,55,0.25); }
 .al-card--triggered { border-color:rgba(212,175,55,0.4); background:rgba(212,175,55,0.04); }
+.al-card--expired   { border-color:rgba(251,191,36,0.3); background:rgba(251,191,36,0.04); }
 
 .al-card-left { flex:1; display:flex; flex-direction:column; gap:5px; }
 .al-card-top  { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -137,7 +138,10 @@
 .al-meta-chip { font-size:0.68rem; color:var(--accent-gold); background:rgba(212,175,55,0.1); padding:2px 7px; border-radius:10px; }
 .al-card-note { font-size:0.72rem; color:var(--text-muted); }
 
-.al-card-fired-info { font-size:0.72rem; color:var(--accent-gold); }
+.al-card-fired-info          { font-size:0.72rem; color:var(--accent-gold); }
+.al-card-fired-info--expired { color:#fbbf24; }
+.al-card-status--fired   { color:var(--accent-gold); }
+.al-card-status--expired { color:#fbbf24; }
 
 .al-card-right { display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0; }
 .al-card-status { display:flex; align-items:center; gap:5px; }

@@ -117,15 +117,18 @@ function AlertForm({ initial, onSave, onCancel }) {
 }
 
 // ── Alert card ─────────────────────────────────────────────────
+// BUG-05: distinguish expiredOut alerts from price-triggered alerts
 function AlertCard({ alert, onRemove, onReset, onEdit }) {
-  const fired = alert.triggered;
+  const fired   = alert.triggered;
+  const expired = fired && alert.expiredOut;
+
   return (
-    <div className={`al-card ${fired?'al-card--triggered':''}`}>
+    <div className={`al-card ${fired ? (expired ? 'al-card--expired' : 'al-card--triggered') : ''}`}>
       <div className="al-card-left">
         <div className="al-card-top">
           <span className="al-card-symbol">{alert.symbol}</span>
           <span className={`al-dir-badge al-dir-badge--${alert.direction}`}>
-            {alert.direction==='above'?'↑ מעל':'↓ מתחת'}
+            {alert.direction === 'above' ? '↑ מעל' : '↓ מתחת'}
           </span>
           <span className="al-card-target">${alert.target.toLocaleString()}</span>
         </div>
@@ -135,18 +138,36 @@ function AlertCard({ alert, onRemove, onReset, onEdit }) {
           {alert.note && <span className="al-card-note">{alert.note}</span>}
         </div>
         {fired && (
-          <div className="al-card-fired-info">
-            🔔 הופעל ב-${alert.triggeredPrice?.toLocaleString()} · {timeAgo(alert.triggeredAt)}
+          <div className={`al-card-fired-info ${expired ? 'al-card-fired-info--expired' : ''}`}>
+            {expired
+              ? `⏰ פג תוקף · ${timeAgo(alert.triggeredAt)}`
+              : `🔔 הופעל ב-$${alert.triggeredPrice?.toLocaleString()} · ${timeAgo(alert.triggeredAt)}`
+            }
           </div>
         )}
       </div>
 
       <div className="al-card-right">
-        {!fired && <div className="al-card-status"><span className="al-status-dot"/><span className="al-status-txt">פעיל</span></div>}
+        {!fired && (
+          <div className="al-card-status">
+            <span className="al-status-dot" />
+            <span className="al-status-txt">פעיל</span>
+          </div>
+        )}
+        {fired && (
+          <div className={`al-card-status ${expired ? 'al-card-status--expired' : 'al-card-status--fired'}`}>
+            <span>{expired ? '⏰' : '🔔'}</span>
+            <span className="al-status-txt">{expired ? 'פג תוקף' : 'הופעל'}</span>
+          </div>
+        )}
         <div className="al-card-actions">
-          {!fired && <button className="al-card-edit" onClick={()=>onEdit(alert)} title="ערוך">✏️</button>}
-          {fired  && <button className="al-card-reset" onClick={()=>onReset(alert.id)} title="אפס">↺</button>}
-          <button className="al-card-del" onClick={()=>onRemove(alert.id)} title="מחק">✕</button>
+          {!fired && (
+            <button className="al-card-edit" onClick={() => onEdit(alert)} title="ערוך" aria-label="ערוך התראה">✏️</button>
+          )}
+          {fired && (
+            <button className="al-card-reset" onClick={() => onReset(alert.id)} title="אפס" aria-label="אפס התראה">↺</button>
+          )}
+          <button className="al-card-del" onClick={() => onRemove(alert.id)} title="מחק" aria-label="מחק התראה">✕</button>
         </div>
       </div>
     </div>

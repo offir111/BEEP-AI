@@ -7,21 +7,24 @@ function Skeleton() {
 }
 
 // ── Fear & Greed Card ─────────────────────────────────────────
+// BUG-03: FearGreedCard now has error state + retry button
 function FearGreedCard() {
-  const [val, setVal] = useState(null);
-  const [lbl, setLbl] = useState('');
+  const [val,     setVal]     = useState(null);
+  const [lbl,     setLbl]     = useState('');
   const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(false);
 
   const load = useCallback(() => {
-    setLoading(true);
+    setLoading(true); setError(false);
     fetch('https://api.alternative.me/fng/?limit=1')
       .then(r => r.json())
       .then(d => {
         const v = parseInt(d?.data?.[0]?.value);
         const l = d?.data?.[0]?.value_classification || '';
-        setVal(v); setLbl(l); setLoading(false);
+        if (!isNaN(v)) { setVal(v); setLbl(l); } else { setError(true); }
+        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => { setError(true); setLoading(false); });
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -36,7 +39,11 @@ function FearGreedCard() {
   return (
     <div className="hp-card">
       <div className="hp-card-title">Fear &amp; Greed</div>
-      {loading ? <Skeleton /> : (
+      {loading ? <Skeleton /> : error ? (
+        <div className="hp-card-err" onClick={load} title="לחץ לנסות שוב" role="button" aria-label="טעינה נכשלה — לחץ לנסות שוב">
+          ⚠️ נסה שוב
+        </div>
+      ) : (
         <>
           <div className="hp-fng-val" style={{ color }}>{val ?? '—'}</div>
           <div className="hp-fng-lbl" style={{ color }}>{lbl || '...'}</div>

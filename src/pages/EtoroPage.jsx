@@ -122,9 +122,8 @@ export default function EtoroPage() {
           <h2 className="et-title">📊 eToro — קופי טריידינג</h2>
           <p className="et-sub">המלצות יומיות + טריידרים מובילים לעקוב</p>
         </div>
-        <div className="et-live-badge">
-          <span className="et-live-dot" />
-          LIVE prices
+        <div className="et-demo-badge" title="נתוני ניתוח — לא מחירים בזמן אמת">
+          📊 נתוני אנליזה
         </div>
       </div>
 
@@ -220,7 +219,7 @@ export default function EtoroPage() {
 
       {/* Disclaimer */}
       <div className="et-disclaimer">
-        ⚠️ המידע מוצג לצורכי לימוד בלבד — אינו מהווה ייעוץ השקעות. LIVE prices מבינאנס / Yahoo Finance.
+        ⚠️ המידע מוצג לצורכי לימוד בלבד — נתוני ניתוח סטטיים, אינם מחירים בזמן אמת ואינם ייעוץ השקעות.
       </div>
 
     </div>
