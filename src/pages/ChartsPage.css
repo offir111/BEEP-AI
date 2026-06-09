@@ -4,9 +4,6 @@
   gap: 8px;
   max-width: 960px;
   margin: 0 auto;
-  /* Fill all available height in app-main */
-  height: calc(100dvh - 180px);
-  min-height: 500px;
 }
 
 .charts-hdr { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; flex-shrink:0; }
@@ -44,15 +41,16 @@
 }
 .charts-alert-btn:hover { background:rgba(212,175,55,0.22); border-color:var(--accent-gold); }
 
-/* Chart area — fills all remaining space */
+/* Chart area — direct viewport calc, bypasses scrollable parent */
 .charts-tv-wrap {
   position: relative;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
   background: #12121a;
-  flex: 1;          /* takes all remaining height */
-  min-height: 300px;
+  /* 265px = header~60 + navbar~50 + topbar~42 + app-padding~32 + hdr~40 + symbols~36 + gaps~25 */
+  height: calc(100dvh - 265px);
+  min-height: 420px;
 }
 .charts-tv-iframe { width:100%; height:100%; border:none; display:block; }
 
@@ -92,7 +90,7 @@
 .charts-sym-badge      { font-size:0.65rem; }
 
 @media (max-width:600px) {
-  .charts-wrap  { height: calc(100dvh - 160px); min-height: 400px; }
-  .charts-title { font-size:0.88rem; }
-  .charts-iv-btn { padding:4px 7px; font-size:0.68rem; }
+  .charts-tv-wrap { height: calc(100dvh - 245px); min-height: 340px; }
+  .charts-title   { font-size:0.88rem; }
+  .charts-iv-btn  { padding:4px 7px; font-size:0.68rem; }
 }
