@@ -361,3 +361,6 @@
   .et-traders-grid { grid-template-columns: 1fr; }
   .et-header { flex-direction: column; }
 }
+
+.et-live-price { font-size:0.75rem; color:var(--text-secondary); margin-top:2px; }
+.et-demo-badge--live { background:rgba(74,222,128,0.12); border-color:rgba(74,222,128,0.4); color:#86efac; }

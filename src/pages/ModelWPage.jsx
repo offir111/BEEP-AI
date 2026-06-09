@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import IframeWithFallback from '../components/IframeWithFallback';
 import './ModelWPage.css';
 
+const PERF_URL = 'https://raw.githubusercontent.com/offir111/model-w/master/data/performance_log.json';
+
 const COINS = [
   { symbol: 'BTCUSDT',  name: 'Bitcoin',  short: 'BTC',  color: '#F7931A' },
   { symbol: 'ETHUSDT',  name: 'Ethereum', short: 'ETH',  color: '#627EEA' },
@@ -98,6 +100,10 @@ export default function ModelWPage() {
   const [refreshKey, setRefreshKey]  = useState(0);
   const [live, setLive]              = useState(false);
 
+  // Performance log from GitHub
+  const [perf, setPerf]     = useState(null);
+  const [perfErr, setPerfErr] = useState(false);
+
   useEffect(() => {
     const t = new Date().toLocaleTimeString('he-IL', {
       timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -105,6 +111,25 @@ export default function ModelWPage() {
     setScanTime(t);
     const timer = setTimeout(() => setLive(true), 1200);
     return () => clearTimeout(timer);
+  }, [refreshKey]);
+
+  // Fetch performance log
+  useEffect(() => {
+    fetch(PERF_URL + '?t=' + Date.now())
+      .then(r => r.json())
+      .then(data => {
+        const trades = Array.isArray(data) ? data : (data.trades || data.history || []);
+        const wins   = trades.filter(t => t.result === 'win' || t.pnl_usd > 0).length;
+        const losses = trades.filter(t => t.result === 'loss' || t.pnl_usd < 0).length;
+        const total  = wins + losses;
+        const pnl    = trades.reduce((s, t) => s + (t.pnl_usd || 0), 0);
+        const wr     = total > 0 ? ((wins / total) * 100).toFixed(1) : '—';
+        // last 7 days
+        const week   = trades.filter(t => t.close_time && Date.now() - new Date(t.close_time) < 7*86400000);
+        const weekPnl = week.reduce((s, t) => s + (t.pnl_usd || 0), 0);
+        setPerf({ wins, losses, total, pnl, wr, weekPnl, lastTrade: trades[trades.length-1] });
+      })
+      .catch(() => setPerfErr(true));
   }, [refreshKey]);
 
   const refresh = () => {
@@ -134,6 +159,21 @@ export default function ModelWPage() {
       <div className="mw-sim-banner">
         ⚠️ מצב סימולציה — לא עסקאות אמיתיות
       </div>
+
+      {/* Performance stats from GitHub */}
+      {perf && !perfErr && (
+        <div className="mw-perf-bar">
+          <span className="mw-perf-item"><span className="mw-perf-label">Win Rate</span><span className="mw-perf-val" style={{color:'#4ade80'}}>{perf.wr}%</span></span>
+          <span className="mw-perf-sep"/>
+          <span className="mw-perf-item"><span className="mw-perf-label">Wins</span><span className="mw-perf-val" style={{color:'#4ade80'}}>{perf.wins}</span></span>
+          <span className="mw-perf-sep"/>
+          <span className="mw-perf-item"><span className="mw-perf-label">Losses</span><span className="mw-perf-val" style={{color:'#ef4444'}}>{perf.losses}</span></span>
+          <span className="mw-perf-sep"/>
+          <span className="mw-perf-item"><span className="mw-perf-label">P&L כולל</span><span className="mw-perf-val" style={{color:perf.pnl>=0?'#4ade80':'#ef4444'}}>${perf.pnl>=0?'+':''}{perf.pnl.toFixed(0)}</span></span>
+          <span className="mw-perf-sep"/>
+          <span className="mw-perf-item"><span className="mw-perf-label">7 ימים</span><span className="mw-perf-val" style={{color:perf.weekPnl>=0?'#4ade80':'#ef4444'}}>${perf.weekPnl>=0?'+':''}{perf.weekPnl.toFixed(0)}</span></span>
+        </div>
+      )}
 
       {/* Algo params */}
       <div className="mw-algo-bar">

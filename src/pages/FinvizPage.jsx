@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './FinvizPage.css';
 
 const PATTERNS = [
@@ -138,10 +138,58 @@ const TYPE_COLORS = {
   Neutral: { cls: 'pat-neutral', label: 'Neutral' },
 };
 
+// ── Signal label from TradingView score ──────────────────────
+function tvSignal(score) {
+  if (score >=  0.5) return { label: 'STRONG BUY', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' };
+  if (score >=  0.1) return { label: 'BUY',         color: '#4ade80', bg: 'rgba(74,222,128,0.10)' };
+  if (score >= -0.1) return { label: 'NEUTRAL',     color: '#D4AF37', bg: 'rgba(212,175,55,0.10)' };
+  if (score >= -0.5) return { label: 'SELL',         color: '#f87171', bg: 'rgba(248,113,113,0.10)' };
+  return                    { label: 'STRONG SELL', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' };
+}
+
+// ── Live pattern result section ───────────────────────────────
+function LivePatternResult({ data }) {
+  if (!data) return null;
+  return (
+    <div className="fv-live-result">
+      <div className="fv-live-header">
+        <span className="fv-live-title">🎯 {data.total} מניות נמצאו — TradingView Live</span>
+        <span className="fv-live-time">{data.scannedAt ? new Date(data.scannedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : ''}</span>
+      </div>
+      {data.patterns.map(pat => pat.stocks.length > 0 && (
+        <div key={pat.id} className="fv-live-pat-group">
+          <div className="fv-live-pat-title" style={{ color: pat.color }}>
+            {pat.emoji} {pat.labelHe} — {pat.stocks.length} מניות ({pat.confidence}% ביטחון)
+          </div>
+          <div className="fv-live-stocks">
+            {pat.stocks.slice(0, 8).map(s => {
+              const sig = tvSignal(s.score);
+              const up = s.change >= 0;
+              return (
+                <div key={s.ticker} className="fv-live-stock-row">
+                  <span className="fv-live-ticker">{s.ticker}</span>
+                  <span className="fv-live-price">${s.price.toFixed(2)}</span>
+                  <span className="fv-live-change" style={{ color: up?'#4ade80':'#ef4444' }}>{up?'▲':'▼'}{Math.abs(s.change)}%</span>
+                  {s.rsi != null && <span className="fv-live-rsi">RSI {s.rsi}</span>}
+                  <span className="fv-live-cap">{s.mcapFmt}</span>
+                  <span className="fv-live-sig" style={{ color:sig.color, background:sig.bg }}>{sig.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <div className="fv-live-source">מקור: TradingView Scanner · {data.criteria?.universe}</div>
+    </div>
+  );
+}
+
 export default function FinvizPage() {
   const [filter, setFilter]         = useState('הכל');
   const [scanning, setScanning]     = useState(false);
   const [scanResult, setScanResult] = useState(null);
+  const [liveData,  setLiveData]    = useState(null);
+  const [scanError, setScanError]   = useState('');
 
   const filters = ['הכל', 'Bullish', 'Bearish', 'Neutral'];
 
@@ -149,15 +197,27 @@ export default function FinvizPage() {
     ? PATTERNS
     : PATTERNS.filter(p => p.type === filter);
 
-  const handleScan = () => {
+  // Auto-load on mount
+  useEffect(() => { handleScan(); }, []); // eslint-disable-line
+
+  const handleScan = async () => {
+    if (scanning) return;
     setScanning(true);
     setScanResult(null);
-    setTimeout(() => {
-      const count = 2 + Math.floor(Math.random() * 4);
-      const picks = [...SCAN_STOCKS].sort(() => Math.random() - 0.5).slice(0, count);
-      setScanResult(picks);
-      setScanning(false);
-    }, 1800);
+    setScanError('');
+    try {
+      const res = await fetch('/api/finviz-model');
+      if (!res.ok) throw new Error(`שגיאת שרת ${res.status}`);
+      const data = await res.json();
+      setLiveData(data);
+      // Collect all tickers for "found" display
+      const tickers = data.patterns.flatMap(p => p.stocks.slice(0,4).map(s => s.ticker));
+      setScanResult(tickers.length > 0 ? tickers : ['לא נמצאו מניות']);
+    } catch (e) {
+      setScanError(e.message);
+      setScanResult([]);
+    }
+    setScanning(false);
   };
 
   return (
@@ -174,15 +234,18 @@ export default function FinvizPage() {
         </button>
       </div>
 
-      {/* Scan result */}
-      {scanResult && (
+      {/* Live scan results */}
+      <LivePatternResult data={liveData} />
+
+      {/* Scan result chips */}
+      {scanResult && scanResult.length > 0 && (
         <div className="fv-scan-result">
           <div className="fv-scan-top">
-            <span className="fv-scan-found">נמצאו {scanResult.length} תבניות</span>
-            <span className="fv-scan-demo-label">⚠️ Demo — לא סריקה אמיתית</span>
+            <span className="fv-scan-found">✅ LIVE — נמצאו {scanResult.length}+ מניות</span>
+            {scanError && <span className="fv-scan-demo-label">⚠️ {scanError}</span>}
           </div>
           <div className="fv-scan-tickers">
-            {scanResult.map(s => (
+            {scanResult.slice(0,12).map(s => (
               <span key={s} className="fv-scan-ticker">{s}</span>
             ))}
           </div>

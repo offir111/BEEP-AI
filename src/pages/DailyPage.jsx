@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './DailyPage.css';
 
 const NEWS = [
@@ -111,7 +111,41 @@ function NewsCard({ item, idx }) {
   );
 }
 
+const SIG_LABELS = {
+  'STRONG BUY': ['⚡ Strong Buy', '🚀 Momentum'], BUY: ['✅ Buy', '📈 Trend Up'],
+  HOLD: ['⏸ Hold', '🔍 Watchlist'], SELL: ['📉 Sell', '⚠️ Caution'], 'STRONG SELL': ['🔴 Strong Sell', '⛔ Exit'],
+};
+const COLORS = ['#76b900','#F7931A','#4285F4','#e31937','#0082fb','#9945FF','#F3BA2F','#627EEA'];
+
 export default function DailyPage() {
+  const [items,    setItems]    = useState(NEWS); // start with static, replace with live
+  const [loading,  setLoading]  = useState(true);
+  const [lastScan, setLastScan] = useState('');
+
+  useEffect(() => {
+    fetch('/api/scan')
+      .then(r => r.json())
+      .then(data => {
+        const top = (data.results || []).slice(0, 5);
+        if (top.length === 0) { setLoading(false); return; }
+        const live = top.map((item, i) => ({
+          rank:       i + 1,
+          ticker:     item.symbol,
+          score:      item.score,
+          headline:   `${item.name} — ${item.signal} (${item.change > 0 ? '+' : ''}${item.change}%)`,
+          headlineHe: `${item.name}: ${item.signal} | שינוי ${item.change > 0 ? '+' : ''}${item.change}% | מחיר $${item.price?.toLocaleString()}`,
+          upside:     item.change > 0 ? `+${item.change}%` : `${item.change}%`,
+          signals:    SIG_LABELS[item.signal] || ['📊 סריקה'],
+          detail:     `ניתוח חי — ${item.name} (${item.symbol}) | ציון: ${item.score}/100 | מחיר: $${item.price?.toLocaleString()} | שינוי 24H: ${item.change > 0 ? '+' : ''}${item.change}% | סיגנל: ${item.signal}`,
+          tickerColor: COLORS[i % COLORS.length],
+        }));
+        setItems(live);
+        setLastScan(new Date().toLocaleTimeString('he-IL', { timeZone:'Asia/Jerusalem', hour:'2-digit', minute:'2-digit' }));
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
   return (
     <div className="dp-wrap">
 
@@ -126,10 +160,14 @@ export default function DailyPage() {
         </div>
       </div>
 
-      {/* Demo banner */}
-      <div className="dp-demo-banner">
-        🤖 DEMO — נתונים לדוגמה בלבד — לא ייעוץ השקעות
-      </div>
+      {/* Status banner */}
+      {loading ? (
+        <div className="dp-demo-banner">⏳ טוען נתונים חיים...</div>
+      ) : lastScan ? (
+        <div className="dp-live-banner">🟢 LIVE — נתונים חיים · עדכון: {lastScan} · לא ייעוץ השקעות</div>
+      ) : (
+        <div className="dp-demo-banner">🤖 DEMO — נתונים לדוגמה בלבד — לא ייעוץ השקעות</div>
+      )}
 
       {/* Rank legend */}
       <div className="dp-legend-row">
@@ -140,7 +178,7 @@ export default function DailyPage() {
 
       {/* Cards */}
       <div className="dp-cards">
-        {NEWS.map((item, i) => (
+        {items.map((item, i) => (
           <NewsCard key={item.ticker} item={item} idx={i} />
         ))}
       </div>

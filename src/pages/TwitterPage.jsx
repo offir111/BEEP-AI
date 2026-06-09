@@ -1,5 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './TwitterPage.css';
+
+// ── TradingView Live News Widget ───────────────────────────────
+function TvNewsWidget() {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    ref.current.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'tradingview-widget-container__widget';
+    ref.current.appendChild(wrap);
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-timeline.js';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      feedMode: 'all_symbols',
+      isTransparent: true,
+      displayMode: 'adaptive',
+      width: '100%',
+      height: 480,
+      colorTheme: 'dark',
+      locale: 'he_IL',
+    });
+    ref.current.appendChild(script);
+  }, []);
+  return <div ref={ref} className="tw-tv-news" />;
+}
 
 const WHALE_ALERTS = [
   {
@@ -148,6 +174,12 @@ export default function TwitterPage() {
           <h2 className="tw-title">📡 Market Feed — חדשות ופיד</h2>
           <p className="tw-sub">טוויטים נבחרים ממשפיענים — BTC, מניות, קריפטו</p>
         </div>
+      </div>
+
+      {/* Live TradingView News */}
+      <div className="tw-live-section">
+        <div className="tw-live-title">📡 חדשות שוק חיות — TradingView</div>
+        <TvNewsWidget />
       </div>
 
       {/* Demo disclaimer */}

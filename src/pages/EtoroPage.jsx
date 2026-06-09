@@ -1,5 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './EtoroPage.css';
+
+// Fetch live prices for TOP3 symbols
+async function fetchLivePrices() {
+  const prices = {};
+  try {
+    // BTC via Binance
+    const btcR = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
+    const btcD = await btcR.json();
+    prices['BTC'] = { price: parseFloat(btcD.lastPrice), change: parseFloat(btcD.priceChangePercent) };
+  } catch {}
+  try {
+    // NVDA and GOOGL via Yahoo proxy
+    const [nvda, googl] = await Promise.all([
+      fetch('/api/market?symbol=NVDA').then(r => r.json()),
+      fetch('/api/market?symbol=GOOGL').then(r => r.json()),
+    ]);
+    if (nvda.price)  prices['NVDA']  = { price: nvda.price,  change: nvda.change  };
+    if (googl.price) prices['GOOGL'] = { price: googl.price, change: googl.change };
+  } catch {}
+  return prices;
+}
 
 const TOP3 = [
   {
@@ -112,6 +133,14 @@ function RiskDots({ risk }) {
 
 export default function EtoroPage() {
   const [openTrader, setOpenTrader] = useState(null);
+  const [livePrices, setLivePrices] = useState({});
+  const [pricesLoaded, setPricesLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchLivePrices().then(p => { setLivePrices(p); setPricesLoaded(true); });
+    const iv = setInterval(() => fetchLivePrices().then(setLivePrices), 30000);
+    return () => clearInterval(iv);
+  }, []);
 
   return (
     <div className="et-wrap">
@@ -122,20 +151,23 @@ export default function EtoroPage() {
           <h2 className="et-title">📊 eToro — קופי טריידינג</h2>
           <p className="et-sub">המלצות יומיות + טריידרים מובילים לעקוב</p>
         </div>
-        <div className="et-demo-badge" title="נתוני ניתוח — לא מחירים בזמן אמת">
-          📊 נתוני אנליזה
+        <div className={`et-demo-badge ${pricesLoaded ? 'et-demo-badge--live' : ''}`}>
+          {pricesLoaded ? '🟢 מחירים חיים' : '📊 טוען...'}
         </div>
       </div>
 
-      {/* Demo data disclaimer */}
+      {/* Data disclaimer */}
       <div className="et-data-disclaimer">
-        ⚠️ הנתונים בעמוד זה הם <strong>דמו בלבד</strong> — שמות הטריידרים, התשואות והאחזקות הם נתונים לדוגמה ואינם אמיתיים
+        ⚠️ מחירי המניות/קריפטו הם <strong>LIVE</strong> — שמות הטריידרים, תשואות ואחזקות הם נתוני דמו
       </div>
 
       {/* Top 3 recommendations */}
       <div className="et-section-title">🏆 Top 3 המלצות יומיות</div>
       <div className="et-top3-grid">
-        {TOP3.map((r, i) => (
+        {TOP3.map((r, i) => {
+          const lp = livePrices[r.ticker];
+          const lpUp = lp ? lp.change >= 0 : true;
+          return (
           <div key={r.ticker} className="et-rec-card" style={{ '--rec-color': r.color }}>
             <div className="et-rec-rank">#{i + 1}</div>
             <div className="et-rec-header">
@@ -145,6 +177,7 @@ export default function EtoroPage() {
               <div>
                 <div className="et-rec-ticker" style={{ color: r.color }}>{r.ticker}</div>
                 <div className="et-rec-name">{r.name}</div>
+                {lp && <div className="et-live-price">${lp.price.toLocaleString()} <span style={{color:lpUp?'#4ade80':'#ef4444'}}>{lpUp?'▲':'▼'}{Math.abs(lp.change).toFixed(2)}%</span></div>}
               </div>
               <span className="et-rec-signal">{r.signal}</span>
             </div>
@@ -172,7 +205,8 @@ export default function EtoroPage() {
 
             <p className="et-rec-details">{r.details}</p>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Traders */}

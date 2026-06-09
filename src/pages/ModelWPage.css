@@ -290,3 +290,14 @@
   .mw-header { flex-direction: column; }
   .mw-algo-bar { padding: 10px 14px; }
 }
+
+/* ── Performance bar from GitHub ── */
+.mw-perf-bar {
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  background:rgba(74,222,128,0.06); border:1px solid rgba(74,222,128,0.2);
+  border-radius:8px; padding:10px 14px; font-size:0.8rem;
+}
+.mw-perf-item { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.mw-perf-label { font-size:0.62rem; color:var(--text-muted); }
+.mw-perf-val   { font-weight:700; }
+.mw-perf-sep   { width:1px; height:24px; background:var(--border); flex-shrink:0; }

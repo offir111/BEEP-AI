@@ -360,3 +360,14 @@
   .mb-chart-container { height: 300px; }
   .mb-stats-row { gap: 14px; }
 }
+
+/* ── Bot portfolio additions ── */
+.mb-portfolio-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.mb-port-card { background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; padding:10px; text-align:center; }
+.mb-port-label { font-size:0.65rem; color:var(--text-muted); margin-bottom:4px; }
+.mb-port-val   { font-size:1rem; font-weight:700; color:var(--text-primary); }
+.mb-stats-mini { display:flex; gap:16px; flex-wrap:wrap; font-size:0.82rem; color:var(--text-secondary); padding:10px; background:var(--bg-secondary); border-radius:8px; }
+.mb-circuit-banner { background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); border-radius:8px; padding:10px 14px; color:#fca5a5; font-size:0.85rem; font-weight:700; text-align:center; }
+.mb-type-long  { background:rgba(74,222,128,0.15); color:#4ade80; padding:2px 7px; border-radius:4px; font-size:0.75rem; font-weight:700; }
+.mb-type-short { background:rgba(239,68,68,0.15);  color:#ef4444; padding:2px 7px; border-radius:4px; font-size:0.75rem; font-weight:700; }
+@media(max-width:480px){ .mb-portfolio-grid{grid-template-columns:repeat(2,1fr);} }

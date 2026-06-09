@@ -243,3 +243,8 @@
   .dp-detail { padding: 12px 14px; }
   .dp-header { flex-direction: column; }
 }
+
+.dp-live-banner {
+  background: rgba(74,222,128,0.08); border: 1px solid rgba(74,222,128,0.3);
+  border-radius: 8px; padding: 9px 14px; color: #86efac; font-size: 0.8rem; text-align: center;
+}
