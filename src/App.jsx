@@ -15,14 +15,15 @@ import ModelSmcPage from './pages/ModelSmcPage';
 import FinvizPage   from './pages/FinvizPage';
 import EtoroPage    from './pages/EtoroPage';
 import TwitterPage  from './pages/TwitterPage';
-import DailyPage    from './pages/DailyPage';
-import NotFoundPage from './pages/NotFoundPage';
+import DailyPage         from './pages/DailyPage';
+import ScanOfTodayPage   from './pages/ScanOfTodayPage';
+import NotFoundPage      from './pages/NotFoundPage';
 import './App.css';
 
 const VALID_PAGES = [
   'home','charts','crypto','news','alerts',
   'model-w','model-bit','model-smc',
-  'finviz','etoro','twitter','daily'
+  'finviz','etoro','twitter','daily','sot'
 ];
 
 function AppInner() {
@@ -66,6 +67,7 @@ function AppInner() {
         {page === 'etoro'     && <EtoroPage  />}
         {page === 'twitter'   && <TwitterPage />}
         {page === 'daily'     && <DailyPage  />}
+        {page === 'sot'       && <ScanOfTodayPage navigate={navigate} />}
         {page === '404'       && <NotFoundPage navigate={navigate} />}
       </main>
     </div>

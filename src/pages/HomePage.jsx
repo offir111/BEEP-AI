@@ -149,11 +149,11 @@ export default function HomePage({ navigate }) {
         <button className="hp-action-btn" onClick={() => navigate('news')}>
           <span>📰</span><span>חדשות שוק</span>
         </button>
-        <div className="hp-action-btn hp-action-btn--ai" title="פיצ'ר AI בפיתוח — יושק בקרוב 🤖">
+        <button className="hp-action-btn hp-action-btn--ai" onClick={() => navigate('sot')}>
           <span>🤖</span>
           <span>BEEP AI</span>
-          <small>בקרוב</small>
-        </div>
+          <small>סריקה חכמה</small>
+        </button>
       </div>
 
     </div>
