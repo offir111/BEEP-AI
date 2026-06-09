@@ -52,11 +52,34 @@ function OfflineBanner() {
   );
 }
 
+const PAGE_TITLES = {
+  charts: '📈 גרפים', crypto: '₿ קריפטו', news: '📰 חדשות',
+  alerts: '🔔 התראות', 'model-w': '🤖 Model W', 'model-bit': '₿ Model BIT',
+  'model-smc': '📐 Model SMC', finviz: '📊 FINVIZ', etoro: '📋 eToro',
+  twitter: '🐦 טוויטר', daily: '📅 יומי', sot: '🤖 SOT',
+};
+
+function PageTopBar({ page, onBack, onClose }) {
+  if (page === 'home') return null;
+  return (
+    <div className="page-topbar">
+      <button className="page-topbar-back" onClick={onBack} aria-label="חזור לעמוד הקודם">
+        &#8592; חזור
+      </button>
+      <span className="page-topbar-title">{PAGE_TITLES[page] || ''}</span>
+      <button className="page-topbar-close" onClick={onClose} aria-label="סגור ועבור לדף הבית">
+        &#10005;
+      </button>
+    </div>
+  );
+}
+
 function AppInner() {
   const [session, setSession] = useState(() => {
     try { return JSON.parse(localStorage.getItem('beepai_session')); } catch { return null; }
   });
   const [page, setPage] = useState('home');
+  const [navHistory, setNavHistory] = useState(['home']);
 
   const logout = () => {
     localStorage.removeItem('beepai_session');
@@ -64,7 +87,21 @@ function AppInner() {
   };
 
   const navigate = (p) => {
-    setPage(VALID_PAGES.includes(p) ? p : '404');
+    const target = VALID_PAGES.includes(p) ? p : '404';
+    setPage(target);
+    setNavHistory(prev => [...prev, target]);
+    window.scrollTo(0, 0);
+  };
+
+  const goBack = () => {
+    if (navHistory.length > 1) {
+      const prev = navHistory[navHistory.length - 2];
+      setNavHistory(h => h.slice(0, -1));
+      setPage(prev);
+    } else {
+      setPage('home');
+      setNavHistory(['home']);
+    }
     window.scrollTo(0, 0);
   };
 
@@ -80,6 +117,7 @@ function AppInner() {
       <Header onLogout={logout} username={session.username} isAdmin={session.isAdmin} navigate={navigate} page={page} />
       <NavBar page={page} navigate={navigate} />
       <AlertBanner />
+      <PageTopBar page={page} onBack={goBack} onClose={() => { setPage('home'); setNavHistory(['home']); window.scrollTo(0,0); }} />
       <main className="app-main">
         {page === 'home'      && <HomePage   navigate={navigate} />}
         {page === 'charts'    && <ChartsPage />}
