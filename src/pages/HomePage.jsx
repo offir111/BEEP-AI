@@ -1,166 +1,223 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useAlerts } from '../context/AlertsContext';
 import './HomePage.css';
 
-// ── Skeleton loader ───────────────────────────────────────────
-function Skeleton() {
-  return <div className="skeleton" />;
-}
+// ── Live BTC ticker ────────────────────────────────────────────
+function useBTC() {
+  const [btc, setBtc] = useState(null);
+  const [flash, setFlash] = useState(null);
+  const prevRef = useRef(null);
 
-// ── Fear & Greed Card ─────────────────────────────────────────
-// BUG-03: FearGreedCard now has error state + retry button
-function FearGreedCard() {
-  const [val,     setVal]     = useState(null);
-  const [lbl,     setLbl]     = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(false);
-
-  const load = useCallback(() => {
-    setLoading(true); setError(false);
-    fetch('https://api.alternative.me/fng/?limit=1')
+  const fetch_ = useCallback(() => {
+    fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
       .then(r => r.json())
       .then(d => {
-        const v = parseInt(d?.data?.[0]?.value);
-        const l = d?.data?.[0]?.value_classification || '';
-        if (!isNaN(v)) { setVal(v); setLbl(l); } else { setError(true); }
-        setLoading(false);
-      })
-      .catch(() => { setError(true); setLoading(false); });
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const color =
-    !val ? '#888' :
-    val <= 20 ? '#c62828' :
-    val <= 40 ? '#ef5350' :
-    val <= 55 ? '#D4AF37' :
-    val <= 75 ? '#66bb6a' : '#26a69a';
-
-  return (
-    <div className="hp-card">
-      <div className="hp-card-title">Fear &amp; Greed</div>
-      {loading ? <Skeleton /> : error ? (
-        <div className="hp-card-err" onClick={load} title="לחץ לנסות שוב" role="button" aria-label="טעינה נכשלה — לחץ לנסות שוב">
-          ⚠️ נסה שוב
-        </div>
-      ) : (
-        <>
-          <div className="hp-fng-val" style={{ color }}>{val ?? '—'}</div>
-          <div className="hp-fng-lbl" style={{ color }}>{lbl || '...'}</div>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── Market Card (uses server-side proxy) ──────────────────────
-function MarketCard({ symbol, label, prefix = '$' }) {
-  const [price,   setPrice]   = useState(null);
-  const [change,  setChange]  = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(false);
-
-  const load = useCallback(() => {
-    setLoading(true); setError(false);
-    fetch(`/api/market?symbol=${encodeURIComponent(symbol)}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.price !== null) {
-          setPrice(d.price);
-          setChange(d.change);
-        } else {
-          setError(true);
+        const price  = parseFloat(d.lastPrice);
+        const change = parseFloat(d.priceChangePercent);
+        const high   = parseFloat(d.highPrice);
+        const low    = parseFloat(d.lowPrice);
+        if (prevRef.current !== null) {
+          if (price > prevRef.current) setFlash('up');
+          else if (price < prevRef.current) setFlash('down');
+          setTimeout(() => setFlash(null), 600);
         }
-        setLoading(false);
+        prevRef.current = price;
+        setBtc({ price, change, high, low });
       })
-      .catch(() => { setError(true); setLoading(false); });
-  }, [symbol]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const up = (change || 0) >= 0;
-
-  return (
-    <div className="hp-card">
-      <div className="hp-card-title">{label}</div>
-      {loading ? <Skeleton /> : error ? (
-        <div className="hp-card-err" onClick={load} title="לחץ לנסות שוב">⚠️ נסה שוב</div>
-      ) : (
-        <>
-          <div className="hp-price">
-            {price ? `${prefix}${price.toLocaleString()}` : '—'}
-          </div>
-          {change !== null && (
-            <div className="hp-change" style={{ color: up ? '#4ade80' : '#ef4444' }}>
-              {up ? '▲' : '▼'} {Math.abs(change)}%
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── Home Page ─────────────────────────────────────────────────
-export default function HomePage({ navigate }) {
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [lastUpdate, setLastUpdate] = useState('');
-
-  const refresh = () => {
-    setRefreshKey(k => k + 1);
-    setLastUpdate(new Date().toLocaleTimeString('he-IL', {
-      timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit'
-    }));
-  };
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
-    setLastUpdate(new Date().toLocaleTimeString('he-IL', {
-      timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit'
-    }));
+    fetch_();
+    const iv = setInterval(fetch_, 15000);
+    return () => clearInterval(iv);
+  }, [fetch_]);
+
+  return { btc, flash };
+}
+
+// ── Small market pill ─────────────────────────────────────────
+function MarketPill({ symbol, label, prefix = '$' }) {
+  const [price,  setPrice]  = useState(null);
+  const [change, setChange] = useState(null);
+
+  useEffect(() => {
+    fetch(`/api/market?symbol=${encodeURIComponent(symbol)}`)
+      .then(r => r.json())
+      .then(d => { if (d.price) { setPrice(d.price); setChange(d.change); } })
+      .catch(() => {});
+  }, [symbol]);
+
+  const up = (change || 0) >= 0;
+  return (
+    <div className="hp-pill">
+      <span className="hp-pill-label">{label}</span>
+      {price
+        ? <>
+            <span className="hp-pill-price">{prefix}{price.toLocaleString('en', { maximumFractionDigits: price < 10 ? 2 : 0 })}</span>
+            <span className="hp-pill-change" style={{ color: up ? '#4ade80' : '#f87171' }}>
+              {up ? '▲' : '▼'}{Math.abs(change).toFixed(1)}%
+            </span>
+          </>
+        : <span className="hp-pill-loading">…</span>
+      }
+    </div>
+  );
+}
+
+// ── Fear & Greed mini ─────────────────────────────────────────
+function FearGreedMini() {
+  const [val, setVal] = useState(null);
+  const [lbl, setLbl] = useState('');
+  useEffect(() => {
+    fetch('https://api.alternative.me/fng/?limit=1')
+      .then(r => r.json())
+      .then(d => { setVal(parseInt(d?.data?.[0]?.value)); setLbl(d?.data?.[0]?.value_classification || ''); })
+      .catch(() => {});
   }, []);
+  const color = !val ? '#888' : val <= 25 ? '#ef4444' : val <= 45 ? '#f97316' : val <= 55 ? '#eab308' : val <= 75 ? '#84cc16' : '#22c55e';
+  return (
+    <div className="hp-pill">
+      <span className="hp-pill-label">F&amp;G</span>
+      {val
+        ? <><span className="hp-pill-price" style={{ color }}>{val}</span><span className="hp-pill-change" style={{ color, fontSize: '0.62rem' }}>{lbl}</span></>
+        : <span className="hp-pill-loading">…</span>
+      }
+    </div>
+  );
+}
+
+// ── Robot card ────────────────────────────────────────────────
+function RobotCard({ icon, name, desc, tag, tagColor, onClick }) {
+  return (
+    <button className="hp-robot-card" onClick={onClick}>
+      <div className="hp-robot-icon">{icon}</div>
+      <div className="hp-robot-info">
+        <div className="hp-robot-name">{name}</div>
+        <div className="hp-robot-desc">{desc}</div>
+      </div>
+      <span className="hp-robot-tag" style={{ color: tagColor, borderColor: tagColor + '55', background: tagColor + '18' }}>
+        {tag}
+      </span>
+    </button>
+  );
+}
+
+// ── Main ──────────────────────────────────────────────────────
+export default function HomePage({ navigate }) {
+  const { btc, flash } = useBTC();
+  const { alerts } = useAlerts();
+  const activeAlerts = alerts.filter(a => !a.triggered).length;
+  const up = btc ? btc.change >= 0 : true;
+
+  const fmt = (n) => n >= 1000 ? n.toLocaleString('en', { maximumFractionDigits: 0 }) : n.toFixed(2);
 
   return (
-    <div className="hp-wrap">
+    <div className="hp-wrap" dir="rtl">
 
-      {/* Welcome */}
-      <div className="hp-welcome">
-        <div className="hp-welcome-top">
-          <div>
-            <h2 className="hp-welcome-title">ברוך הבא ל-BEEP AI ⚡</h2>
-            <p className="hp-welcome-sub">סורק מניות וקריפטו חכם — נתונים חיים, התראות בזמן אמת</p>
+      {/* ── BTC Hero ── */}
+      <div className={`hp-btc-hero${flash === 'up' ? ' hp-flash-up' : flash === 'down' ? ' hp-flash-down' : ''}`}>
+        <div className="hp-btc-left">
+          <div className="hp-btc-badge">
+            <span className="hp-btc-dot" />
+            LIVE
           </div>
-          <button className="hp-refresh-btn" onClick={refresh} title="רענן נתונים">
-            ↻ רענן
-          </button>
+          <div className="hp-btc-symbol">₿ Bitcoin</div>
+          <div className="hp-btc-price">
+            {btc ? `$${fmt(btc.price)}` : <span className="hp-btc-loading">טוען…</span>}
+          </div>
+          {btc && (
+            <div className="hp-btc-change" style={{ color: up ? '#4ade80' : '#f87171' }}>
+              {up ? '▲' : '▼'} {Math.abs(btc.change).toFixed(2)}% — 24H
+            </div>
+          )}
+          {btc && (
+            <div className="hp-btc-hl">
+              <span style={{ color: '#4ade80' }}>H ${fmt(btc.high)}</span>
+              <span style={{ color: '#f87171' }}>  L ${fmt(btc.low)}</span>
+            </div>
+          )}
         </div>
-        {lastUpdate && <div className="hp-last-update">עדכון אחרון: {lastUpdate}</div>}
+        <button className="hp-btc-chart-btn" onClick={() => navigate('charts')} aria-label="פתח גרף BTC">
+          <span style={{ fontSize: '1.6rem' }}>📊</span>
+          <span>גרף נרות</span>
+          <span style={{ fontSize: '0.65rem', opacity: 0.65 }}>TradingView</span>
+        </button>
       </div>
 
-      {/* Cards grid */}
-      <div className="hp-grid" key={refreshKey}>
-        <FearGreedCard />
-        <MarketCard symbol="BTC-USD"  label="Bitcoin" />
-        <MarketCard symbol="^GSPC"    label="S&P 500" />
-        <MarketCard symbol="XAUUSD=X"  label="Gold" />
+      {/* ── Market strip ── */}
+      <div className="hp-market-strip">
+        <MarketPill symbol="^GSPC"    label="S&P 500" />
+        <MarketPill symbol="XAUUSD=X" label="זהב" />
+        <MarketPill symbol="ETH-USD"  label="ETH" />
+        <MarketPill symbol="SOL-USD"  label="SOL" />
+        <FearGreedMini />
       </div>
 
-      {/* Quick actions */}
-      <div className="hp-actions-title">גישה מהירה</div>
-      <div className="hp-actions">
-        <button className="hp-action-btn" onClick={() => navigate('charts')}>
-          <span>📈</span><span>פתח גרף</span>
+      {/* ── 2 Feature cards ── */}
+      <div className="hp-features">
+
+        {/* Alert feature */}
+        <button className="hp-feature-card hp-feature-alert" onClick={() => navigate('alerts')}>
+          <div className="hp-feature-glow hp-feature-glow--alert" />
+          <div className="hp-feature-icon">🔔</div>
+          <div className="hp-feature-text">
+            <div className="hp-feature-title">Push Alerts</div>
+            <div className="hp-feature-sub">קבל התראה כשהמחיר מגיע ליעד — גם כשהאפליקציה סגורה</div>
+          </div>
+          {activeAlerts > 0
+            ? <span className="hp-feature-badge hp-feature-badge--active">{activeAlerts} פעיל</span>
+            : <span className="hp-feature-badge">+ הגדר</span>
+          }
         </button>
-        <button className="hp-action-btn" onClick={() => navigate('crypto')}>
-          <span>₿</span><span>קריפטו LIVE</span>
+
+        {/* SOT / BEEP AI feature */}
+        <button className="hp-feature-card hp-feature-ai" onClick={() => navigate('sot')}>
+          <div className="hp-feature-glow hp-feature-glow--ai" />
+          <div className="hp-feature-icon">🤖</div>
+          <div className="hp-feature-text">
+            <div className="hp-feature-title">BEEP AI Scan</div>
+            <div className="hp-feature-sub">סריקת AI מיידית — מגלה את המניות הכי חמות עכשיו</div>
+          </div>
+          <span className="hp-feature-badge hp-feature-badge--ai">הפעל</span>
         </button>
-        <button className="hp-action-btn" onClick={() => navigate('news')}>
-          <span>📰</span><span>חדשות שוק</span>
-        </button>
-        <button className="hp-action-btn hp-action-btn--ai" onClick={() => navigate('sot')}>
-          <span>🤖</span>
-          <span>BEEP AI</span>
-          <small>סריקה חכמה</small>
-        </button>
+
+      </div>
+
+      {/* ── Robots section ── */}
+      <div className="hp-section-title">🤖 סקנרים &amp; רובוטים</div>
+      <div className="hp-robots">
+        <RobotCard
+          icon="⚙️" name="Model W" desc="סורק קריפטו — BTC/ETH/SOL/BNB"
+          tag="LIVE" tagColor="#22d3ee"
+          onClick={() => navigate('model-w')}
+        />
+        <RobotCard
+          icon="₿" name="Model BIT" desc="Bitcoin בלבד — מגמת 4H + כניסה 1H"
+          tag="LIVE" tagColor="#22d3ee"
+          onClick={() => navigate('model-bit')}
+        />
+        <RobotCard
+          icon="📐" name="Model SMC" desc="Smart Money — מניות מוסדיות"
+          tag="אנליזה" tagColor="#a78bfa"
+          onClick={() => navigate('model-smc')}
+        />
+        <RobotCard
+          icon="📊" name="FINVIZ" desc="סקנר תבניות ריוורסל — 9 תבניות"
+          tag="סריקה" tagColor="#f59e0b"
+          onClick={() => navigate('finviz')}
+        />
+      </div>
+
+      {/* ── Quick nav ── */}
+      <div className="hp-section-title">⚡ גישה מהירה</div>
+      <div className="hp-quick">
+        <button className="hp-quick-btn" onClick={() => navigate('charts')}>📈<br/><small>גרפים</small></button>
+        <button className="hp-quick-btn" onClick={() => navigate('crypto')}>₿<br/><small>קריפטו</small></button>
+        <button className="hp-quick-btn" onClick={() => navigate('news')}>📰<br/><small>חדשות</small></button>
+        <button className="hp-quick-btn" onClick={() => navigate('daily')}>📅<br/><small>יומי</small></button>
+        <button className="hp-quick-btn" onClick={() => navigate('etoro')}>📋<br/><small>eToro</small></button>
+        <button className="hp-quick-btn" onClick={() => navigate('twitter')}>🐦<br/><small>טוויטר</small></button>
       </div>
 
     </div>
