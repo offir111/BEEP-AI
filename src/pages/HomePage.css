@@ -215,16 +215,17 @@
 
 /* ── Robots ── */
 .hp-robots {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
 .hp-robot-card {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 16px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 12px;
   border-radius: 14px;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.07);
@@ -238,20 +239,29 @@
   border-color: rgba(255,255,255,0.14);
 }
 
-.hp-robot-icon { font-size: 1.4rem; flex-shrink: 0; }
+.hp-robot-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 4px;
+}
 
-.hp-robot-info { display: flex; flex-direction: column; gap: 2px; flex: 1; }
-.hp-robot-name { font-size: 0.85rem; font-weight: 700; color: #fff; }
-.hp-robot-desc { font-size: 0.7rem; color: rgba(255,255,255,0.4); }
+.hp-robot-icon { font-size: 1.3rem; flex-shrink: 0; }
+
+.hp-robot-info { display: flex; flex-direction: column; gap: 2px; width: 100%; }
+.hp-robot-name { font-size: 0.82rem; font-weight: 700; color: #fff; }
+.hp-robot-desc { font-size: 0.64rem; color: rgba(255,255,255,0.4); line-height: 1.3; }
 
 .hp-robot-tag {
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 700;
-  padding: 3px 9px;
+  padding: 2px 7px;
   border-radius: 999px;
   border: 1px solid;
   flex-shrink: 0;
   letter-spacing: 0.3px;
+  align-self: flex-start;
 }
 
 /* ── Quick nav ── */
