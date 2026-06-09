@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 //  S.O.T — Scan Of Today  |  עיצוב חדש + לוגיקה אמיתית
 // ============================================================
 
-const GRAD      = 'linear-gradient(135deg,#c084fc 0%,#a855f7 45%,#ec4899 100%)';
-const BAR_GRAD  = 'linear-gradient(90deg,#22d3ee 0%,#a855f7 60%,#ec4899 100%)';
+const GRAD      = 'linear-gradient(135deg,#818cf8 0%,#6366f1 45%,#4f46e5 100%)';
+const BAR_GRAD  = 'linear-gradient(90deg,#22d3ee 0%,#818cf8 60%,#6366f1 100%)';
 
 const STEPS = [
   { key: 'collect',  icon: '🗄️', label: 'איסוף נתוני שוק'  },
@@ -128,7 +128,7 @@ function ScannerScreen({ currentStep, stepDone }) {
     }}>
       <div style={{
         height: 2, width: '100%', borderRadius: 2, marginBottom: 26,
-        background: 'linear-gradient(90deg,transparent,#c084fc 30%,#ec4899 70%,transparent)',
+        background: 'linear-gradient(90deg,transparent,#818cf8 30%,#6366f1 70%,transparent)',
       }} />
 
       <h2 style={{
@@ -144,7 +144,7 @@ function ScannerScreen({ currentStep, stepDone }) {
           <svg width="200" height="200" viewBox="0 0 200 200" style={{ position: 'absolute', inset: 0 }}>
             <defs>
               <linearGradient id="sotRingA" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#ec4899" />
+                <stop offset="0%" stopColor="#6366f1" />
                 <stop offset="100%" stopColor="#a855f7" />
               </linearGradient>
               <linearGradient id="sotRingB" x1="0" y1="0" x2="1" y2="1">
@@ -403,8 +403,8 @@ export default function ScanOfTodayPage({ navigate }) {
                 <span style={{ fontSize: 14, color: '#d8b4fe', fontWeight: 600 }}>AI Diagnostic</span>
                 <span style={{
                   width: 8, height: 8, borderRadius: 999,
-                  background: top3 ? '#22d3ee' : '#db2777',
-                  boxShadow: `0 0 8px ${top3 ? '#22d3ee' : '#db2777'}`,
+                  background: top3 ? '#22d3ee' : '#6366f1',
+                  boxShadow: `0 0 8px ${top3 ? '#22d3ee' : '#6366f1'}`,
                   animation: 'sot-pulse 2s infinite',
                 }} />
               </div>
