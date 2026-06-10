@@ -29,6 +29,7 @@ export default function QuickAlert({
   onClose,
   stockGainers  = [],
   cryptoGainers = [],
+  embedded      = false,       // true → renders inline in AlertsPage (no overlay)
 }) {
   const {
     alerts, addAlert, editAlert, removeAlert,
@@ -202,9 +203,13 @@ export default function QuickAlert({
   /* ═══════════════════════════════════════════════════════════
      RENDER
   ══════════════════════════════════════════════════════════ */
-  return (
-    <div className="sa-alert-overlay" onClick={onClose}>
-      <div className="sa-alert-dialog" onClick={e => e.stopPropagation()}>
+
+  // Shared dialog content (used in both modal and embedded modes)
+  const dialog = (
+    <div
+      className={`sa-alert-dialog${embedded ? ' sa-alert-dialog--embedded' : ''}`}
+      onClick={embedded ? undefined : e => e.stopPropagation()}
+    >
 
         {/* ═══ TOP ═══════════════════════════════════════════ */}
         <div className="sa-alert-top">
@@ -545,6 +550,21 @@ export default function QuickAlert({
         )}
 
       </div>
+  );
+
+  // Modal mode (default): dark overlay + centered dialog
+  if (!embedded) {
+    return (
+      <div className="sa-alert-overlay" onClick={onClose}>
+        {dialog}
+      </div>
+    );
+  }
+
+  // Embedded mode (AlertsPage): no overlay, dialog fills the page
+  return (
+    <div className="sa-alert-page-wrap">
+      {dialog}
     </div>
   );
 }

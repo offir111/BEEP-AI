@@ -5,6 +5,18 @@
    All px values, spacing, font-sizes, animations: IDENTICAL to source.
    ═══════════════════════════════════════════════════════════════ */
 
+/* ── Embedded (AlertsPage) wrapper ──────────────────────────── */
+.sa-alert-page-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 8px 8px 16px;
+  min-height: 0;
+}
+.sa-alert-dialog--embedded {
+  max-height: calc(100vh - 185px);
+  /* keep gold border + shadow — looks great on page too */
+}
+
 /* ── Overlay ─────────────────────────────────────────────────── */
 .sa-alert-overlay {
   position: fixed;
