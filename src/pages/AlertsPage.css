@@ -1,57 +1,53 @@
-/* AlertsPage.css — chart fills page, dialog floats on top */
+/* AlertsPage.css — bounded chart box, same size as news-widget */
 
-/* ── Root: fills app-main, negates its 16px padding ─────────── */
+/* ── Page root ───────────────────────────────────────────────── */
 .ap-root {
-  position: relative;
-  margin: -16px;
-  width: calc(100% + 32px);
-  /* viewport minus: header(~52px) + topbar(~42px) + navbar(~46px) + padding(16px+4px) */
-  height: calc(100dvh - 160px);
-  min-height: 400px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* ── Chart box — same dimensions & style as .news-widget ─────── */
+.ap-chart-box {
+  position: relative;          /* ← dialog overlay is absolute INSIDE this box */
+  border-radius: var(--radius-md, 10px);
   overflow: hidden;
+  border: 1px solid var(--border, #2a2a3a);
   background: #0f0f1a;
+  height: 600px;
 }
 
-/* ── Chart fills root absolutely ─────────────────────────────── */
-.ap-chart {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-}
-
-/* ── Reopen button — bottom-center, shown after dialog close ── */
+/* ── Reopen button — bottom-center of chart box ──────────────── */
 .ap-reopen {
   position: absolute;
-  bottom: 24px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 3;
+  z-index: 20;
   background: rgba(212, 175, 55, 0.15);
   border: 1px solid rgba(212, 175, 55, 0.5);
-  border-radius: 10px;
+  border-radius: 8px;
   color: #D4AF37;
-  padding: 10px 22px;
-  font-size: 0.95rem;
+  padding: 9px 20px;
+  font-size: 0.88rem;
   font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 20px rgba(212, 175, 55, 0.25);
   direction: rtl;
   white-space: nowrap;
   font-family: inherit;
   transition: background 0.15s;
 }
-.ap-reopen:hover { background: rgba(212, 175, 55, 0.28); }
+.ap-reopen:hover { background: rgba(212, 175, 55, 0.26); }
 
 .ap-reopen-badge {
   background: #ef4444;
   color: #fff;
   border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  font-size: 0.65rem;
+  width: 18px;
+  height: 18px;
+  font-size: 0.6rem;
   font-weight: 700;
   display: flex;
   align-items: center;

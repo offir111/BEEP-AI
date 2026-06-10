@@ -34,6 +34,13 @@
     padding-top: calc(52px + 6mm + env(safe-area-inset-top, 0px));
   }
 }
+/* Contained variant — stays inside its position:relative parent (AlertsPage chart box) */
+.sa-alert-overlay--contained {
+  position: absolute;
+  z-index: 10;
+  padding-top: 16px;          /* no header offset needed — relative to chart box */
+  align-items: flex-start;
+}
 
 /* ── Dialog ──────────────────────────────────────────────────── */
 .sa-alert-dialog {

@@ -30,7 +30,8 @@ export default function QuickAlert({
   onSymbolChange,              // callback(sym) when user switches symbol inside the dialog
   stockGainers  = [],
   cryptoGainers = [],
-  embedded      = false,       // true → renders inline in AlertsPage (no overlay)
+  embedded      = false,       // true → renders inline (no overlay)
+  contained     = false,       // true → overlay is position:absolute (stays inside a bounded parent)
 }) {
   const {
     alerts, addAlert, editAlert, removeAlert,
@@ -532,9 +533,13 @@ export default function QuickAlert({
   );
 
   // Modal mode (default): dark overlay + centered dialog
+  // contained=true → overlay is position:absolute (stays inside its bounded parent)
   if (!embedded) {
     return (
-      <div className="sa-alert-overlay" onClick={onClose}>
+      <div
+        className={`sa-alert-overlay${contained ? ' sa-alert-overlay--contained' : ''}`}
+        onClick={onClose}
+      >
         {dialog}
       </div>
     );

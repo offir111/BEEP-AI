@@ -1,11 +1,10 @@
 /**
- * AlertsPage.jsx — chart fills page, dialog floats on top (like S.T.B screenshot)
+ * AlertsPage.jsx
  *
- * Layout:
- *   • AlertChart (Lightweight Charts) fills the entire page background
- *   • Alert price lines drawn EXACTLY at their price levels on the chart
- *   • QuickAlert dialog floats as a semi-transparent overlay on top
- *   • Closing dialog → chart stays visible + reopen button
+ * Layout — matches news-widget size:
+ *   • Bounded chart box (600px h, max-width 900px, border) — same as news tab
+ *   • Lightweight Charts fills the box (exact price lines)
+ *   • QuickAlert floats as overlay INSIDE the box (contained, not full-viewport)
  */
 import { useState, useEffect, useMemo } from 'react';
 import { useAlerts, fetchLivePrice } from '../context/AlertsContext';
@@ -39,11 +38,24 @@ export default function AlertsPage() {
   return (
     <div className="ap-root">
 
-      {/* ── Chart fills the entire background ── */}
-      <div className="ap-chart">
+      {/* ── Bounded chart box (news-widget size) with dialog overlay inside ── */}
+      <div className="ap-chart-box">
+
+        {/* Lightweight Charts — exact price lines */}
         <AlertChart symbol={chartSymbol} alerts={symAlerts} />
 
-        {/* Reopen button — visible after dialog is closed */}
+        {/* Dialog floats inside the chart box */}
+        {showDialog && (
+          <QuickAlert
+            contained
+            symbol={chartSymbol}
+            currentPrice={livePrice}
+            onClose={() => setShowDialog(false)}
+            onSymbolChange={setChartSymbol}
+          />
+        )}
+
+        {/* Reopen button — bottom-center of chart box */}
         {!showDialog && (
           <button className="ap-reopen" onClick={() => setShowDialog(true)}>
             🔔 פתח התראות
@@ -52,18 +64,8 @@ export default function AlertsPage() {
             )}
           </button>
         )}
+
       </div>
-
-      {/* ── Dialog overlay (not embedded → semi-transparent backdrop) ── */}
-      {showDialog && (
-        <QuickAlert
-          symbol={chartSymbol}
-          currentPrice={livePrice}
-          onClose={() => setShowDialog(false)}
-          onSymbolChange={setChartSymbol}
-        />
-      )}
-
     </div>
   );
 }
