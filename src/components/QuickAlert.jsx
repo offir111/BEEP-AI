@@ -1,84 +1,98 @@
-import { useState, useEffect, useRef } from 'react';
-import { useAlerts } from '../context/AlertsContext';
+/**
+ * QuickAlert.jsx — 1:1 clone of S.T.B alerts dialog (dl() component)
+ * Color-adapted to beep-ai palette. All dimensions, layout, features,
+ * logic and animations are identical to source.
+ *
+ * Source: C:\Users\Admin\Downloads\S.T.B\live\index-BrRuZL4L-v104.js
+ * READ ONLY (no source modifications)
+ */
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAlerts, fetchLivePrice } from '../context/AlertsContext';
 import './QuickAlert.css';
 
-export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice, onClose }) {
-  const { alerts, addAlert, editAlert, removeAlert, fixedSlots, customSlots, clearSymbol, clearAll } = useAlerts();
+/* ── Step-size logic (1:1 from S.T.B) ─────────────────────── */
+function getStep(val) {
+  if (val < 1)    return { step: 0.001, dec: 4 };
+  if (val < 100)  return { step: 0.01,  dec: 2 };
+  if (val < 1000) return { step: 1,     dec: 2 };
+  return             { step: 10,    dec: 2 };
+}
 
-  const [symbol,    setSymbol]    = useState(initSymbol || 'BTC');
-  const [price,     setPrice]     = useState(initPrice || null);
+function fmtP(p) {
+  if (!p && p !== 0) return '';
+  return p.toLocaleString('en', { maximumFractionDigits: p > 100 ? 2 : 4 });
+}
+
+export default function QuickAlert({
+  symbol:       initSymbol    = 'BTC',
+  currentPrice: initPrice     = null,
+  onClose,
+  stockGainers  = [],
+  cryptoGainers = [],
+}) {
+  const {
+    alerts, addAlert, editAlert, removeAlert,
+    fixedSlots, setFixedSlots,
+    customSlots, setCustomSlots,
+    clearSymbol, clearAll,
+  } = useAlerts();
+
+  /* ── Symbol / live price ─────────────────────────────────── */
+  const [symbol,       setSymbol]       = useState(initSymbol);
+  const [livePrice,    setLivePrice]    = useState(initPrice);
+  const [loadingPrice, setLoadingPrice] = useState(false);
+  const livePriceRef = useRef(initPrice);
+  useEffect(() => { livePriceRef.current = livePrice; }, [livePrice]);
+
+  /* ── Form state ──────────────────────────────────────────── */
+  const [inputVal,  setInputVal]  = useState('');
   const [direction, setDirection] = useState('above');
-  const [target,    setTarget]    = useState('');
-  const [duration,  setDuration]  = useState('forever');
-  const [note,      setNote]      = useState('');
-  const [editId,          setEditId]          = useState(null);
-  const [success,         setSuccess]         = useState(false);
-  const [dupWarn,         setDupWarn]         = useState(false);
+  const [duration,  setDuration]  = useState('year');   // 'eod' | 'year'
+  const [editId,    setEditId]    = useState(null);
+
+  /* ── % row ───────────────────────────────────────────────── */
+  const [pctDown, setPctDown] = useState('3');
+  const [pctUp,   setPctUp]   = useState('5');
+
+  /* ── Slots edit mode ─────────────────────────────────────── */
+  const [slotsEditMode, setSlotsEditMode] = useState(false);
+  const [editingSlot,   setEditingSlot]   = useState(null); // {type:'fixed'|'custom', idx}
+  const [slotInput,     setSlotInput]     = useState('');
+
+  /* ── Confirm overlays ────────────────────────────────────── */
   const [confirmClearSym, setConfirmClearSym] = useState(false);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
+
+  /* ── Hold-repeat refs ────────────────────────────────────── */
   const holdRef = useRef({ timer: null, interval: null });
 
-  // Init price when symbol/price changes
+  /* ── Fetch price when symbol changes ─────────────────────── */
   useEffect(() => {
-    if (initPrice) {
-      setPrice(initPrice);
-      setTarget((initPrice * 1.05).toFixed(initPrice > 100 ? 2 : 4));
-      setDirection('above');
-    }
-  }, [initPrice]);
+    setLoadingPrice(true);
+    setLivePrice(null);
+    fetchLivePrice(symbol)
+      .then(p  => { if (p) setLivePrice(p); })
+      .catch(() => {})
+      .finally(() => setLoadingPrice(false));
+  }, [symbol]);
 
-  // ── Auto-detect direction when user types target price ──────
-  const handleTargetChange = (val) => {
-    setTarget(val);
-    const t = parseFloat(val);
-    if (price && t > 0) {
-      setDirection(t >= price ? 'above' : 'below');
-    }
-  };
+  /* sync prop price */
+  useEffect(() => { if (initPrice) setLivePrice(initPrice); }, [initPrice]);
 
-  // Dynamic badge: TARGET (🟡) or STOP LOSS (🔴)
-  const typedT = parseFloat(target);
-  const autoType = price && typedT > 0
-    ? (typedT >= price ? 'target' : 'stoploss')
-    : (direction === 'above' ? 'target' : 'stoploss');
-  const isStopLoss = autoType === 'stoploss';
+  /* ── Step (hold-repeat, 380ms delay → 70ms interval) ────── */
+  const doStep = useCallback((dir) => {
+    setInputVal(v => {
+      const val  = parseFloat(v) || livePriceRef.current || 0;
+      const { step, dec } = getStep(val);
+      const next = dir === 'up' ? val + step : Math.max(0, val - step);
+      return next.toFixed(dec);
+    });
+  }, []);
 
-  const handleDirection = (dir) => {
-    setDirection(dir);
-    if (price) setTarget((dir === 'above' ? price * 1.05 : price * 0.95).toFixed(price > 100 ? 2 : 4));
-  };
-
-  // Existing alerts for this symbol
-  const symAlerts = alerts.filter(a => a.symbol === symbol.toUpperCase() && !a.triggered);
-
-  // Click existing alert chip → edit mode
-  const enterEdit = (alert) => {
-    setEditId(alert.id);
-    setDirection(alert.direction);
-    setTarget(String(alert.target));
-    setNote(alert.note || '');
-    setDuration(alert.duration || 'forever');
-  };
-
-  const cancelEdit = () => {
-    setEditId(null);
-    setTarget(price ? (price * 1.05).toFixed(price > 100 ? 2 : 4) : '');
-    setNote('');
-  };
-
-  // ── Hold-repeat for ▲▼ step buttons ──
   const stepStart = (dir) => {
-    const step = () => {
-      setTarget(v => {
-        const val = parseFloat(v) || 0;
-        const inc = val < 1 ? 0.001 : val < 100 ? 0.01 : val < 1000 ? 1 : 10;
-        const next = dir === 'up' ? val + inc : Math.max(0, val - inc);
-        return next.toFixed(val < 1 ? 4 : val < 100 ? 2 : 0);
-      });
-    };
-    step();
+    doStep(dir);
     holdRef.current.timer = setTimeout(() => {
-      holdRef.current.interval = setInterval(step, 70);
+      holdRef.current.interval = setInterval(() => doStep(dir), 70);
     }, 380);
   };
   const stepEnd = () => {
@@ -86,190 +100,450 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
     clearInterval(holdRef.current.interval);
   };
 
-  // ── START: add alert and close immediately ──
-  const handleStart = () => {
-    const t = parseFloat(target);
-    if (!t || isNaN(t) || t <= 0) return;
+  /* ── Auto-direction on type ──────────────────────────────── */
+  const handleInputChange = (val) => {
+    setInputVal(val);
+    const t = parseFloat(val);
+    if (livePrice && t > 0) setDirection(t >= livePrice ? 'above' : 'below');
+  };
+
+  /* ── Fill current price ──────────────────────────────────── */
+  const fillCurrentPrice = () => {
+    if (!livePrice) return;
+    const { dec } = getStep(livePrice);
+    setInputVal(livePrice.toFixed(dec));
+    setDirection('above');
+  };
+
+  /* ── % row setters ───────────────────────────────────────── */
+  const setPctTarget = (pct, dir) => {
+    if (!livePrice || !(pct > 0)) return;
+    const factor = dir === 'up' ? 1 + pct / 100 : 1 - pct / 100;
+    const target = livePrice * factor;
+    const { dec } = getStep(target);
+    setInputVal(target.toFixed(dec));
+    setDirection(dir === 'up' ? 'above' : 'below');
+  };
+
+  /* ── Add / update alert ──────────────────────────────────── */
+  const handleAdd = () => {
+    const t = parseFloat(inputVal);
+    if (!t || t <= 0) return;
     if (editId) {
-      editAlert(editId, { target: t, direction, duration, note });
+      editAlert(editId, { target: t, direction, duration });
+      setEditId(null);
     } else {
-      const result = addAlert({ symbol: symbol.toUpperCase(), direction, target: t, duration, note });
-      if (result === null) {
-        setDupWarn(true);
-        setTimeout(() => setDupWarn(false), 2500);
-        return;
-      }
+      addAlert({ symbol: symbol.toUpperCase(), direction, target: t, duration, note: '' });
     }
+    setInputVal('');
+  };
+
+  /* ── START: add + close ──────────────────────────────────── */
+  const handleStart = () => {
+    const t = parseFloat(inputVal);
+    if (!t || t <= 0) return;
+    if (editId) {
+      editAlert(editId, { target: t, direction, duration });
+      setEditId(null);
+    } else {
+      addAlert({ symbol: symbol.toUpperCase(), direction, target: t, duration, note: '' });
+    }
+    setInputVal('');
     onClose?.();
   };
 
-  const submit = () => {
-    const t = parseFloat(target);
-    if (!t || isNaN(t) || t <= 0) return;
+  /* ── Enter / cancel edit ─────────────────────────────────── */
+  const enterEdit = (a) => {
+    setEditId(a.id);
+    setInputVal(String(a.target));
+    setDirection(a.direction);
+    setDuration(a.duration || 'year');
+  };
+  const cancelEdit = () => { setEditId(null); setInputVal(''); };
 
-    if (editId) {
-      editAlert(editId, { target: t, direction, duration, note });
-      setSuccess(true);
-      setTimeout(() => { setSuccess(false); setEditId(null); }, 1200);
-    } else {
-      const result = addAlert({ symbol: symbol.toUpperCase(), direction, target: t, duration, note });
-      if (result === null) {
-        setDupWarn(true);
-        setTimeout(() => setDupWarn(false), 2500);
-        return;
-      }
-      setSuccess(true);
-      setTimeout(() => { setSuccess(false); onClose?.(); }, 1200);
-    }
+  /* ── Select symbol ───────────────────────────────────────── */
+  const selectSymbol = (sym) => {
+    setSymbol(sym.toUpperCase());
+    setEditId(null);
+    setInputVal('');
   };
 
-  const allSlots = [...fixedSlots, ...customSlots].filter(Boolean);
+  /* ── Save edited slot ────────────────────────────────────── */
+  const saveSlot = (type, idx, val) => {
+    const v = val.trim().toUpperCase();
+    if (type === 'fixed') {
+      const next = [...fixedSlots];
+      next[idx] = v || fixedSlots[idx];
+      setFixedSlots(next);
+    } else {
+      const next = [...customSlots];
+      next[idx] = v;
+      setCustomSlots(next);
+    }
+    setEditingSlot(null);
+  };
 
+  /* ── Derived values ──────────────────────────────────────── */
+  const symAlerts    = alerts.filter(a => a.symbol === symbol.toUpperCase());
+  const activeAlerts = symAlerts.filter(a => !a.triggered);
+  const typedT       = parseFloat(inputVal);
+  const isBelow      = livePrice && typedT > 0 ? typedT < livePrice : direction === 'below';
+
+  /* ── Gainers tabs ────────────────────────────────────────── */
+  const gainerTabs = [
+    ...cryptoGainers.slice(0, 3).map(g => ({
+      sym: g.symbol || g.sym, pct: +(g.changePercent ?? g.pct ?? 0), type: 'crypto',
+    })),
+    ...stockGainers.slice(0, 3).map(g => ({
+      sym: g.symbol || g.sym, pct: +(g.changePercent ?? g.pct ?? 0), type: 'stock',
+    })),
+  ].filter(g => g.sym);
+
+  /* ═══════════════════════════════════════════════════════════
+     RENDER
+  ══════════════════════════════════════════════════════════ */
   return (
-    <div className="qa-overlay" onClick={onClose}>
-      <div className="qa-card" onClick={e => e.stopPropagation()}>
+    <div className="sa-alert-overlay" onClick={onClose}>
+      <div className="sa-alert-dialog" onClick={e => e.stopPropagation()}>
 
-        {/* Header */}
-        <div className="qa-hdr">
-          <div className="qa-title">🔔 התראה — <strong>{symbol}</strong></div>
-          <button className="qa-close" onClick={onClose} aria-label="סגור חלון התראה">✕</button>
-        </div>
+        {/* ═══ TOP ═══════════════════════════════════════════ */}
+        <div className="sa-alert-top">
 
-        {/* Slot shortcuts */}
-        <div className="qa-slots">
-          {allSlots.map((s, i) => (
-            <button key={i} className={`qa-slot ${symbol === s ? 'qa-slot--on' : ''}`}
-              onClick={() => { setSymbol(s); setEditId(null); }}>{s}</button>
-          ))}
-        </div>
+          {/* Header */}
+          <div className="sa-alert-hdr">
+            <div className="sa-alert-hdr-sym">
+              <span className="sa-alert-sym-big">{symbol}</span>
+              <span className="sa-alert-hdr-sub">התראות מחיר</span>
+            </div>
+            <div className="sa-alert-hdr-actions">
+              <button className="sa-alert-close" onClick={onClose} aria-label="סגור">✕</button>
+            </div>
+          </div>
 
-        {/* Current price */}
-        {price && (
-          <div className="qa-current">
-            מחיר נוכחי: <strong style={{ color:'#D4AF37' }}>${parseFloat(price).toLocaleString()}</strong>
-            <button className="qa-use-price" onClick={() => setTarget(String(parseFloat(price).toFixed(price > 100 ? 2 : 4)))}>
-              השתמש
+          {/* Gainers quick-tabs (conditional) */}
+          {gainerTabs.length > 0 && (
+            <div className="sa-alert-quick-tabs">
+              {gainerTabs.map((g, i) => (
+                <button key={i}
+                  className={`sa-alert-quick-tab${symbol === g.sym ? ' --active' : ''}${g.type === 'crypto' ? ' --crypto' : ''}`}
+                  onClick={() => selectSymbol(g.sym)}>
+                  <span className="sa-alert-quick-sym">{g.sym}</span>
+                  <span className={`sa-alert-quick-pct ${g.pct >= 0 ? '--up' : '--dn'}`}>
+                    {g.pct >= 0 ? '+' : ''}{g.pct.toFixed(1)}%
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Fixed slots */}
+          <div className={`sa-alert-shortcuts${slotsEditMode ? ' --slots-edit' : ''}`}>
+            {fixedSlots.map((s, i) => {
+              const isEditing = slotsEditMode && editingSlot?.type === 'fixed' && editingSlot.idx === i;
+              return (
+                <div key={i} className="sa-alert-slot-wrap">
+                  {isEditing ? (
+                    <div className="sa-alert-slot-edit">
+                      <input className="sa-alert-slot-input"
+                        value={slotInput} autoFocus
+                        onChange={e => setSlotInput(e.target.value.toUpperCase())}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter')  saveSlot('fixed', i, slotInput);
+                          if (e.key === 'Escape') setEditingSlot(null);
+                        }} />
+                      <button className="sa-alert-slot-save"
+                        onClick={() => saveSlot('fixed', i, slotInput)}>✓</button>
+                    </div>
+                  ) : (
+                    <button
+                      className={`sa-alert-shortcut-btn${symbol === s ? ' --active' : ''}`}
+                      onClick={() => slotsEditMode
+                        ? (setEditingSlot({ type: 'fixed', idx: i }), setSlotInput(s))
+                        : selectSymbol(s)}>
+                      {s}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            <button
+              className={`sa-alert-slots-edit-btn${slotsEditMode ? ' --active' : ''}`}
+              onClick={() => { setSlotsEditMode(m => !m); setEditingSlot(null); }}>
+              {slotsEditMode ? '✓' : '✏'}
             </button>
           </div>
-        )}
 
-        {/* Auto-type badge — TARGET vs STOP LOSS */}
-        {target && (
-          <div className={`qa-type-badge ${isStopLoss ? 'qa-badge--sl' : 'qa-badge--tp'}`}>
-            <span className="qa-badge-icon">{isStopLoss ? '🔴' : '🟡'}</span>
-            <span className="qa-badge-text">{isStopLoss ? 'STOP LOSS' : 'TARGET'}</span>
-            {price && typedT > 0 && (
-              <span className="qa-badge-dist">
-                {isStopLoss ? '▼' : '▲'} {Math.abs(((typedT - price) / price) * 100).toFixed(1)}%
-              </span>
-            )}
+          {/* Custom slots */}
+          <div className={`sa-alert-shortcuts sa-alert-custom-slots${slotsEditMode ? ' --slots-edit' : ''}`}>
+            {customSlots.map((s, i) => {
+              const isEmpty   = !s;
+              const isEditing = slotsEditMode && editingSlot?.type === 'custom' && editingSlot.idx === i;
+              return (
+                <div key={i} className="sa-alert-slot-wrap">
+                  {isEditing ? (
+                    <div className="sa-alert-slot-edit">
+                      <input className="sa-alert-slot-input"
+                        value={slotInput} autoFocus
+                        onChange={e => setSlotInput(e.target.value.toUpperCase())}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter')  saveSlot('custom', i, slotInput);
+                          if (e.key === 'Escape') setEditingSlot(null);
+                        }} />
+                      <button className="sa-alert-slot-save"
+                        onClick={() => saveSlot('custom', i, slotInput)}>✓</button>
+                    </div>
+                  ) : (
+                    <button
+                      className={`sa-alert-shortcut-btn sa-alert-custom-slot-btn${isEmpty ? ' --empty' : ''}${!isEmpty && symbol === s ? ' --active' : ''}`}
+                      onClick={() => {
+                        if (isEmpty || slotsEditMode) {
+                          setEditingSlot({ type: 'custom', idx: i });
+                          setSlotInput(s || '');
+                        } else {
+                          selectSymbol(s);
+                        }
+                      }}>
+                      {isEmpty ? '+' : s}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        )}
 
-        {/* Existing alerts chips */}
-        {symAlerts.length > 0 && (
-          <div className="qa-chips-wrap">
-            <span className="qa-chips-lbl">התראות קיימות:</span>
-            <div className="qa-chips">
-              {symAlerts.map(a => (
-                <div key={a.id} className={`qa-chip qa-chip--${a.direction} ${editId === a.id ? 'qa-chip--edit' : ''}`}>
-                  <button className="qa-chip-body" onClick={() => editId === a.id ? cancelEdit() : enterEdit(a)}>
-                    {a.direction === 'above' ? '↑' : '↓'} ${a.target.toLocaleString()}
-                  </button>
-                  <button className="qa-chip-del" onClick={() => removeAlert(a.id)}>✕</button>
+          {/* Control panel */}
+          <div className="sa-alert-ctrl-panel">
+
+            {/* Duration corner */}
+            <div className="sa-alert-dur-corner">
+              <div className="sa-alert-dur-group">
+                {[['eod', 'D'], ['year', 'Y']].map(([d, lbl]) => (
+                  <button key={d}
+                    className={`sa-alert-dur-btn${duration === d ? ' --active' : ''}`}
+                    onClick={() => setDuration(d)}>{lbl}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Current price — full clickable button */}
+            <button className="sa-alert-current-btn"
+              onClick={fillCurrentPrice}
+              disabled={!livePrice}>
+              {loadingPrice ? (
+                <span className="sa-alert-current-loading">טוען…</span>
+              ) : livePrice ? (
+                <>
+                  <span className="sa-alert-current-label">מחיר נוכחי ↙ לחץ למלא</span>
+                  <span className="sa-alert-current-price">{fmtP(livePrice)}</span>
+                  <span className="sa-alert-current-sym-tag">{symbol}</span>
+                </>
+              ) : (
+                <>
+                  <span className="sa-alert-current-loading">—</span>
+                  <span className="sa-alert-current-sym-tag">{symbol}</span>
+                </>
+              )}
+            </button>
+
+            {/* % offset row */}
+            <div className="sa-alert-pct-row">
+              <div className="sa-alert-pct-col">
+                <span className="sa-alert-pct-lbl sa-alert-pct-lbl--dn">▼ -%</span>
+                <input className="sa-alert-pct-input" type="number" min="0"
+                  value={pctDown} onChange={e => setPctDown(e.target.value)} />
+                {livePrice && parseFloat(pctDown) > 0 && (
+                  <span className="sa-alert-pct-preview sa-alert-pct-preview--dn">
+                    {fmtP(livePrice * (1 - parseFloat(pctDown) / 100))}
+                  </span>
+                )}
+              </div>
+              <button className="sa-alert-pct-btn"
+                onClick={() => setPctTarget(parseFloat(pctDown), 'down')}>SL</button>
+              <button className="sa-alert-pct-btn"
+                onClick={() => setPctTarget(parseFloat(pctUp), 'up')}>TP</button>
+              <div className="sa-alert-pct-col">
+                <span className="sa-alert-pct-lbl sa-alert-pct-lbl--up">▲ +%</span>
+                <input className="sa-alert-pct-input" type="number" min="0"
+                  value={pctUp} onChange={e => setPctUp(e.target.value)} />
+                {livePrice && parseFloat(pctUp) > 0 && (
+                  <span className="sa-alert-pct-preview sa-alert-pct-preview--up">
+                    {fmtP(livePrice * (1 + parseFloat(pctUp) / 100))}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Input form — direction: ltr (1:1 from source) */}
+            <div className="sa-alert-form">
+
+              {/* Bell icon + active count */}
+              <div className="sa-alert-bell-wrap">
+                <svg className="sa-alert-bell-svg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+                </svg>
+                {activeAlerts.length > 0 && (
+                  <span className="sa-alert-bell-lbl">{activeAlerts.length}</span>
+                )}
+              </div>
+
+              {/* Direction badge (click to toggle) */}
+              <button
+                className={`sa-alert-dir-badge${isBelow ? ' sa-alert-dir-badge--loss' : ''}`}
+                onClick={() => setDirection(d => d === 'above' ? 'below' : 'above')}>
+                {isBelow ? '↓ STOP' : '↑ TARGET'}
+              </button>
+
+              {/* Price input */}
+              <input className="sa-alert-input"
+                type="number"
+                placeholder={livePrice ? fmtP(livePrice) : '0.00'}
+                value={inputVal}
+                onChange={e => handleInputChange(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                autoFocus
+              />
+
+              {/* ▲▼ step arrows with hold-repeat */}
+              <div className="sa-alert-arrows">
+                <button className="sa-alert-arr"
+                  onMouseDown={() => stepStart('up')}
+                  onMouseUp={stepEnd}
+                  onMouseLeave={stepEnd}
+                  onTouchStart={e => { e.preventDefault(); stepStart('up'); }}
+                  onTouchEnd={stepEnd}>▲</button>
+                <button className="sa-alert-arr"
+                  onMouseDown={() => stepStart('down')}
+                  onMouseUp={stepEnd}
+                  onMouseLeave={stepEnd}
+                  onTouchStart={e => { e.preventDefault(); stepStart('down'); }}
+                  onTouchEnd={stepEnd}>▼</button>
+              </div>
+
+              {/* Add / Update button */}
+              <button className="sa-alert-add-btn" onClick={handleAdd}>
+                {editId ? '✓ עדכן' : '+ הוסף'}
+              </button>
+
+              {/* Cancel edit */}
+              {editId && (
+                <button className="sa-alert-cancel-edit" onClick={cancelEdit}>✕</button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ BOTTOM — alert list ════════════════════════════ */}
+        <div className="sa-alert-bottom">
+          <div className="sa-alert-bottom-hdr">
+            <span className="sa-alert-bottom-title">📋 התראות — {symbol}</span>
+            <span className="sa-alert-bottom-count">{symAlerts.length}</span>
+          </div>
+
+          <div className="sa-alert-list">
+            {symAlerts.length === 0 ? (
+              <div className="sa-alert-empty">אין התראות ל-{symbol}</div>
+            ) : symAlerts.map(a => {
+              const fired  = a.triggered;
+              const isLoss = a.direction === 'below';
+              return (
+                <div key={a.id}
+                  className={`sa-alert-row${fired ? ' sa-alert-row--triggered' : ''}`}
+                  onClick={() => !fired && enterEdit(a)}>
+                  <span className={`sa-alert-row-dir${isLoss ? ' sa-alert-row-dir--loss' : ''}`}>
+                    {a.direction === 'above' ? '↑' : '↓'}
+                  </span>
+                  <span className="sa-alert-row-price">
+                    ${a.target.toLocaleString('en', { maximumFractionDigits: 4 })}
+                  </span>
+                  {fired && <span className="sa-alert-row-badge">🔔 הופעל</span>}
+                  <button className="sa-alert-row-del"
+                    onClick={e => { e.stopPropagation(); removeAlert(a.id); }}>✕</button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Compact strip — all-symbols overview (up to 10) */}
+          {alerts.length > 0 && (
+            <div className="sa-alert-strip">
+              {alerts.slice(0, 10).map(a => (
+                <div key={a.id} className="sa-alert-strip-item sa-alert-strip-item--btn"
+                  onClick={() => selectSymbol(a.symbol)}>
+                  <div className="sa-alert-strip-body">
+                    <span className="sa-alert-strip-dot"
+                      style={{ color: a.direction === 'below' ? '#f87171' : '#fbbf24' }}>●</span>
+                    <span className="sa-alert-strip-price">
+                      {a.symbol} {a.target.toLocaleString('en', { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <button className="sa-alert-strip-del"
+                    onClick={e => { e.stopPropagation(); removeAlert(a.id); }}>✕</button>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Edit mode banner */}
-        {editId && (
-          <div className="qa-edit-banner">
-            ✏️ מצב עריכה — שנה את המחיר ולחץ עדכן
-            <button onClick={cancelEdit}>בטל</button>
-          </div>
-        )}
-
-        {/* Direction */}
-        <div className="qa-dir-row">
-          <button className={`qa-dir-btn ${direction==='above'?'qa-dir--above':''}`} onClick={()=>handleDirection('above')}>📈 מעל</button>
-          <button className={`qa-dir-btn ${direction==='below'?'qa-dir--below':''}`} onClick={()=>handleDirection('below')}>📉 מתחת</button>
+          )}
         </div>
 
-        {/* Target price input */}
-        <div className="qa-input-row">
-          <button className="qa-step-btn"
-            onMouseDown={() => stepStart('down')} onMouseUp={stepEnd} onMouseLeave={stepEnd}
-            onTouchStart={e => { e.preventDefault(); stepStart('down'); }} onTouchEnd={stepEnd}>▼</button>
-          <input
-            className="qa-input"
-            type="number"
-            placeholder="מחיר יעד"
-            value={target}
-            onChange={e => handleTargetChange(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && submit()}
-            autoFocus
-          />
-          <button className="qa-step-btn"
-            onMouseDown={() => stepStart('up')} onMouseUp={stepEnd} onMouseLeave={stepEnd}
-            onTouchStart={e => { e.preventDefault(); stepStart('up'); }} onTouchEnd={stepEnd}>▲</button>
-        </div>
-
-        {/* Duration */}
-        <div className="qa-dur-row">
-          {[['forever','♾ תמיד'],['eod','📅 היום'],['year','📆 שנה']].map(([d,l]) => (
-            <button key={d} className={`qa-dur-btn ${duration===d?'qa-dur--on':''}`} onClick={()=>setDuration(d)}>{l}</button>
-          ))}
-        </div>
-
-        {/* Note */}
-        <input className="qa-input qa-input--note" type="text" placeholder="הערה (אופציונלי)"
-          value={note} onChange={e=>setNote(e.target.value)} maxLength={50} />
-
-        {dupWarn && (
-          <div className="qa-dup-warn">⚠️ התראה זהה כבר קיימת לסמל זה</div>
-        )}
-        {success ? (
-          <div className="qa-success">✅ {editId ? 'עודכן!' : 'נוסף!'}</div>
-        ) : (
-          <button className="qa-submit" onClick={submit} disabled={dupWarn}>
-            {editId ? '✓ עדכן התראה' : '🔔 הוסף התראה'}
+        {/* ═══ FOOTER ════════════════════════════════════════ */}
+        <div className="sa-alert-footer">
+          <button className="sa-alert-apply-btn" onClick={handleStart}>
+            <span className="sa-alert-apply-label">▶ START</span>
+            <span className="sa-alert-apply-check">✓</span>
           </button>
-        )}
-
-        {/* Footer: START + clear buttons */}
-        <div className="qa-footer">
-          <button className="qa-start-btn" onClick={handleStart} title="הוסף וסגור">▶ START</button>
-          <button className="qa-clear-sym-btn" onClick={() => setConfirmClearSym(true)}>נקה {symbol}</button>
-          <button className="qa-clear-all-btn" onClick={() => setConfirmClearAll(true)}>נקה הכל</button>
+          <button className="sa-alert-clear-sym-btn"
+            onClick={() => setConfirmClearSym(true)}>
+            נקה {symbol}
+          </button>
+          <button className="sa-alert-clear-all-btn"
+            onClick={() => setConfirmClearAll(true)}>
+            נקה הכל
+          </button>
         </div>
 
-        {/* Confirm clear symbol */}
+        {/* ═══ CONFIRM: clear symbol ═════════════════════════ */}
         {confirmClearSym && (
-          <div className="qa-confirm-overlay" onClick={() => setConfirmClearSym(false)}>
-            <div className="qa-confirm-box" onClick={e => e.stopPropagation()}>
-              <div className="qa-confirm-text">מחק את כל התראות {symbol}?</div>
-              <div className="qa-confirm-btns">
-                <button className="qa-confirm-yes" onClick={() => { clearSymbol(symbol); setConfirmClearSym(false); onClose?.(); }}>כן, מחק</button>
-                <button className="qa-confirm-no"  onClick={() => setConfirmClearSym(false)}>ביטול</button>
+          <div className="sa-clearall-confirm-overlay"
+            onClick={() => setConfirmClearSym(false)}>
+            <div className="sa-clearall-confirm-box"
+              onClick={e => e.stopPropagation()}>
+              <p className="sa-clearall-confirm-msg">
+                מחק את כל התראות <strong>{symbol}</strong>?
+              </p>
+              <p className="sa-clearall-confirm-q">לא ניתן לבטל פעולה זו</p>
+              <div className="sa-clearall-confirm-btns">
+                <button className="sa-clearall-confirm-yes"
+                  onClick={() => { clearSymbol(symbol); setConfirmClearSym(false); onClose?.(); }}>
+                  כן, מחק
+                </button>
+                <button className="sa-clearall-confirm-no"
+                  onClick={() => setConfirmClearSym(false)}>ביטול</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Confirm clear all */}
+        {/* ═══ CONFIRM: clear all ════════════════════════════ */}
         {confirmClearAll && (
-          <div className="qa-confirm-overlay" onClick={() => setConfirmClearAll(false)}>
-            <div className="qa-confirm-box" onClick={e => e.stopPropagation()}>
-              <div className="qa-confirm-text">מחק את כל ההתראות?</div>
-              <div className="qa-confirm-btns">
-                <button className="qa-confirm-yes" onClick={() => { clearAll(); setConfirmClearAll(false); onClose?.(); }}>כן, מחק הכל</button>
-                <button className="qa-confirm-no"  onClick={() => setConfirmClearAll(false)}>ביטול</button>
+          <div className="sa-clearall-confirm-overlay"
+            onClick={() => setConfirmClearAll(false)}>
+            <div className="sa-clearall-confirm-box"
+              onClick={e => e.stopPropagation()}>
+              <p className="sa-clearall-confirm-msg">
+                מחק את <strong>כל</strong> ההתראות?
+              </p>
+              <p className="sa-clearall-confirm-q">לא ניתן לבטל פעולה זו</p>
+              <div className="sa-clearall-confirm-btns">
+                <button className="sa-clearall-confirm-yes"
+                  onClick={() => { clearAll(); setConfirmClearAll(false); onClose?.(); }}>
+                  כן, מחק הכל
+                </button>
+                <button className="sa-clearall-confirm-no"
+                  onClick={() => setConfirmClearAll(false)}>ביטול</button>
               </div>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );
