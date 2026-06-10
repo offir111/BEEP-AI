@@ -43,9 +43,11 @@ function MarketPill({ symbol, label, prefix = '$' }) {
   const [price,   setPrice]   = useState(null);
   const [change,  setChange]  = useState(null);
   const [failed,  setFailed]  = useState(false);
+  const [retry,   setRetry]   = useState(0);
 
   useEffect(() => {
-    const timer = setTimeout(() => setFailed(true), 6000);
+    setFailed(false);
+    const timer = setTimeout(() => setFailed(true), 15000);
     fetch(`/api/market?symbol=${encodeURIComponent(symbol)}`)
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(d => {
@@ -55,11 +57,12 @@ function MarketPill({ symbol, label, prefix = '$' }) {
       })
       .catch(() => { clearTimeout(timer); setFailed(true); });
     return () => clearTimeout(timer);
-  }, [symbol]);
+  }, [symbol, retry]);
 
   const up = (change || 0) >= 0;
   return (
-    <div className="hp-pill">
+    <div className="hp-pill" onClick={failed ? () => setRetry(r => r + 1) : undefined}
+      style={failed ? { cursor: 'pointer' } : undefined} title={failed ? 'לחץ לרענון' : undefined}>
       <span className="hp-pill-label">{label}</span>
       {price
         ? <>
@@ -68,7 +71,7 @@ function MarketPill({ symbol, label, prefix = '$' }) {
               {up ? '▲' : '▼'}{Math.abs(change).toFixed(1)}%
             </span>
           </>
-        : failed ? <span className="hp-pill-failed">—</span>
+        : failed ? <span className="hp-pill-failed" title="לחץ לרענון">↺</span>
         : <span className="hp-pill-loading">…</span>
       }
     </div>
