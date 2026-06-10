@@ -46,3 +46,30 @@
   color: #ef4444;
   font-size: 0.8rem;
 }
+
+/* ── Floating price badge on each alert line ─────────────────── */
+.acl-badge {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid #D4AF37;    /* overridden per-line via style.borderColor */
+  background: rgba(10, 10, 20, 0.88);
+  backdrop-filter: blur(4px);
+  pointer-events: none;         /* don't block chart mouse events */
+  z-index: 5;
+  white-space: nowrap;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.55);
+}
+
+.acl-price {
+  font-family: 'Courier New', monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #f0f0f0;
+}

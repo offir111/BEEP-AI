@@ -151,10 +151,10 @@
 .sa-alert-quick-sym {
   letter-spacing: 0;
   color: #e8e8e8 !important;
-  font-size: .58rem !important;
+  font-size: .64rem !important;  /* +10%: was .58rem */
   font-weight: 700 !important;
 }
-.sa-alert-quick-pct          { font-size: .52rem !important; font-weight: 600 !important; }
+.sa-alert-quick-pct          { font-size: .57rem !important; font-weight: 600 !important; }  /* +10%: was .52rem */
 .sa-alert-quick-pct.--up     { color: #4ade80 !important; }
 .sa-alert-quick-pct.--dn     { color: #f87171 !important; }
 
@@ -181,7 +181,7 @@
   font-family: inherit;
   transition: background .12s, border-color .12s, color .12s;
   color: #c8c8c8 !important;
-  font-size: .58rem !important;
+  font-size: .64rem !important;  /* +10%: was .58rem */
   font-weight: 700 !important;
 }
 .sa-alert-shortcut-btn:hover {
@@ -287,6 +287,8 @@
   flex-shrink: 0;
   margin: 4px 12px 8px;
   overflow: hidden;
+  /* shrink this section 20% — price display + input area */
+  zoom: 0.8;
 }
 
 /* Duration corner */
@@ -697,7 +699,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: monospace;
-  font-size: .56rem;
+  font-size: .62rem;  /* +10%: was .56rem */
   font-weight: 600;
 }
 .sa-alert-strip-del {
@@ -728,6 +730,8 @@
   flex-shrink: 0;
   gap: 5px;
   padding: 6px 8px 8px;
+  /* shrink footer buttons 20% along with ctrl-panel */
+  zoom: 0.8;
 }
 .sa-alert-apply-btn {
   cursor: pointer;

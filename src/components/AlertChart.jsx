@@ -1,10 +1,11 @@
 /**
  * AlertChart.jsx — Lightweight Charts with draggable alert price lines.
  *
- * Fixes:
- *  1. Right-edge "wall": rightOffset:10, fixRightEdge:false
- *  2. Wheel on price axis: intercepted — price scale zoom disabled
- *  3. Draggable lines: mousedown near line → drag → mouseup saves new price
+ * Features:
+ *  1. Right-edge buffer (rightOffset:10)
+ *  2. Price-axis wheel zoom disabled
+ *  3. Draggable price lines
+ *  4. Floating price badge centered on each line (HTML overlay)
  */
 import { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, CrosshairMode, LineStyle } from 'lightweight-charts';
@@ -63,14 +64,14 @@ function makeChartOpts(w, h) {
       borderColor:    '#1e1e3a',
       timeVisible:    true,
       secondsVisible: false,
-      rightOffset:    10,      // fix 1: buffer after last bar
-      fixRightEdge:   false,   // fix 1: don't lock right edge
+      rightOffset:    10,
+      fixRightEdge:   false,
       fixLeftEdge:    false,
     },
     handleScale: {
       mouseWheel:           true,
       pinch:                true,
-      axisPressedMouseMove: { time: true, price: false }, // disable price-axis drag-scale
+      axisPressedMouseMove: { time: true, price: false },
     },
     handleScroll: {
       mouseWheel:       true,
@@ -81,33 +82,59 @@ function makeChartOpts(w, h) {
   };
 }
 
-// Pixels within which a cursor is considered "on" a price line
-const HIT_PX = 7;
-// Estimated width of the right price scale in px
+// Format price for badge label
+function fmtPrice(p) {
+  if (p == null || isNaN(p)) return '';
+  if (p >= 10000) return '$' + Math.round(p).toLocaleString('en-US');
+  if (p >= 100)   return '$' + p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (p >= 1)     return '$' + p.toFixed(4);
+  return '$' + p.toFixed(6);
+}
+
+const HIT_PX       = 7;
 const PRICE_AXIS_PX = 75;
 
 export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) {
-  const containerRef = useRef(null);
-  const chartRef     = useRef(null);
-  const seriesRef    = useRef(null);
-  const linesRef     = useRef([]);        // { id, line, target }[]
-  const symRef       = useRef(symbol);
-  const draggingRef  = useRef(null);      // { id, line, currentPrice }
-  const priceChangeCbRef = useRef(onAlertPriceChange);
+  const containerRef         = useRef(null);
+  const chartRef             = useRef(null);
+  const seriesRef            = useRef(null);
+  const linesRef             = useRef([]);        // { id, line, target, labelEl, color }[]
+  const symRef               = useRef(symbol);
+  const draggingRef          = useRef(null);      // { id, line, currentPrice, labelEl }
+  const priceChangeCbRef     = useRef(onAlertPriceChange);
+  const updatePositionsRef   = useRef(null);      // called from chart subscriptions
 
   const [chartReady, setChartReady] = useState(false);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState(false);
 
-  // Keep callback ref up-to-date without recreating chart
+  // Keep callback ref up-to-date
   useEffect(() => { priceChangeCbRef.current = onAlertPriceChange; }, [onAlertPriceChange]);
+
+  // ── Reposition all label badges ────────────────────────────
+  const buildUpdatePositions = () => () => {
+    const s  = seriesRef.current;
+    const el = containerRef.current;
+    if (!s || !el) return;
+    const chartH = el.clientHeight;
+    linesRef.current.forEach(entry => {
+      if (!entry.labelEl) return;
+      const y = s.priceToCoordinate(entry.target);
+      if (y == null || y < 4 || y > chartH - 4) {
+        entry.labelEl.style.display = 'none';
+        return;
+      }
+      entry.labelEl.style.display = 'flex';
+      entry.labelEl.style.top     = `${y}px`;
+    });
+  };
 
   // ── Create chart + event listeners (mount only) ─────────────
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    const chart = createChart(el, makeChartOpts(el.clientWidth, el.clientHeight));
+    const chart  = createChart(el, makeChartOpts(el.clientWidth, el.clientHeight));
     const series = chart.addSeries(CandlestickSeries, {
       upColor:       '#26a69a',
       downColor:     '#ef5350',
@@ -119,6 +146,9 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) 
     chartRef.current  = chart;
     seriesRef.current = series;
 
+    // Build the reposition function once and store in ref
+    updatePositionsRef.current = buildUpdatePositions();
+
     // ── Auto-resize ──────────────────────────────────────────
     const ro = new ResizeObserver(() => {
       if (!containerRef.current || !chartRef.current) return;
@@ -126,15 +156,21 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) 
         width:  containerRef.current.clientWidth,
         height: containerRef.current.clientHeight,
       });
+      updatePositionsRef.current?.();
     });
     ro.observe(el);
 
-    // ── Helpers ───────────────────────────────────────────────
-    const clientY = (e) =>
-      e.clientY ?? (e.touches?.[0]?.clientY ?? 0);
+    // ── Subscribe to chart time scale changes (re-position labels) ──
+    chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+      updatePositionsRef.current?.();
+    });
+    chart.subscribeCrosshairMove(() => {
+      updatePositionsRef.current?.();
+    });
 
+    // ── Helpers ───────────────────────────────────────────────
     const containerY = (e) =>
-      clientY(e) - el.getBoundingClientRect().top;
+      (e.clientY ?? e.touches?.[0]?.clientY ?? 0) - el.getBoundingClientRect().top;
 
     const findNearLine = (y) => {
       const s = seriesRef.current;
@@ -149,10 +185,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) 
       return best;
     };
 
-    // ── Fix 2: prevent price-axis vertical zoom on wheel ─────
-    // When the wheel event fires in the rightmost PRICE_AXIS_PX columns,
-    // stop it so the price scale doesn't zoom — the user can move the
-    // cursor to the chart area for normal wheel-zoom.
+    // ── Fix: prevent price-axis vertical zoom on wheel ───────
     const onWheel = (e) => {
       if (e.offsetX > el.clientWidth - PRICE_AXIS_PX) {
         e.stopPropagation();
@@ -160,7 +193,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) 
       }
     };
 
-    // ── Fix 3: draggable price lines ─────────────────────────
+    // ── Draggable price lines ─────────────────────────────────
     const onMouseMove = (e) => {
       const y = containerY(e);
       if (draggingRef.current) {
@@ -168,6 +201,12 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) 
         if (price != null) {
           try { draggingRef.current.line.applyOptions({ price }); } catch {}
           draggingRef.current.currentPrice = price;
+          // Update the badge label live while dragging
+          if (draggingRef.current.labelEl) {
+            draggingRef.current.labelEl.style.top = `${y}px`;
+            const txt = draggingRef.current.labelEl.querySelector('.acl-price');
+            if (txt) txt.textContent = fmtPrice(price);
+          }
         }
         el.style.cursor = 'ns-resize';
         e.stopPropagation();
@@ -177,8 +216,8 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) 
     };
 
     const onMouseDown = (e) => {
-      const y    = containerY(e);
-      const hit  = findNearLine(y);
+      const y   = containerY(e);
+      const hit = findNearLine(y);
       if (!hit) return;
       draggingRef.current = { ...hit, currentPrice: hit.target };
       el.style.cursor = 'ns-resize';
@@ -189,6 +228,9 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) 
     const onRelease = () => {
       if (!draggingRef.current) return;
       const { id, currentPrice } = draggingRef.current;
+      // Sync stored target so label stays positioned correctly
+      const entry = linesRef.current.find(x => x.id === id);
+      if (entry && currentPrice != null) entry.target = currentPrice;
       draggingRef.current = null;
       el.style.cursor = '';
       if (currentPrice != null && priceChangeCbRef.current) {
@@ -212,13 +254,18 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) 
       el.removeEventListener('mousedown',  onMouseDown);
       el.removeEventListener('mouseup',    onRelease);
       el.removeEventListener('mouseleave', onRelease);
+      // Remove any lingering label els
+      linesRef.current.forEach(({ labelEl }) => {
+        if (labelEl?.parentNode) labelEl.parentNode.removeChild(labelEl);
+      });
+      linesRef.current = [];
       setChartReady(false);
       chart.remove();
       chartRef.current  = null;
       seriesRef.current = null;
-      linesRef.current  = [];
     };
-  }, []); // mount only — callback kept fresh via priceChangeCbRef
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Load candles when symbol changes ───────────────────────
   useEffect(() => {
@@ -227,8 +274,10 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) 
 
     setLoading(true);
     setError(false);
-    linesRef.current.forEach(({ line }) => {
+    // Remove lines + labels
+    linesRef.current.forEach(({ line, labelEl }) => {
       try { seriesRef.current?.removePriceLine(line); } catch {}
+      if (labelEl?.parentNode) labelEl.parentNode.removeChild(labelEl);
     });
     linesRef.current = [];
 
@@ -248,18 +297,25 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, chartReady]);
 
-  // ── Sync price lines with alerts ────────────────────────────
+  // ── Sync price lines + floating badges with alerts ─────────
   useEffect(() => {
-    if (!chartReady || !seriesRef.current) return;
+    if (!chartReady || !seriesRef.current || !containerRef.current) return;
     const series = seriesRef.current;
+    const container = containerRef.current;
 
-    linesRef.current.forEach(({ line }) => { try { series.removePriceLine(line); } catch {} });
+    // Remove old lines + labels
+    linesRef.current.forEach(({ line, labelEl }) => {
+      try { series.removePriceLine(line); } catch {}
+      if (labelEl?.parentNode) labelEl.parentNode.removeChild(labelEl);
+    });
     linesRef.current = [];
 
     alerts.forEach(alert => {
       try {
         const color = alert.direction === 'above' ? '#D4AF37' : '#ef4444';
-        const line  = series.createPriceLine({
+
+        // Create price line (no axis label — we use our own badge)
+        const line = series.createPriceLine({
           price:            alert.target,
           color,
           lineWidth:        1,
@@ -267,10 +323,21 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) 
           axisLabelVisible: false,
           title:            '',
         });
-        // Store target so drag detection knows each line's y-coordinate
-        linesRef.current.push({ id: alert.id, line, target: alert.target });
+
+        // ── Create floating price badge ──────────────────────
+        const labelEl = document.createElement('div');
+        labelEl.className = 'acl-badge';
+        labelEl.style.borderColor = color;
+        labelEl.innerHTML =
+          `<span class="acl-price">${fmtPrice(alert.target)}</span>`;
+        container.appendChild(labelEl);
+
+        linesRef.current.push({ id: alert.id, line, target: alert.target, labelEl, color });
       } catch {}
     });
+
+    // Position badges immediately after adding
+    updatePositionsRef.current?.();
   }, [alerts, chartReady]);
 
   return (
