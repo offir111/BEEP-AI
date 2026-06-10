@@ -180,8 +180,8 @@ export default function AlertChart({ symbol, alerts = [] }) {
           color,
           lineWidth:        1,
           lineStyle:        LineStyle.Solid,
-          axisLabelVisible: true,
-          title:            `🔔 ${alert.target.toLocaleString()}`,
+          axisLabelVisible: false,
+          title:            '',
         });
         linesRef.current.push({ id: alert.id, line });
       } catch {}
