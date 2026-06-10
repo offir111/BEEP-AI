@@ -29,7 +29,7 @@ function StockCard({ stock, onSelect, selected }) {
   const load = useCallback(() => {
     setLoading(true); setError(false);
     fetch(`/api/market?symbol=${encodeURIComponent(stock.symbol)}`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(d => {
         if (d.price !== null) {
           setData({ price: d.price, change: d.change });

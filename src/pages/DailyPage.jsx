@@ -124,7 +124,7 @@ export default function DailyPage() {
 
   useEffect(() => {
     fetch('/api/scan')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(data => {
         const top = (data.results || []).slice(0, 5);
         if (top.length === 0) { setLoading(false); return; }

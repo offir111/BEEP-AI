@@ -27,6 +27,7 @@ app.get('/api/market', async (req, res) => {
     const r = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0' }
     });
+    if (!r.ok) return res.json({ price: null, change: null });
     const data = await r.json();
     const result = data?.chart?.result?.[0];
     const closes = result?.indicators?.quote?.[0]?.close || [];
@@ -68,6 +69,7 @@ const SCAN_SYMBOLS = [
 ];
 
 app.get('/api/scan', async (req, res) => {
+  try {
   const { symbol: extra } = req.query; // optional extra symbol from user input
   let symbols = [...SCAN_SYMBOLS];
   if (extra) {
@@ -80,6 +82,7 @@ app.get('/api/scan', async (req, res) => {
   const results = await Promise.allSettled(symbols.map(async ({ sym, name, type }) => {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=7d`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) return null;
     const data = await r.json();
     const result = data?.chart?.result?.[0];
     const closes  = (result?.indicators?.quote?.[0]?.close  || []).filter(Boolean);
@@ -125,6 +128,9 @@ app.get('/api/scan', async (req, res) => {
     .sort((a, b) => b.score - a.score);
 
   res.json({ results: valid, top3: valid.slice(0, 3), updated: Date.now() });
+  } catch (e) {
+    res.status(500).json({ error: 'scan failed', detail: e.message });
+  }
 });
 
 // ── AI Diagnostic (Groq if available, else algo summary) ──────
@@ -145,6 +151,7 @@ app.post('/api/ai-diagnostic', async (req, res) => {
       headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'llama3-8b-8192', messages: [{ role: 'user', content: prompt }], max_tokens: 300 })
     });
+    if (!r.ok) throw new Error(`Groq ${r.status}`);
     const d = await r.json();
     res.json({ summary: d.choices?.[0]?.message?.content || 'לא זמין' });
   } catch (e) {
@@ -203,6 +210,36 @@ app.get('/api/finviz-model', async (req, res) => {
     _fvCache=payload; _fvCacheTs=now;
     res.json(payload);
   } catch(e) { res.status(500).json({error:e.message}); }
+});
+
+// ── Symbol search proxy (Yahoo Finance — all US markets) ─────
+app.get('/api/symbol-search', async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json([]);
+  try {
+    const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=15&newsCount=0&listsCount=0&enableFuzzyQuery=true&enableCb=false&enableNavLinks=false&enableEnhancedTrivialQuery=true&enableResearchReports=false`;
+    const r = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+      }
+    });
+    if (!r.ok) return res.json([]);
+    const data = await r.json();
+    const items = (data?.quotes || [])
+      .filter(item => item.quoteType === 'EQUITY')
+      .slice(0, 12)
+      .map(item => ({
+        symbol:      item.symbol,
+        full_name:   `${(item.exchange || 'NASDAQ')}:${item.symbol}`,
+        description: item.longname || item.shortname || item.symbol,
+        exchange:    item.exchange || 'NASDAQ',
+        type:        'stock',
+      }));
+    res.json(items);
+  } catch (e) {
+    res.status(500).json([]);
+  }
 });
 
 // ── SPA fallback ──────────────────────────────────────────────

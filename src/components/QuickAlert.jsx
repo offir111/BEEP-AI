@@ -19,9 +19,26 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
   useEffect(() => {
     if (initPrice) {
       setPrice(initPrice);
-      setTarget((initPrice * 1.05).toFixed(2));
+      setTarget((initPrice * 1.05).toFixed(initPrice > 100 ? 2 : 4));
+      setDirection('above');
     }
   }, [initPrice]);
+
+  // ── Auto-detect direction when user types target price ──────
+  const handleTargetChange = (val) => {
+    setTarget(val);
+    const t = parseFloat(val);
+    if (price && t > 0) {
+      setDirection(t >= price ? 'above' : 'below');
+    }
+  };
+
+  // Dynamic badge: TARGET (🟡) or STOP LOSS (🔴)
+  const typedT = parseFloat(target);
+  const autoType = price && typedT > 0
+    ? (typedT >= price ? 'target' : 'stoploss')
+    : (direction === 'above' ? 'target' : 'stoploss');
+  const isStopLoss = autoType === 'stoploss';
 
   const handleDirection = (dir) => {
     setDirection(dir);
@@ -96,6 +113,19 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
           </div>
         )}
 
+        {/* Auto-type badge — TARGET vs STOP LOSS */}
+        {target && (
+          <div className={`qa-type-badge ${isStopLoss ? 'qa-badge--sl' : 'qa-badge--tp'}`}>
+            <span className="qa-badge-icon">{isStopLoss ? '🔴' : '🟡'}</span>
+            <span className="qa-badge-text">{isStopLoss ? 'STOP LOSS' : 'TARGET'}</span>
+            {price && typedT > 0 && (
+              <span className="qa-badge-dist">
+                {isStopLoss ? '▼' : '▲'} {Math.abs(((typedT - price) / price) * 100).toFixed(1)}%
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Existing alerts chips */}
         {symAlerts.length > 0 && (
           <div className="qa-chips-wrap">
@@ -135,7 +165,7 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
             type="number"
             placeholder="מחיר יעד"
             value={target}
-            onChange={e => setTarget(e.target.value)}
+            onChange={e => handleTargetChange(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && submit()}
             autoFocus
           />

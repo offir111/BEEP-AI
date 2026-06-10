@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAlerts } from '../context/AlertsContext';
 import AlertLine          from '../components/AlertLine';
 import QuickAlert         from '../components/QuickAlert';
@@ -28,6 +28,38 @@ function buildTVUrl(sym, exchange, interval) {
   return `https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${exchange}%3A${sym}&interval=${interval}&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=12121a&theme=dark&style=1&timezone=Asia%2FJerusalem&withdateranges=1&locale=he_IL`;
 }
 
+// ── Symbol search (via server proxy → Yahoo Finance) ──────────
+function useSymbolSearch() {
+  const [query,    setQuery]    = useState('');
+  const [results,  setResults]  = useState([]);
+  const [loading,  setLoading]  = useState(false);
+  const [open,     setOpen]     = useState(false);
+  const timerRef   = useRef(null);
+
+  const search = useCallback((q) => {
+    setQuery(q);
+    clearTimeout(timerRef.current);
+    if (!q.trim()) { setResults([]); setOpen(false); return; }
+    setOpen(true);
+    setLoading(true);
+    timerRef.current = setTimeout(async () => {
+      try {
+        const r   = await fetch(`/api/symbol-search?q=${encodeURIComponent(q)}`);
+        const items = await r.json();
+        setResults(Array.isArray(items) ? items : []);
+      } catch {
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+  }, []);
+
+  const close = useCallback(() => { setOpen(false); setQuery(''); setResults([]); }, []);
+
+  return { query, results, loading, open, search, close, setOpen };
+}
+
 export default function ChartsPage() {
   const { alerts, editAlert, removeAlert } = useAlerts();
   const [active,    setActive]    = useState(SYMBOLS[0]);
@@ -35,7 +67,10 @@ export default function ChartsPage() {
   const [showAlert, setShowAlert] = useState(false);
   const [livePrice, setLivePrice] = useState(null);
   const containerRef = useRef(null);
+  const searchWrapRef = useRef(null);
   const [containerH, setContainerH] = useState(480);
+
+  const { query, results, loading, open, search, close, setOpen } = useSymbolSearch();
 
   // Measure container height for alert lines
   useEffect(() => {
@@ -46,6 +81,33 @@ export default function ChartsPage() {
     ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [setOpen]);
+
+  // Select a search result — build a dynamic symbol entry
+  const selectSearchResult = (r) => {
+    // r.full_name = "NASDAQ:CIFR" or just symbol
+    const parts   = (r.full_name || '').split(':');
+    const exch    = parts.length === 2 ? parts[0] : (r.exchange || 'NASDAQ');
+    const sym     = parts.length === 2 ? parts[1] : r.symbol;
+    const custom  = {
+      id:       sym,
+      label:    r.description || sym,
+      exchange: exch,
+      binance:  null,
+      priceApi: sym,
+      isCustom: true,
+    };
+    setActive(custom);
+    close();
+  };
 
   // Fetch live price for active symbol
   useEffect(() => {
@@ -109,7 +171,73 @@ export default function ChartsPage() {
         </div>
       </div>
 
-      {/* Chart + alert lines overlay — BUG-04: IframeWithFallback */}
+      {/* ── Symbol search bar ── */}
+      <div className="charts-search-wrap" ref={searchWrapRef}>
+        <div className="charts-search-row">
+          <span className="charts-search-icon">🔍</span>
+          <input
+            className="charts-search-input"
+            type="text"
+            value={query}
+            onChange={e => search(e.target.value)}
+            onFocus={() => query && setOpen(true)}
+            placeholder="חפש מניה... NVDA, AAPL, RIOT, SPY"
+            dir="ltr"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck="false"
+          />
+          {loading && <span className="charts-search-spin">⌛</span>}
+          {query && !loading && (
+            <button className="charts-search-clear" onClick={close} aria-label="נקה חיפוש">✕</button>
+          )}
+        </div>
+
+        {open && (
+          <div className="charts-search-dropdown">
+            {loading && <div className="charts-search-empty">🔍 מחפש...</div>}
+            {!loading && results.length === 0 && (
+              <div className="charts-search-empty">לא נמצאו מניות — נסה שם אחר</div>
+            )}
+            {results.map((r, i) => {
+              const parts = (r.full_name || '').split(':');
+              const exch  = parts.length === 2 ? parts[0] : (r.exchange || '');
+              const sym   = parts.length === 2 ? parts[1] : r.symbol;
+              return (
+                <button key={i} className="charts-search-result" onClick={() => selectSearchResult(r)}>
+                  <span className="csr-sym">{sym}</span>
+                  <span className="csr-name">{r.description || '—'}</span>
+                  <span className="csr-exch">{exch}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Symbol buttons */}
+      <div className="charts-symbols">
+        {active.isCustom && (
+          <button className="charts-sym-btn charts-sym-btn--on charts-sym-btn--custom">
+            ✦ {active.id}
+            <span className="charts-sym-exch">{active.exchange}</span>
+          </button>
+        )}
+        {SYMBOLS.map(s => {
+          const sShort = s.binance ? s.id.replace('USD','') : s.priceApi.replace('^','').replace('=F','').replace('=X','');
+          const sAlerts = alerts.filter(a => !a.triggered && a.symbol === sShort.toUpperCase()).length;
+          return (
+            <button key={s.id}
+              className={`charts-sym-btn ${active.id===s.id&&!active.isCustom?'charts-sym-btn--on':''}`}
+              onClick={()=>setActive(s)}>
+              {s.label}
+              {sAlerts > 0 && <span className="charts-sym-badge">🔔</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Chart + alert lines overlay */}
       <div className="charts-tv-wrap" ref={containerRef}>
         <IframeWithFallback
           iframeKey={`${active.id}-${interval}`}
@@ -118,7 +246,6 @@ export default function ChartsPage() {
           className="charts-tv-iframe"
         />
 
-        {/* Alert lines overlay */}
         {livePrice && symAlerts.length > 0 && (
           <div className="charts-lines-overlay">
             {symAlerts.map(a => (
@@ -134,28 +261,11 @@ export default function ChartsPage() {
           </div>
         )}
 
-        {/* Floating bell */}
         <button className="charts-float-bell" onClick={()=>setShowAlert(true)}>
           🔔
           {symAlerts.length > 0 && <span className="charts-float-badge">{symAlerts.length}</span>}
           {livePrice && <span className="charts-float-price">${parseFloat(livePrice).toLocaleString()}</span>}
         </button>
-      </div>
-
-      {/* Symbol buttons */}
-      <div className="charts-symbols">
-        {SYMBOLS.map(s => {
-          const sShort = s.binance ? s.id.replace('USD','') : s.priceApi.replace('^','').replace('=F','').replace('=X','');
-          const sAlerts = alerts.filter(a => !a.triggered && a.symbol === sShort.toUpperCase()).length;
-          return (
-            <button key={s.id}
-              className={`charts-sym-btn ${active.id===s.id?'charts-sym-btn--on':''}`}
-              onClick={()=>setActive(s)}>
-              {s.label}
-              {sAlerts > 0 && <span className="charts-sym-badge">🔔</span>}
-            </button>
-          );
-        })}
       </div>
 
       {showAlert && (

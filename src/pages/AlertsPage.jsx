@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useAlerts } from '../context/AlertsContext';
+import { useState, useEffect } from 'react';
+import { useAlerts, fetchLivePrice } from '../context/AlertsContext';
 import './AlertsPage.css';
 
 const QUICK_SYMBOLS = ['BTC','ETH','SOL','AAPL','NVDA','TSLA','MSFT','GOOGL','AMZN','XAUUSD'];
@@ -26,7 +26,36 @@ function AlertForm({ initial, onSave, onCancel }) {
   const [note,      setNote]      = useState(initial?.note      || '');
   const [error,     setError]     = useState('');
 
+  // Live price for current symbol
+  const [livePrice,     setLivePrice]     = useState(null);
+  const [priceLoading,  setPriceLoading]  = useState(false);
+
   const finalSym = customSym.trim().toUpperCase() || symbol;
+
+  // Fetch live price whenever symbol changes
+  useEffect(() => {
+    setLivePrice(null);
+    setPriceLoading(true);
+    fetchLivePrice(finalSym)
+      .then(p => { if (p) setLivePrice(p); })
+      .catch(() => {})
+      .finally(() => setPriceLoading(false));
+  }, [finalSym]);
+
+  // Auto-detect direction when target price is typed
+  const handleTargetChange = (val) => {
+    setTarget(val);
+    const t = parseFloat(val);
+    if (livePrice && t > 0) {
+      setDirection(t >= livePrice ? 'above' : 'below');
+    }
+  };
+
+  // Dynamic badge
+  const typedT    = parseFloat(target);
+  const isStopLoss = livePrice && typedT > 0
+    ? typedT < livePrice
+    : direction === 'below';
 
   const submit = () => {
     setError('');
@@ -61,6 +90,38 @@ function AlertForm({ initial, onSave, onCancel }) {
         <div className="al-edit-sym">עורך: <strong style={{color:'var(--accent-gold)'}}>{initial.symbol}</strong></div>
       )}
 
+      {/* Live price display */}
+      {!isEdit && (
+        <div className="al-live-price-row">
+          <span className="al-live-label">מחיר נוכחי</span>
+          {priceLoading
+            ? <span className="al-live-val al-live-loading">טוען…</span>
+            : livePrice
+              ? <>
+                  <span className="al-live-val">${livePrice.toLocaleString('en', { maximumFractionDigits: livePrice > 100 ? 0 : 4 })}</span>
+                  <button className="al-use-price-btn"
+                    onClick={() => handleTargetChange(String(livePrice.toFixed(livePrice > 100 ? 2 : 4)))}>
+                    השתמש
+                  </button>
+                </>
+              : <span className="al-live-val al-live-failed">—</span>
+          }
+        </div>
+      )}
+
+      {/* Auto-type badge: TARGET vs STOP LOSS */}
+      {target && (
+        <div className={`al-type-badge ${isStopLoss ? 'al-badge--sl' : 'al-badge--tp'}`}>
+          <span>{isStopLoss ? '🔴' : '🟡'}</span>
+          <span className="al-badge-label">{isStopLoss ? 'STOP LOSS' : 'TARGET'}</span>
+          {livePrice && typedT > 0 && (
+            <span className="al-badge-dist">
+              {isStopLoss ? '▼' : '▲'} {Math.abs(((typedT - livePrice) / livePrice) * 100).toFixed(1)}%
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Direction */}
       <div className="al-form-row">
         <label className="al-label">כיוון</label>
@@ -78,7 +139,7 @@ function AlertForm({ initial, onSave, onCancel }) {
         <div className="al-price-row">
           <button className="al-step" onClick={()=>setTarget(v=>String(Math.max(0.01,(+v||0)-(+v>100?1:0.01))))}>▼</button>
           <input className="al-input al-input--price" type="number" placeholder="מחיר יעד..."
-            value={target} onChange={e=>setTarget(e.target.value)}
+            value={target} onChange={e=>handleTargetChange(e.target.value)}
             onKeyDown={e=>e.key==='Enter'&&submit()} autoFocus={isEdit}/>
           <button className="al-step" onClick={()=>setTarget(v=>String((+v||0)+(+v>100?1:0.01)))}>▲</button>
         </div>

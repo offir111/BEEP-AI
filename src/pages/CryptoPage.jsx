@@ -26,7 +26,7 @@ export default function CryptoPage() {
     setLoading(true); setError('');
     const ids = COINS.map(c => c.id).join(',');
     fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(d => {
         const result = COINS.map(c => ({
           ...c,

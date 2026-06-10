@@ -28,8 +28,8 @@ self.addEventListener('push', e => {
     data.title || '⚡ BEEP AI',
     {
       body:    data.body || 'התראה חדשה',
-      icon:    '/icon-192.svg',
-      badge:   '/icon-192.svg',
+      icon:    '/icon-192.png',
+      badge:   '/icon-192.png',
       tag:     data.tag || 'beepai',
       vibrate: [400, 150, 400, 150, 600],
       data:    { url: '/' },

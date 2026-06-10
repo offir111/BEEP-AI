@@ -119,6 +119,33 @@
 }
 .qa-dur--on { background:rgba(212,175,55,0.12); border-color:var(--accent-gold); color:var(--accent-gold); font-weight:600; }
 
+/* ── Auto-type badge: TARGET / STOP LOSS ───────────────── */
+.qa-type-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  letter-spacing: 0.5px;
+  transition: background 0.2s, border-color 0.2s;
+}
+.qa-badge--tp {
+  background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.45);
+  color: #fbbf24;
+}
+.qa-badge--sl {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.45);
+  color: #ef4444;
+}
+.qa-badge-icon { font-size: 1rem; }
+.qa-badge-text { font-weight: 800; }
+.qa-badge-dist { font-size: 0.78rem; opacity: 0.8; margin-right: 2px; }
+
 .qa-success  { text-align:center; color:var(--accent-green); font-weight:600; padding:10px; font-size:1rem; }
 .qa-dup-warn { text-align:center; color:#fbbf24; font-weight:600; padding:8px 12px; font-size:0.82rem;
                background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3);

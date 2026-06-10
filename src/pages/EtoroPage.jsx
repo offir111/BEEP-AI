@@ -13,8 +13,8 @@ async function fetchLivePrices() {
   try {
     // NVDA and GOOGL via Yahoo proxy
     const [nvda, googl] = await Promise.all([
-      fetch('/api/market?symbol=NVDA').then(r => r.json()),
-      fetch('/api/market?symbol=GOOGL').then(r => r.json()),
+      fetch('/api/market?symbol=NVDA').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch('/api/market?symbol=GOOGL').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
     ]);
     if (nvda.price)  prices['NVDA']  = { price: nvda.price,  change: nvda.change  };
     if (googl.price) prices['GOOGL'] = { price: googl.price, change: googl.change };

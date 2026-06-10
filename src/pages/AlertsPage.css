@@ -88,6 +88,59 @@
 
 .al-form-hint { font-size:0.68rem; color:var(--text-muted); text-align:center; }
 
+/* Live price row */
+.al-live-price-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 0.82rem;
+}
+.al-live-label  { color: var(--text-muted); flex-shrink: 0; }
+.al-live-val    { color: var(--accent-gold); font-weight: 700; font-size: 0.95rem; }
+.al-live-loading { color: var(--text-muted); animation: pulse-dot 1.2s infinite; }
+.al-live-failed  { color: var(--text-muted); }
+.al-use-price-btn {
+  margin-right: auto;
+  background: rgba(212,175,55,0.12);
+  border: 1px solid rgba(212,175,55,0.3);
+  border-radius: 4px;
+  color: var(--accent-gold);
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  transition: background 0.15s;
+}
+.al-use-price-btn:hover { background: rgba(212,175,55,0.22); }
+
+/* Auto-type badge: TARGET / STOP LOSS */
+.al-type-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.4px;
+  transition: background 0.2s, border-color 0.2s;
+}
+.al-badge--tp {
+  background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.45);
+  color: #fbbf24;
+}
+.al-badge--sl {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.45);
+  color: #ef4444;
+}
+.al-badge-label { font-weight: 800; }
+.al-badge-dist  { font-size: 0.78rem; opacity: 0.8; }
+
 /* Stats */
 .al-stats { display:flex; gap:10px; }
 .al-stat {

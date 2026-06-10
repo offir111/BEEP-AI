@@ -49,13 +49,13 @@ export async function fireNotification(symbol, body) {
     if ('serviceWorker' in navigator && Notification.permission === 'granted') {
       const reg = await navigator.serviceWorker.ready;
       await reg.showNotification(`⚡ BEEP AI — ${symbol}`, {
-        body, icon: '/icon-192.svg', badge: '/icon-192.svg',
+        body, icon: '/icon-192.png', badge: '/icon-192.png',
         tag: `alert-${symbol}-${Date.now()}`,
         vibrate: [400, 150, 400, 150, 600],
         requireInteraction: true,
       });
     } else if (Notification.permission === 'granted') {
-      new Notification(`⚡ BEEP AI — ${symbol}`, { body, icon: '/icon-192.svg' });
+      new Notification(`⚡ BEEP AI — ${symbol}`, { body, icon: '/icon-192.png' });
     }
   } catch {}
 }
@@ -79,6 +79,7 @@ export async function fetchLivePrice(symbol) {
     return parseFloat(d.price);
   }
   const r = await fetch(`/api/market?symbol=${encodeURIComponent(sym)}`);
+  if (!r.ok) return null;
   const d = await r.json();
   return d.price || null;
 }

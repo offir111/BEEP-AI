@@ -11,7 +11,7 @@ function useBTC() {
 
   const fetch_ = useCallback(() => {
     fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(d => {
         const price  = parseFloat(d.lastPrice);
         const change = parseFloat(d.priceChangePercent);
@@ -47,7 +47,7 @@ function MarketPill({ symbol, label, prefix = '$' }) {
   useEffect(() => {
     const timer = setTimeout(() => setFailed(true), 6000);
     fetch(`/api/market?symbol=${encodeURIComponent(symbol)}`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(d => {
         clearTimeout(timer);
         if (d.price) { setPrice(d.price); setChange(d.change); setFailed(false); }
@@ -81,7 +81,7 @@ function FearGreedMini() {
   const [lbl, setLbl] = useState('');
   useEffect(() => {
     fetch('https://api.alternative.me/fng/?limit=1')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(d => { setVal(parseInt(d?.data?.[0]?.value)); setLbl(d?.data?.[0]?.value_classification || ''); })
       .catch(() => {});
   }, []);
