@@ -16,7 +16,7 @@ function IsraelClock() {
 }
 
 export default function Header({ username, onLogout, navigate, page }) {
-  const { activeCount } = useAlerts();
+  const { activeCount, unseenFired } = useAlerts();
 
   return (
     <header className="hdr">
@@ -48,6 +48,9 @@ export default function Header({ username, onLogout, navigate, page }) {
           </svg>
           {activeCount > 0 && (
             <span className="hdr-bell-badge">{activeCount > 9 ? '9+' : activeCount}</span>
+          )}
+          {unseenFired > 0 && (
+            <span className="hdr-bell-fired" title={`${unseenFired} התראות חדשות`} />
           )}
         </button>
 

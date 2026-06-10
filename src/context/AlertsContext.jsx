@@ -143,11 +143,20 @@ export function AlertsProvider({ children }) {
     return a;
   }, []);
 
-  // ── Edit alert (update target price) ──
-  const editAlert = useCallback((id, newTarget) => {
-    setAlerts(prev => prev.map(a =>
-      a.id === id ? { ...a, target: parseFloat(newTarget), triggered: false, triggeredAt: null } : a
-    ));
+  // ── Edit alert (update target, direction, duration, note) ──
+  const editAlert = useCallback((id, updates) => {
+    setAlerts(prev => prev.map(a => {
+      if (a.id !== id) return a;
+      const u = (typeof updates === 'object' && updates !== null) ? updates : { target: updates };
+      return {
+        ...a,
+        ...(u.target    !== undefined ? { target: parseFloat(u.target) }              : {}),
+        ...(u.direction !== undefined ? { direction: u.direction }                    : {}),
+        ...(u.duration  !== undefined ? { duration: u.duration, expiresAt: makeExpiry(u.duration) } : {}),
+        ...(u.note      !== undefined ? { note: u.note }                              : {}),
+        triggered: false, triggeredAt: null,
+      };
+    }));
   }, []);
 
   // ── Remove alert ──
@@ -236,7 +245,7 @@ export function AlertsProvider({ children }) {
     };
 
     check();
-    const iv = setInterval(check, 30000);
+    const iv = setInterval(check, 5000);
     return () => clearInterval(iv);
   }, []);
 

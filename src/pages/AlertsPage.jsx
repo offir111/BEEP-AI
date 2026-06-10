@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAlerts, fetchLivePrice } from '../context/AlertsContext';
 import './AlertsPage.css';
 
-const QUICK_SYMBOLS = ['BTC','ETH','SOL','AAPL','NVDA','TSLA','MSFT','GOOGL','AMZN','XAUUSD'];
+const QUICK_SYMS = ['BTC','ETH','SOL','AAPL','NVDA','TSLA','MSFT','GOOGL','AMZN','XAUUSD'];
+const DUR_LABELS  = { forever:'תמיד', eod:'היום', year:'שנה' };
 
 function timeAgo(ts) {
   if (!ts) return '';
@@ -13,9 +14,7 @@ function timeAgo(ts) {
   return `לפני ${Math.round(m/1440)} ימים`;
 }
 
-const DURATION_LABELS = { forever:'♾ תמיד', eod:'📅 היום', year:'📆 שנה' };
-
-// ── Add / Edit form ───────────────────────────────────────────
+// ── Compact inline form ────────────────────────────────────────
 function AlertForm({ initial, onSave, onCancel }) {
   const isEdit = !!initial;
   const [symbol,    setSymbol]    = useState(initial?.symbol    || 'BTC');
@@ -25,210 +24,173 @@ function AlertForm({ initial, onSave, onCancel }) {
   const [duration,  setDuration]  = useState(initial?.duration  || 'forever');
   const [note,      setNote]      = useState(initial?.note      || '');
   const [error,     setError]     = useState('');
-
-  // Live price for current symbol
-  const [livePrice,     setLivePrice]     = useState(null);
-  const [priceLoading,  setPriceLoading]  = useState(false);
+  const [livePrice, setLivePrice] = useState(null);
+  const [priceLoad, setPriceLoad] = useState(false);
+  const holdRef = useRef({ timer: null, interval: null });
 
   const finalSym = customSym.trim().toUpperCase() || symbol;
 
-  // Fetch live price whenever symbol changes
   useEffect(() => {
     setLivePrice(null);
-    setPriceLoading(true);
+    setPriceLoad(true);
     fetchLivePrice(finalSym)
       .then(p => { if (p) setLivePrice(p); })
       .catch(() => {})
-      .finally(() => setPriceLoading(false));
+      .finally(() => setPriceLoad(false));
   }, [finalSym]);
 
-  // Auto-detect direction when target price is typed
   const handleTargetChange = (val) => {
     setTarget(val);
     const t = parseFloat(val);
-    if (livePrice && t > 0) {
-      setDirection(t >= livePrice ? 'above' : 'below');
-    }
+    if (livePrice && t > 0) setDirection(t >= livePrice ? 'above' : 'below');
   };
 
-  // Dynamic badge
-  const typedT    = parseFloat(target);
-  const isStopLoss = livePrice && typedT > 0
-    ? typedT < livePrice
-    : direction === 'below';
+  const fillLivePrice = () => {
+    if (!livePrice) return;
+    const v = livePrice.toFixed(livePrice > 100 ? 2 : 4);
+    handleTargetChange(v);
+  };
+
+  const stepStart = (dir) => {
+    const step = () => setTarget(v => {
+      const val = parseFloat(v) || 0;
+      const inc = val < 1 ? 0.001 : val < 100 ? 0.01 : val < 1000 ? 1 : 10;
+      const next = dir === 'up' ? val + inc : Math.max(0, val - inc);
+      return next.toFixed(val < 1 ? 4 : val < 100 ? 2 : 0);
+    });
+    step();
+    holdRef.current.timer = setTimeout(() => { holdRef.current.interval = setInterval(step, 70); }, 380);
+  };
+  const stepEnd = () => { clearTimeout(holdRef.current.timer); clearInterval(holdRef.current.interval); };
 
   const submit = () => {
     setError('');
-    if (!finalSym)                                 { setError('בחר סמל'); return; }
-    if (!target || isNaN(+target) || +target <= 0) { setError('הכנס מחיר תקין'); return; }
+    if (!finalSym)                              { setError('בחר סמל'); return; }
+    if (!target || isNaN(+target) || +target<=0){ setError('הכנס מחיר'); return; }
     onSave({ symbol: finalSym, direction, target: +target, duration, note });
   };
 
+  const typedT    = parseFloat(target);
+  const isStopLoss = livePrice && typedT > 0 ? typedT < livePrice : direction === 'below';
+  const distPct    = livePrice && typedT > 0
+    ? Math.abs(((typedT - livePrice) / livePrice) * 100).toFixed(1)
+    : null;
+
   return (
-    <div className="al-form-card">
-      <h3 className="al-form-title">{isEdit ? '✏️ עריכת התראה' : '🔔 הוסף התראה'}</h3>
-
-      {/* Symbol */}
-      {!isEdit && (
-        <div className="al-form-row">
-          <label className="al-label">סמל</label>
-          <div className="al-quick-syms">
-            {QUICK_SYMBOLS.map(s => (
-              <button key={s}
-                className={`al-sym-btn ${finalSym===s&&!customSym?'al-sym-btn--on':''}`}
-                onClick={()=>{setSymbol(s);setCustomSym('');}}>
-                {s}
-              </button>
-            ))}
-          </div>
-          <input className="al-input" placeholder="הקלד סמל (AMZN, BNB...)"
-            value={customSym} onChange={e=>setCustomSym(e.target.value.toUpperCase())}/>
-        </div>
-      )}
-
+    <div className="al-pf">
+      {/* Edit banner */}
       {isEdit && (
-        <div className="al-edit-sym">עורך: <strong style={{color:'var(--accent-gold)'}}>{initial.symbol}</strong></div>
+        <div className="al-pf-edit-banner">
+          <span>✏️ עריכת <strong>{initial.symbol}</strong></span>
+          <button onClick={onCancel}>ביטול ✕</button>
+        </div>
       )}
 
-      {/* Live price display */}
+      {/* Symbol selector */}
       {!isEdit && (
-        <div className="al-live-price-row">
-          <span className="al-live-label">מחיר נוכחי</span>
-          {priceLoading
-            ? <span className="al-live-val al-live-loading">טוען…</span>
-            : livePrice
-              ? <>
-                  <span className="al-live-val">${livePrice.toLocaleString('en', { maximumFractionDigits: livePrice > 100 ? 0 : 4 })}</span>
-                  <button className="al-use-price-btn"
-                    onClick={() => handleTargetChange(String(livePrice.toFixed(livePrice > 100 ? 2 : 4)))}>
-                    השתמש
-                  </button>
-                </>
-              : <span className="al-live-val al-live-failed">—</span>
-          }
-        </div>
-      )}
-
-      {/* Auto-type badge: TARGET vs STOP LOSS */}
-      {target && (
-        <div className={`al-type-badge ${isStopLoss ? 'al-badge--sl' : 'al-badge--tp'}`}>
-          <span>{isStopLoss ? '🔴' : '🟡'}</span>
-          <span className="al-badge-label">{isStopLoss ? 'STOP LOSS' : 'TARGET'}</span>
-          {livePrice && typedT > 0 && (
-            <span className="al-badge-dist">
-              {isStopLoss ? '▼' : '▲'} {Math.abs(((typedT - livePrice) / livePrice) * 100).toFixed(1)}%
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Direction */}
-      <div className="al-form-row">
-        <label className="al-label">כיוון</label>
-        <div className="al-direction-toggle">
-          <button className={`al-dir-btn ${direction==='above'?'al-dir-btn--above':''}`}
-            onClick={()=>setDirection('above')}>📈 מעל</button>
-          <button className={`al-dir-btn ${direction==='below'?'al-dir-btn--below':''}`}
-            onClick={()=>setDirection('below')}>📉 מתחת</button>
-        </div>
-      </div>
-
-      {/* Price + step */}
-      <div className="al-form-row">
-        <label className="al-label">מחיר יעד</label>
-        <div className="al-price-row">
-          <button className="al-step" onClick={()=>setTarget(v=>String(Math.max(0.01,(+v||0)-(+v>100?1:0.01))))}>▼</button>
-          <input className="al-input al-input--price" type="number" placeholder="מחיר יעד..."
-            value={target} onChange={e=>handleTargetChange(e.target.value)}
-            onKeyDown={e=>e.key==='Enter'&&submit()} autoFocus={isEdit}/>
-          <button className="al-step" onClick={()=>setTarget(v=>String((+v||0)+(+v>100?1:0.01)))}>▲</button>
-        </div>
-      </div>
-
-      {/* Duration */}
-      <div className="al-form-row">
-        <label className="al-label">תוקף</label>
-        <div className="al-dur-row">
-          {['forever','eod','year'].map(d=>(
-            <button key={d} className={`al-dur-btn ${duration===d?'al-dur-btn--on':''}`}
-              onClick={()=>setDuration(d)}>{DURATION_LABELS[d]}</button>
+        <div className="al-pf-sym-row">
+          {QUICK_SYMS.map(s => (
+            <button key={s}
+              className={`al-pf-sym ${finalSym===s&&!customSym?'--on':''}`}
+              onClick={() => { setSymbol(s); setCustomSym(''); }}>
+              {s}
+            </button>
           ))}
+          <input className="al-pf-custom" placeholder="סמל..."
+            value={customSym} onChange={e => setCustomSym(e.target.value.toUpperCase())} />
         </div>
+      )}
+
+      {/* Price input + direction — same row */}
+      <div className="al-pf-main-row">
+        <button className="al-pf-step"
+          onMouseDown={() => stepStart('down')} onMouseUp={stepEnd} onMouseLeave={stepEnd}
+          onTouchStart={e => { e.preventDefault(); stepStart('down'); }} onTouchEnd={stepEnd}>▼</button>
+        <input className="al-pf-input" type="number" placeholder="מחיר יעד"
+          value={target} onChange={e => handleTargetChange(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && submit()} autoFocus={isEdit} />
+        <button className="al-pf-step"
+          onMouseDown={() => stepStart('up')} onMouseUp={stepEnd} onMouseLeave={stepEnd}
+          onTouchStart={e => { e.preventDefault(); stepStart('up'); }} onTouchEnd={stepEnd}>▲</button>
+        <button className={`al-pf-dir ${direction==='above'?'--above':''}`}
+          onClick={() => setDirection('above')}>↑ מעל</button>
+        <button className={`al-pf-dir ${direction==='below'?'--below':''}`}
+          onClick={() => setDirection('below')}>↓ מתחת</button>
       </div>
 
-      {/* Note */}
-      <div className="al-form-row">
-        <label className="al-label">הערה (אופציונלי)</label>
-        <input className="al-input" placeholder="לדוגמה: רמת פריצה, support..."
-          value={note} onChange={e=>setNote(e.target.value)} maxLength={60}/>
+      {/* Badge (compact) */}
+      {target && typedT > 0 && (
+        <div className={`al-pf-badge ${isStopLoss ? '--sl' : '--tp'}`}>
+          {isStopLoss ? '🔴 STOP LOSS' : '🟡 TARGET'}
+          {distPct && <span className="al-pf-badge-dist"> {isStopLoss?'▼':'▲'} {distPct}%</span>}
+        </div>
+      )}
+
+      {/* Duration + note — same row */}
+      <div className="al-pf-opts-row">
+        {['forever','eod','year'].map(d => (
+          <button key={d} className={`al-pf-dur ${duration===d?'--on':''}`}
+            onClick={() => setDuration(d)}>{DUR_LABELS[d]}</button>
+        ))}
+        <input className="al-pf-note" placeholder="הערה (אופציונלי)"
+          value={note} onChange={e => setNote(e.target.value)} maxLength={50} />
       </div>
 
-      {error && <div className="al-form-error">{error}</div>}
-
-      <div className="al-form-btns">
-        <button className="al-form-submit" onClick={submit}>
-          {isEdit ? '✓ שמור שינויים' : '🔔 הוסף התראה'}
+      {/* Live price (clickable) + submit */}
+      <div className="al-pf-bottom-row">
+        <button
+          type="button"
+          className={`al-pf-liveprice ${livePrice ? '--clickable' : ''}`}
+          onClick={fillLivePrice}
+          disabled={!livePrice}
+          title={livePrice ? `לחץ למלא: $${livePrice.toLocaleString()}` : ''}>
+          {priceLoad
+            ? <span className="al-pf-price-loading">טוען…</span>
+            : livePrice
+              ? <><span className="al-pf-price-label">מחיר ↙</span><span className="al-pf-price-val">${livePrice.toLocaleString('en',{maximumFractionDigits: livePrice>100?0:4})}</span></>
+              : <span className="al-pf-price-label">—</span>
+          }
         </button>
-        {isEdit && <button className="al-form-cancel" onClick={onCancel}>ביטול</button>}
+        {error && <span className="al-pf-err">{error}</span>}
+        <button className="al-pf-submit" onClick={submit}>
+          {isEdit ? '✓ עדכן' : '+ הוסף'}
+        </button>
       </div>
-
-      <div className="al-form-hint">⚡ בדיקה כל 30 שניות · קול + רטט + browser notification</div>
     </div>
   );
 }
 
-// ── Alert card ─────────────────────────────────────────────────
-// BUG-05: distinguish expiredOut alerts from price-triggered alerts
+// ── Alert card (compact) ───────────────────────────────────────
 function AlertCard({ alert, onRemove, onReset, onEdit }) {
   const fired   = alert.triggered;
   const expired = fired && alert.expiredOut;
 
   return (
-    <div className={`al-card ${fired ? (expired ? 'al-card--expired' : 'al-card--triggered') : ''}`}>
+    <div className={`al-card ${fired ? (expired?'al-card--expired':'al-card--triggered') : ''}`}>
       <div className="al-card-left">
         <div className="al-card-top">
           <span className="al-card-symbol">{alert.symbol}</span>
           <span className={`al-dir-badge al-dir-badge--${alert.direction}`}>
-            {alert.direction === 'above' ? '↑ מעל' : '↓ מתחת'}
+            {alert.direction==='above' ? '↑ מעל' : '↓ מתחת'}
           </span>
           <span className="al-card-target">${alert.target.toLocaleString()}</span>
-        </div>
-        <div className="al-card-meta">
-          {alert.duration && alert.duration !== 'forever' &&
-            <span className="al-meta-chip">{DURATION_LABELS[alert.duration]}</span>}
           {alert.note && <span className="al-card-note">{alert.note}</span>}
         </div>
         {fired && (
-          <div className={`al-card-fired-info ${expired ? 'al-card-fired-info--expired' : ''}`}>
+          <div className={`al-card-fired-info ${expired?'al-card-fired-info--expired':''}`}>
             {expired
               ? `⏰ פג תוקף · ${timeAgo(alert.triggeredAt)}`
-              : `🔔 הופעל ב-$${alert.triggeredPrice?.toLocaleString()} · ${timeAgo(alert.triggeredAt)}`
-            }
+              : `🔔 $${alert.triggeredPrice?.toLocaleString()} · ${timeAgo(alert.triggeredAt)}`}
           </div>
         )}
       </div>
-
       <div className="al-card-right">
-        {!fired && (
-          <div className="al-card-status">
-            <span className="al-status-dot" />
-            <span className="al-status-txt">פעיל</span>
-          </div>
-        )}
-        {fired && (
-          <div className={`al-card-status ${expired ? 'al-card-status--expired' : 'al-card-status--fired'}`}>
-            <span>{expired ? '⏰' : '🔔'}</span>
-            <span className="al-status-txt">{expired ? 'פג תוקף' : 'הופעל'}</span>
-          </div>
-        )}
+        {!fired && <span className="al-status-dot" />}
+        {fired  && <span>{expired ? '⏰' : '🔔'}</span>}
         <div className="al-card-actions">
-          {!fired && (
-            <button className="al-card-edit" onClick={() => onEdit(alert)} title="ערוך" aria-label="ערוך התראה">✏️</button>
-          )}
-          {fired && (
-            <button className="al-card-reset" onClick={() => onReset(alert.id)} title="אפס" aria-label="אפס התראה">↺</button>
-          )}
-          <button className="al-card-del" onClick={() => onRemove(alert.id)} title="מחק" aria-label="מחק התראה">✕</button>
+          {!fired && <button className="al-card-edit"  onClick={() => onEdit(alert)}>✏️</button>}
+          {fired  && <button className="al-card-reset" onClick={() => onReset(alert.id)}>↺</button>}
+          <button className="al-card-del" onClick={() => onRemove(alert.id)}>✕</button>
         </div>
       </div>
     </div>
@@ -237,98 +199,109 @@ function AlertCard({ alert, onRemove, onReset, onEdit }) {
 
 // ── Main page ──────────────────────────────────────────────────
 export default function AlertsPage() {
-  const { alerts, addAlert, editAlert, removeAlert, resetAlert, activeCount, exportCSV } = useAlerts();
-  const [filter,   setFilter]   = useState('all');
-  const [editing,  setEditing]  = useState(null); // alert object being edited
+  const {
+    alerts, addAlert, editAlert, removeAlert, resetAlert,
+    activeCount, exportCSV, clearAll, markSeen,
+  } = useAlerts();
+
+  const [filter,          setFilter]          = useState('all');
+  const [editing,         setEditing]         = useState(null);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
 
   const notifPerm = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
 
+  // Mark fired alerts as seen when page opens
+  useEffect(() => { markSeen(); }, [markSeen]);
+
   const handleSave = (data) => {
     if (editing) {
-      editAlert(editing.id, data.target);
+      editAlert(editing.id, { target: data.target, direction: data.direction, duration: data.duration, note: data.note });
       setEditing(null);
     } else {
       addAlert(data);
     }
   };
 
-  const filtered = alerts.filter(a => {
+  const firedCount = alerts.filter(a => a.triggered).length;
+  const filtered   = alerts.filter(a => {
     if (filter==='active')    return !a.triggered;
     if (filter==='triggered') return  a.triggered;
     return true;
   });
 
   return (
-    <div className="al-wrap">
+    <div className="al-panel">
 
-      {/* Header */}
-      <div className="al-hdr">
-        <div>
-          <h2 className="al-title">🔔 התראות מחיר</h2>
-          <p className="al-sub">קבל התראה קולית + ויזואלית כשמחיר מגיע ליעד</p>
+      {/* Panel header */}
+      <div className="al-ph">
+        <span className="al-ph-title">🔔 התראות מחיר</span>
+        <div className="al-ph-stats">
+          <span className="al-ph-stat --active">{activeCount} פעיל</span>
+          <span className="al-ph-stat --fired">{firedCount} הופעל</span>
         </div>
-        <div className="al-hdr-btns">
-          {notifPerm === 'default' && (
-            <button className="al-notif-btn" onClick={()=>Notification.requestPermission()}>
-              🔔 אפשר Notifications
-            </button>
+        <div className="al-ph-actions">
+          {notifPerm==='default' && (
+            <button className="al-ph-btn" onClick={() => Notification.requestPermission()} title="אפשר התראות">🔔</button>
           )}
-          {notifPerm === 'granted' && <div className="al-notif-ok">✅ Notifications פעיל</div>}
+          {notifPerm==='granted' && <span className="al-ph-notif-ok">✅</span>}
           {alerts.length > 0 && (
-            <button className="al-export-btn" onClick={exportCSV} title="ייצוא CSV">📤 CSV</button>
+            <button className="al-ph-btn al-ph-btn--danger" onClick={() => setConfirmClearAll(true)} title="נקה הכל">🗑</button>
+          )}
+          {alerts.length > 0 && (
+            <button className="al-ph-btn" onClick={exportCSV} title="ייצוא CSV">📤</button>
           )}
         </div>
       </div>
 
-      {/* Add / Edit form */}
+      {/* Compact form */}
       <AlertForm
         key={editing?.id || 'new'}
         initial={editing || null}
         onSave={handleSave}
-        onCancel={()=>setEditing(null)}
+        onCancel={() => setEditing(null)}
       />
 
-      {/* Stats */}
-      <div className="al-stats">
-        {[
-          { num: alerts.length,                              lbl: 'סה״כ',    cls: '' },
-          { num: activeCount,                                lbl: 'פעילות',  cls: 'al-stat-num--active' },
-          { num: alerts.filter(a=>a.triggered).length,      lbl: 'הופעלו',  cls: 'al-stat-num--fired'  },
-        ].map(s => (
-          <div key={s.lbl} className="al-stat">
-            <span className={`al-stat-num ${s.cls}`}>{s.num}</span>
-            <span className="al-stat-lbl">{s.lbl}</span>
-          </div>
+      {/* Filter tabs */}
+      <div className="al-pfilter">
+        {[['all','הכל'],['active','🟢 פעילות'],['triggered','🔔 הופעלו']].map(([id,lbl]) => (
+          <button key={id}
+            className={`al-pfilter-btn ${filter===id?'--on':''}`}
+            onClick={() => setFilter(id)}>{lbl}</button>
         ))}
+        <span className="al-pfilter-count">{filtered.length}</span>
       </div>
 
-      {/* Filter */}
-      {alerts.length > 0 && (
-        <div className="al-filter">
-          {[['all','הכל'],['active','🟢 פעילות'],['triggered','🔔 הופעלו']].map(([id,lbl])=>(
-            <button key={id} className={`al-filter-btn ${filter===id?'al-filter-btn--on':''}`}
-              onClick={()=>setFilter(id)}>{lbl}</button>
-          ))}
-        </div>
-      )}
-
-      {/* List */}
-      {filtered.length === 0 ? (
-        <div className="al-empty">
-          {alerts.length === 0
-            ? <><div style={{fontSize:'2.5rem',marginBottom:8}}>🔔</div><div>עדיין אין התראות</div><div style={{fontSize:'0.78rem',marginTop:4,color:'var(--text-muted)'}}>הוסף את הראשונה בטופס למעלה</div></>
-            : 'אין התראות בקטגוריה זו'}
-        </div>
-      ) : (
-        <div className="al-list">
-          {filtered.map(a=>(
+      {/* Scrollable list */}
+      <div className="al-plist">
+        {filtered.length === 0 ? (
+          <div className="al-plist-empty">
+            {alerts.length === 0
+              ? <><div style={{fontSize:'2rem',marginBottom:6}}>🔔</div><div>עדיין אין התראות</div><div style={{fontSize:'0.72rem',marginTop:4,color:'var(--text-muted)'}}>הוסף את הראשונה בטופס למעלה</div></>
+              : 'אין התראות בקטגוריה זו'}
+          </div>
+        ) : (
+          filtered.map(a => (
             <AlertCard key={a.id} alert={a}
-              onRemove={removeAlert} onReset={resetAlert}
-              onEdit={a => { setEditing(a); window.scrollTo(0,0); }}/>
-          ))}
+              onRemove={removeAlert}
+              onReset={resetAlert}
+              onEdit={a => { setEditing(a); }}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Confirm clear all */}
+      {confirmClearAll && (
+        <div className="al-confirm-overlay" onClick={() => setConfirmClearAll(false)}>
+          <div className="al-confirm-box" onClick={e => e.stopPropagation()}>
+            <div className="al-confirm-text">מחק את כל ההתראות ({alerts.length})?</div>
+            <div className="al-confirm-btns">
+              <button className="al-confirm-yes" onClick={() => { clearAll(); setConfirmClearAll(false); }}>כן, מחק הכל</button>
+              <button className="al-confirm-no"  onClick={() => setConfirmClearAll(false)}>ביטול</button>
+            </div>
+          </div>
         </div>
       )}
-
     </div>
   );
 }

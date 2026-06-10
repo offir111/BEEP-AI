@@ -1,3 +1,6 @@
+/* position:relative needed for confirm overlays */
+.qa-card { position: relative; }
+
 .qa-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.65);
@@ -133,18 +136,19 @@
   transition: background 0.2s, border-color 0.2s;
 }
 .qa-badge--tp {
-  background: rgba(251,191,36,0.12);
-  border: 1px solid rgba(251,191,36,0.45);
-  color: #fbbf24;
+  background: rgba(251,191,36,0.14);
+  border: 1px solid rgba(251,191,36,0.5);
 }
 .qa-badge--sl {
-  background: rgba(239,68,68,0.12);
-  border: 1px solid rgba(239,68,68,0.45);
-  color: #ef4444;
+  background: rgba(239,68,68,0.14);
+  border: 1px solid rgba(239,68,68,0.5);
 }
+/* Explicit color on every child to override inherited white */
+.qa-badge--tp, .qa-badge--tp span, .qa-badge--tp .qa-badge-text, .qa-badge--tp .qa-badge-dist { color: #fbbf24; }
+.qa-badge--sl, .qa-badge--sl span, .qa-badge--sl .qa-badge-text, .qa-badge--sl .qa-badge-dist { color: #fca5a5; }
 .qa-badge-icon { font-size: 1rem; }
 .qa-badge-text { font-weight: 800; }
-.qa-badge-dist { font-size: 0.78rem; opacity: 0.8; margin-right: 2px; }
+.qa-badge-dist { font-size: 0.78rem; opacity: 0.85; margin-right: 2px; }
 
 .qa-success  { text-align:center; color:var(--accent-green); font-weight:600; padding:10px; font-size:1rem; }
 .qa-dup-warn { text-align:center; color:#fbbf24; font-weight:600; padding:8px 12px; font-size:0.82rem;
@@ -157,3 +161,88 @@
 }
 .qa-submit:hover  { opacity:0.9; }
 .qa-submit:active { transform:scale(0.98); }
+
+/* ── Footer: START + clear buttons ── */
+.qa-footer {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+.qa-start-btn {
+  flex: 1;
+  background: rgba(74,222,128,0.12);
+  border: 1px solid #4ade80;
+  border-radius: 8px;
+  color: #4ade80;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 8px;
+  transition: all 0.15s;
+  letter-spacing: 0.5px;
+}
+.qa-start-btn:hover { background: rgba(74,222,128,0.22); }
+.qa-clear-sym-btn, .qa-clear-all-btn {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 8px 4px;
+  transition: all 0.15s;
+}
+.qa-clear-sym-btn:hover { border-color: var(--accent-red); color: var(--accent-red); }
+.qa-clear-all-btn:hover { border-color: #ef4444; color: #ef4444; background: rgba(239,68,68,0.06); }
+
+/* ── Confirm overlay (inside card) ── */
+.qa-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  backdrop-filter: blur(2px);
+}
+.qa-confirm-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: center;
+  min-width: 200px;
+}
+.qa-confirm-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.qa-confirm-btns { display: flex; gap: 8px; }
+.qa-confirm-yes {
+  flex: 1;
+  background: rgba(239,68,68,0.12);
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px;
+  transition: all 0.15s;
+}
+.qa-confirm-yes:hover { background: rgba(239,68,68,0.22); }
+.qa-confirm-no {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  padding: 8px;
+  transition: all 0.15s;
+}
+.qa-confirm-no:hover { border-color: var(--accent-gold); color: var(--accent-gold); }

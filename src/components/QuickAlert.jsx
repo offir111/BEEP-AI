@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAlerts } from '../context/AlertsContext';
 import './QuickAlert.css';
 
 export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice, onClose }) {
-  const { alerts, addAlert, editAlert, removeAlert, fixedSlots, customSlots } = useAlerts();
+  const { alerts, addAlert, editAlert, removeAlert, fixedSlots, customSlots, clearSymbol, clearAll } = useAlerts();
 
   const [symbol,    setSymbol]    = useState(initSymbol || 'BTC');
   const [price,     setPrice]     = useState(initPrice || null);
@@ -11,9 +11,12 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
   const [target,    setTarget]    = useState('');
   const [duration,  setDuration]  = useState('forever');
   const [note,      setNote]      = useState('');
-  const [editId,    setEditId]    = useState(null);
-  const [success,   setSuccess]   = useState(false);
-  const [dupWarn,   setDupWarn]   = useState(false);
+  const [editId,          setEditId]          = useState(null);
+  const [success,         setSuccess]         = useState(false);
+  const [dupWarn,         setDupWarn]         = useState(false);
+  const [confirmClearSym, setConfirmClearSym] = useState(false);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
+  const holdRef = useRef({ timer: null, interval: null });
 
   // Init price when symbol/price changes
   useEffect(() => {
@@ -63,12 +66,49 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
     setNote('');
   };
 
+  // ── Hold-repeat for ▲▼ step buttons ──
+  const stepStart = (dir) => {
+    const step = () => {
+      setTarget(v => {
+        const val = parseFloat(v) || 0;
+        const inc = val < 1 ? 0.001 : val < 100 ? 0.01 : val < 1000 ? 1 : 10;
+        const next = dir === 'up' ? val + inc : Math.max(0, val - inc);
+        return next.toFixed(val < 1 ? 4 : val < 100 ? 2 : 0);
+      });
+    };
+    step();
+    holdRef.current.timer = setTimeout(() => {
+      holdRef.current.interval = setInterval(step, 70);
+    }, 380);
+  };
+  const stepEnd = () => {
+    clearTimeout(holdRef.current.timer);
+    clearInterval(holdRef.current.interval);
+  };
+
+  // ── START: add alert and close immediately ──
+  const handleStart = () => {
+    const t = parseFloat(target);
+    if (!t || isNaN(t) || t <= 0) return;
+    if (editId) {
+      editAlert(editId, { target: t, direction, duration, note });
+    } else {
+      const result = addAlert({ symbol: symbol.toUpperCase(), direction, target: t, duration, note });
+      if (result === null) {
+        setDupWarn(true);
+        setTimeout(() => setDupWarn(false), 2500);
+        return;
+      }
+    }
+    onClose?.();
+  };
+
   const submit = () => {
     const t = parseFloat(target);
     if (!t || isNaN(t) || t <= 0) return;
 
     if (editId) {
-      editAlert(editId, t);
+      editAlert(editId, { target: t, direction, duration, note });
       setSuccess(true);
       setTimeout(() => { setSuccess(false); setEditId(null); }, 1200);
     } else {
@@ -159,7 +199,9 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
 
         {/* Target price input */}
         <div className="qa-input-row">
-          <button className="qa-step-btn" onClick={() => setTarget(v => String(Math.max(0.01, (parseFloat(v)||0) - (parseFloat(v)>100?1:0.01))))}>▼</button>
+          <button className="qa-step-btn"
+            onMouseDown={() => stepStart('down')} onMouseUp={stepEnd} onMouseLeave={stepEnd}
+            onTouchStart={e => { e.preventDefault(); stepStart('down'); }} onTouchEnd={stepEnd}>▼</button>
           <input
             className="qa-input"
             type="number"
@@ -169,7 +211,9 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
             onKeyDown={e => e.key === 'Enter' && submit()}
             autoFocus
           />
-          <button className="qa-step-btn" onClick={() => setTarget(v => String((parseFloat(v)||0) + (parseFloat(v)>100?1:0.01)))}>▲</button>
+          <button className="qa-step-btn"
+            onMouseDown={() => stepStart('up')} onMouseUp={stepEnd} onMouseLeave={stepEnd}
+            onTouchStart={e => { e.preventDefault(); stepStart('up'); }} onTouchEnd={stepEnd}>▲</button>
         </div>
 
         {/* Duration */}
@@ -192,6 +236,39 @@ export default function QuickAlert({ symbol: initSymbol, currentPrice: initPrice
           <button className="qa-submit" onClick={submit} disabled={dupWarn}>
             {editId ? '✓ עדכן התראה' : '🔔 הוסף התראה'}
           </button>
+        )}
+
+        {/* Footer: START + clear buttons */}
+        <div className="qa-footer">
+          <button className="qa-start-btn" onClick={handleStart} title="הוסף וסגור">▶ START</button>
+          <button className="qa-clear-sym-btn" onClick={() => setConfirmClearSym(true)}>נקה {symbol}</button>
+          <button className="qa-clear-all-btn" onClick={() => setConfirmClearAll(true)}>נקה הכל</button>
+        </div>
+
+        {/* Confirm clear symbol */}
+        {confirmClearSym && (
+          <div className="qa-confirm-overlay" onClick={() => setConfirmClearSym(false)}>
+            <div className="qa-confirm-box" onClick={e => e.stopPropagation()}>
+              <div className="qa-confirm-text">מחק את כל התראות {symbol}?</div>
+              <div className="qa-confirm-btns">
+                <button className="qa-confirm-yes" onClick={() => { clearSymbol(symbol); setConfirmClearSym(false); onClose?.(); }}>כן, מחק</button>
+                <button className="qa-confirm-no"  onClick={() => setConfirmClearSym(false)}>ביטול</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirm clear all */}
+        {confirmClearAll && (
+          <div className="qa-confirm-overlay" onClick={() => setConfirmClearAll(false)}>
+            <div className="qa-confirm-box" onClick={e => e.stopPropagation()}>
+              <div className="qa-confirm-text">מחק את כל ההתראות?</div>
+              <div className="qa-confirm-btns">
+                <button className="qa-confirm-yes" onClick={() => { clearAll(); setConfirmClearAll(false); onClose?.(); }}>כן, מחק הכל</button>
+                <button className="qa-confirm-no"  onClick={() => setConfirmClearAll(false)}>ביטול</button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
