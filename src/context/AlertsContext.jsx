@@ -216,16 +216,23 @@ export function AlertsProvider({ children }) {
         symbols.map(sym => fetchLivePrice(sym).then(p => { if (p) prices[sym] = p; }).catch(() => {}))
       );
 
+      const now = Date.now();
       const fired = [];
       setAlerts(prev => prev.map(alert => {
         if (alert.triggered) return alert;
-        if (alert.expiresAt && Date.now() >= alert.expiresAt) return { ...alert, triggered: true, triggeredAt: Date.now(), expiredOut: true };
+        if (alert.expiresAt && now >= alert.expiresAt) return { ...alert, triggered: true, triggeredAt: now, expiredOut: true };
+
+        // Grace period: skip brand-new alerts for the first 6 seconds after creation.
+        // This prevents false-positive fires when direction/price data isn't settled yet.
+        if (alert.created && now - alert.created < 6000) return alert;
+
         const price = prices[alert.symbol];
-        if (!price) return alert;
+        if (!price || price <= 0) return alert;
+
         const hit = alert.direction === 'above' ? price >= alert.target : price <= alert.target;
         if (hit) {
           fired.push({ ...alert, triggeredPrice: price });
-          return { ...alert, triggered: true, triggeredAt: Date.now(), triggeredPrice: price };
+          return { ...alert, triggered: true, triggeredAt: now, triggeredPrice: price };
         }
         return alert;
       }));

@@ -51,10 +51,6 @@ export default function QuickAlert({
   const [duration,  setDuration]  = useState('year');   // 'eod' | 'year'
   const [editId,    setEditId]    = useState(null);
 
-  /* ── % row ───────────────────────────────────────────────── */
-  const [pctDown, setPctDown] = useState('3');
-  const [pctUp,   setPctUp]   = useState('5');
-
   /* ── Slots edit mode ─────────────────────────────────────── */
   const [slotsEditMode, setSlotsEditMode] = useState(false);
   const [editingSlot,   setEditingSlot]   = useState(null); // {type:'fixed'|'custom', idx}
@@ -64,8 +60,31 @@ export default function QuickAlert({
   const [confirmClearSym, setConfirmClearSym] = useState(false);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
 
+  /* ── Duplicate flash ─────────────────────────────────────── */
+  const [dupFlash, setDupFlash] = useState(false);
+
+  /* ── Self-fetched gainers (when no props passed) ─────────── */
+  const [selfGainers, setSelfGainers] = useState([]);
+
   /* ── Hold-repeat refs ────────────────────────────────────── */
   const holdRef = useRef({ timer: null, interval: null });
+
+  /* ── Fetch top crypto movers once on mount (gainers tabs) ── */
+  useEffect(() => {
+    if (cryptoGainers.length > 0) return; // use prop when provided
+    const SYMS = ['BTC','ETH','SOL','BNB','XRP'];
+    fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(JSON.stringify(SYMS.map(s => s + 'USDT')))}`)
+      .then(r => r.json())
+      .then(data => {
+        const top = data
+          .map(t => ({ symbol: t.symbol.replace('USDT',''), changePercent: parseFloat(t.priceChangePercent) }))
+          .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
+          .slice(0, 3);
+        setSelfGainers(top);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ── Fetch price when symbol changes ─────────────────────── */
   useEffect(() => {
@@ -116,38 +135,56 @@ export default function QuickAlert({
     setDirection('above');
   };
 
-  /* ── % row setters ───────────────────────────────────────── */
-  const setPctTarget = (pct, dir) => {
-    if (!livePrice || !(pct > 0)) return;
-    const factor = dir === 'up' ? 1 + pct / 100 : 1 - pct / 100;
-    const target = livePrice * factor;
-    const { dec } = getStep(target);
-    setInputVal(target.toFixed(dec));
-    setDirection(dir === 'up' ? 'above' : 'below');
-  };
+  /* ── Compute correct direction from price relationship ────── */
+  // ALWAYS derive direction from target vs live price (prevents false triggers).
+  // If no live price is available, fall back to the auto-detected direction state.
+  const resolveDirection = (target) =>
+    livePrice ? (target < livePrice ? 'below' : 'above') : direction;
 
   /* ── Add / update alert ──────────────────────────────────── */
   const handleAdd = () => {
     const t = parseFloat(inputVal);
     if (!t || t <= 0) return;
+    const safeDir = resolveDirection(t);
     if (editId) {
-      editAlert(editId, { target: t, direction, duration });
+      editAlert(editId, { target: t, direction: safeDir, duration });
       setEditId(null);
+      setInputVal('');
     } else {
-      addAlert({ symbol: symbol.toUpperCase(), direction, target: t, duration, note: '' });
+      const result = addAlert({ symbol: symbol.toUpperCase(), direction: safeDir, target: t, duration, note: '' });
+      if (result === null) {
+        // Duplicate — flash input red
+        setDupFlash(true);
+        setTimeout(() => setDupFlash(false), 900);
+        return;
+      }
+      setInputVal('');
+      // Request OS notification permission on first successful add (requires user gesture)
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+      }
     }
-    setInputVal('');
   };
 
   /* ── START: add + close ──────────────────────────────────── */
   const handleStart = () => {
     const t = parseFloat(inputVal);
     if (!t || t <= 0) return;
+    const safeDir = resolveDirection(t);
     if (editId) {
-      editAlert(editId, { target: t, direction, duration });
+      editAlert(editId, { target: t, direction: safeDir, duration });
       setEditId(null);
     } else {
-      addAlert({ symbol: symbol.toUpperCase(), direction, target: t, duration, note: '' });
+      const result = addAlert({ symbol: symbol.toUpperCase(), direction: safeDir, target: t, duration, note: '' });
+      if (result === null) {
+        // Duplicate — flash input, stay open
+        setDupFlash(true);
+        setTimeout(() => setDupFlash(false), 900);
+        return;
+      }
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+      }
     }
     setInputVal('');
     onClose?.();
@@ -156,7 +193,8 @@ export default function QuickAlert({
   /* ── Enter / cancel edit ─────────────────────────────────── */
   const enterEdit = (a) => {
     setEditId(a.id);
-    setInputVal(String(a.target));
+    const { dec } = getStep(a.target);
+    setInputVal(a.target.toFixed(dec));
     setDirection(a.direction);
     setDuration(a.duration || 'year');
   };
@@ -187,12 +225,10 @@ export default function QuickAlert({
   /* ── Derived values ──────────────────────────────────────── */
   const symAlerts    = alerts.filter(a => a.symbol === symbol.toUpperCase());
   const activeAlerts = symAlerts.filter(a => !a.triggered);
-  const typedT       = parseFloat(inputVal);
-  const isBelow      = livePrice && typedT > 0 ? typedT < livePrice : direction === 'below';
 
-  /* ── Gainers tabs ────────────────────────────────────────── */
+  /* ── Gainers tabs (props → self-fetched fallback) ───────── */
   const gainerTabs = [
-    ...cryptoGainers.slice(0, 3).map(g => ({
+    ...(cryptoGainers.length > 0 ? cryptoGainers : selfGainers).slice(0, 3).map(g => ({
       sym: g.symbol || g.sym, pct: +(g.changePercent ?? g.pct ?? 0), type: 'crypto',
     })),
     ...stockGainers.slice(0, 3).map(g => ({
@@ -350,34 +386,6 @@ export default function QuickAlert({
               )}
             </button>
 
-            {/* % offset row */}
-            <div className="sa-alert-pct-row">
-              <div className="sa-alert-pct-col">
-                <span className="sa-alert-pct-lbl sa-alert-pct-lbl--dn">▼ -%</span>
-                <input className="sa-alert-pct-input" type="number" min="0"
-                  value={pctDown} onChange={e => setPctDown(e.target.value)} />
-                {livePrice && parseFloat(pctDown) > 0 && (
-                  <span className="sa-alert-pct-preview sa-alert-pct-preview--dn">
-                    {fmtP(livePrice * (1 - parseFloat(pctDown) / 100))}
-                  </span>
-                )}
-              </div>
-              <button className="sa-alert-pct-btn"
-                onClick={() => setPctTarget(parseFloat(pctDown), 'down')}>SL</button>
-              <button className="sa-alert-pct-btn"
-                onClick={() => setPctTarget(parseFloat(pctUp), 'up')}>TP</button>
-              <div className="sa-alert-pct-col">
-                <span className="sa-alert-pct-lbl sa-alert-pct-lbl--up">▲ +%</span>
-                <input className="sa-alert-pct-input" type="number" min="0"
-                  value={pctUp} onChange={e => setPctUp(e.target.value)} />
-                {livePrice && parseFloat(pctUp) > 0 && (
-                  <span className="sa-alert-pct-preview sa-alert-pct-preview--up">
-                    {fmtP(livePrice * (1 + parseFloat(pctUp) / 100))}
-                  </span>
-                )}
-              </div>
-            </div>
-
             {/* Input form — direction: ltr (1:1 from source) */}
             <div className="sa-alert-form">
 
@@ -391,15 +399,8 @@ export default function QuickAlert({
                 )}
               </div>
 
-              {/* Direction badge (click to toggle) */}
-              <button
-                className={`sa-alert-dir-badge${isBelow ? ' sa-alert-dir-badge--loss' : ''}`}
-                onClick={() => setDirection(d => d === 'above' ? 'below' : 'above')}>
-                {isBelow ? '↓ STOP' : '↑ TARGET'}
-              </button>
-
               {/* Price input */}
-              <input className="sa-alert-input"
+              <input className={`sa-alert-input${dupFlash ? ' --dup' : ''}`}
                 type="number"
                 placeholder={livePrice ? fmtP(livePrice) : '0.00'}
                 value={inputVal}
@@ -453,23 +454,26 @@ export default function QuickAlert({
           </button>
         </div>
 
-        {/* ═══ STRIP — compact alerts row at bottom ══════════ */}
-        {alerts.length > 0 && (
+        {/* ═══ STRIP — active alerts for current symbol only ══ */}
+        {activeAlerts.length > 0 && (
           <div className="sa-alert-strip">
-            {alerts.slice(0, 10).map(a => (
-              <div key={a.id} className="sa-alert-strip-item sa-alert-strip-item--btn"
-                onClick={() => selectSymbol(a.symbol)}>
-                <div className="sa-alert-strip-body">
-                  <span className="sa-alert-strip-dot"
-                    style={{ color: a.direction === 'below' ? '#f87171' : '#fbbf24' }}>●</span>
-                  <span className="sa-alert-strip-price">
-                    {a.symbol} {a.target.toLocaleString('en', { maximumFractionDigits: 2 })}
-                  </span>
+            {activeAlerts.map(a => {
+              const { dec } = getStep(a.target);
+              return (
+                <div key={a.id} className={`sa-alert-strip-item sa-alert-strip-item--btn${editId === a.id ? ' --editing' : ''}`}
+                  onClick={() => enterEdit(a)}>
+                  <div className="sa-alert-strip-body">
+                    <span className="sa-alert-strip-dot"
+                      style={{ color: a.direction === 'below' ? '#f87171' : '#fbbf24' }}>●</span>
+                    <span className="sa-alert-strip-price">
+                      {a.target.toFixed(dec)}
+                    </span>
+                  </div>
+                  <button className="sa-alert-strip-del"
+                    onClick={e => { e.stopPropagation(); removeAlert(a.id); }}>✕</button>
                 </div>
-                <button className="sa-alert-strip-del"
-                  onClick={e => { e.stopPropagation(); removeAlert(a.id); }}>✕</button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
