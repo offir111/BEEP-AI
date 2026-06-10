@@ -13,7 +13,7 @@ import QuickAlert from '../components/QuickAlert';
 import './AlertsPage.css';
 
 export default function AlertsPage() {
-  const { alerts, markSeen } = useAlerts();
+  const { alerts, markSeen, editAlert } = useAlerts();
 
   const [chartSymbol, setChartSymbol] = useState('BTC');
   const [livePrice,   setLivePrice]   = useState(null);
@@ -42,7 +42,11 @@ export default function AlertsPage() {
       <div className="ap-chart-box">
 
         {/* Lightweight Charts — exact price lines */}
-        <AlertChart symbol={chartSymbol} alerts={symAlerts} />
+        <AlertChart
+          symbol={chartSymbol}
+          alerts={symAlerts}
+          onAlertPriceChange={(id, price) => editAlert(id, { target: price })}
+        />
 
         {/* Dialog floats inside the chart box */}
         {showDialog && (

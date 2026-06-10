@@ -1,12 +1,10 @@
 /**
- * AlertChart.jsx — TradingView Lightweight Charts with exact alert price lines.
+ * AlertChart.jsx — Lightweight Charts with draggable alert price lines.
  *
- * Replaces the iframe embed for AlertsPage.
- * Price lines are drawn at EXACT prices — not approximated.
- *
- * Data sources:
- *   • Crypto (BTC/ETH/SOL/…) → Binance klines (free, no auth)
- *   • Stocks / GOLD          → /api/candles  (Yahoo Finance proxy)
+ * Fixes:
+ *  1. Right-edge "wall": rightOffset:10, fixRightEdge:false
+ *  2. Wheel on price axis: intercepted — price scale zoom disabled
+ *  3. Draggable lines: mousedown near line → drag → mouseup saves new price
  */
 import { useEffect, useRef, useState } from 'react';
 import { createChart, CandlestickSeries, CrosshairMode, LineStyle } from 'lightweight-charts';
@@ -16,14 +14,11 @@ import './AlertChart.css';
 const BINANCE = {
   BTC:  'BTCUSDT', ETH:  'ETHUSDT', SOL:  'SOLUSDT', BNB:  'BNBUSDT',
   XRP:  'XRPUSDT', DOGE: 'DOGEUSDT', ADA:  'ADAUSDT', AVAX: 'AVAXUSDT',
-  BSOL: 'BSOLUSDT',
-  KEEL: 'KEELBTC',
+  BSOL: 'BSOLUSDT', KEEL: 'KEELBTC',
 };
 
-// ── Fetch OHLCV candles ───────────────────────────────────────
 async function fetchCandles(symbol) {
   const s = symbol.toUpperCase();
-
   if (BINANCE[s]) {
     const r = await fetch(
       `https://api.binance.com/api/v3/klines?symbol=${BINANCE[s]}&interval=1d&limit=200`
@@ -38,8 +33,6 @@ async function fetchCandles(symbol) {
       close: parseFloat(k[4]),
     }));
   }
-
-  // Stocks / GOLD (GC=F)
   const yf = s === 'GOLD' ? 'GC=F' : s;
   const r  = await fetch(`/api/candles?symbol=${encodeURIComponent(yf)}`);
   if (!r.ok) return [];
@@ -47,7 +40,6 @@ async function fetchCandles(symbol) {
   return Array.isArray(d.candles) ? d.candles : [];
 }
 
-// ── Chart options (dark, beep-ai palette) ─────────────────────
 function makeChartOpts(w, h) {
   return {
     width:  w,
@@ -65,37 +57,57 @@ function makeChartOpts(w, h) {
     rightPriceScale: {
       borderColor: '#1e1e3a',
       textColor:   '#9ca3af',
+      autoScale:   true,
     },
     timeScale: {
       borderColor:    '#1e1e3a',
       timeVisible:    true,
       secondsVisible: false,
-      rightOffset:    6,
+      rightOffset:    10,      // fix 1: buffer after last bar
+      fixRightEdge:   false,   // fix 1: don't lock right edge
+      fixLeftEdge:    false,
     },
-    handleScale:  true,
-    handleScroll: true,
+    handleScale: {
+      mouseWheel:           true,
+      pinch:                true,
+      axisPressedMouseMove: { time: true, price: false }, // disable price-axis drag-scale
+    },
+    handleScroll: {
+      mouseWheel:       true,
+      pressedMouseMove: true,
+      horzTouchDrag:    true,
+      vertTouchDrag:    false,
+    },
   };
 }
 
-// ── Component ─────────────────────────────────────────────────
-export default function AlertChart({ symbol, alerts = [] }) {
+// Pixels within which a cursor is considered "on" a price line
+const HIT_PX = 7;
+// Estimated width of the right price scale in px
+const PRICE_AXIS_PX = 75;
+
+export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) {
   const containerRef = useRef(null);
   const chartRef     = useRef(null);
   const seriesRef    = useRef(null);
-  const linesRef     = useRef([]);      // { id, line }[]
+  const linesRef     = useRef([]);        // { id, line, target }[]
   const symRef       = useRef(symbol);
+  const draggingRef  = useRef(null);      // { id, line, currentPrice }
+  const priceChangeCbRef = useRef(onAlertPriceChange);
 
   const [chartReady, setChartReady] = useState(false);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState(false);
 
-  // ── Create chart on mount ───────────────────────────────────
+  // Keep callback ref up-to-date without recreating chart
+  useEffect(() => { priceChangeCbRef.current = onAlertPriceChange; }, [onAlertPriceChange]);
+
+  // ── Create chart + event listeners (mount only) ─────────────
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     const chart = createChart(el, makeChartOpts(el.clientWidth, el.clientHeight));
-
     const series = chart.addSeries(CandlestickSeries, {
       upColor:       '#26a69a',
       downColor:     '#ef5350',
@@ -107,7 +119,7 @@ export default function AlertChart({ symbol, alerts = [] }) {
     chartRef.current  = chart;
     seriesRef.current = series;
 
-    // Auto-resize
+    // ── Auto-resize ──────────────────────────────────────────
     const ro = new ResizeObserver(() => {
       if (!containerRef.current || !chartRef.current) return;
       chartRef.current.applyOptions({
@@ -117,17 +129,96 @@ export default function AlertChart({ symbol, alerts = [] }) {
     });
     ro.observe(el);
 
+    // ── Helpers ───────────────────────────────────────────────
+    const clientY = (e) =>
+      e.clientY ?? (e.touches?.[0]?.clientY ?? 0);
+
+    const containerY = (e) =>
+      clientY(e) - el.getBoundingClientRect().top;
+
+    const findNearLine = (y) => {
+      const s = seriesRef.current;
+      if (!s) return null;
+      let best = null, bestDist = HIT_PX;
+      linesRef.current.forEach(entry => {
+        const ly = s.priceToCoordinate(entry.target);
+        if (ly == null) return;
+        const d = Math.abs(y - ly);
+        if (d <= bestDist) { bestDist = d; best = entry; }
+      });
+      return best;
+    };
+
+    // ── Fix 2: prevent price-axis vertical zoom on wheel ─────
+    // When the wheel event fires in the rightmost PRICE_AXIS_PX columns,
+    // stop it so the price scale doesn't zoom — the user can move the
+    // cursor to the chart area for normal wheel-zoom.
+    const onWheel = (e) => {
+      if (e.offsetX > el.clientWidth - PRICE_AXIS_PX) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+
+    // ── Fix 3: draggable price lines ─────────────────────────
+    const onMouseMove = (e) => {
+      const y = containerY(e);
+      if (draggingRef.current) {
+        const price = seriesRef.current?.coordinateToPrice(y);
+        if (price != null) {
+          try { draggingRef.current.line.applyOptions({ price }); } catch {}
+          draggingRef.current.currentPrice = price;
+        }
+        el.style.cursor = 'ns-resize';
+        e.stopPropagation();
+        return;
+      }
+      el.style.cursor = findNearLine(y) ? 'ns-resize' : '';
+    };
+
+    const onMouseDown = (e) => {
+      const y    = containerY(e);
+      const hit  = findNearLine(y);
+      if (!hit) return;
+      draggingRef.current = { ...hit, currentPrice: hit.target };
+      el.style.cursor = 'ns-resize';
+      e.stopPropagation();
+      e.preventDefault();
+    };
+
+    const onRelease = () => {
+      if (!draggingRef.current) return;
+      const { id, currentPrice } = draggingRef.current;
+      draggingRef.current = null;
+      el.style.cursor = '';
+      if (currentPrice != null && priceChangeCbRef.current) {
+        const dec = currentPrice > 100 ? 2 : 4;
+        priceChangeCbRef.current(id, parseFloat(currentPrice.toFixed(dec)));
+      }
+    };
+
+    el.addEventListener('wheel',      onWheel,     { passive: false });
+    el.addEventListener('mousemove',  onMouseMove);
+    el.addEventListener('mousedown',  onMouseDown);
+    el.addEventListener('mouseup',    onRelease);
+    el.addEventListener('mouseleave', onRelease);
+
     setChartReady(true);
 
     return () => {
       ro.disconnect();
+      el.removeEventListener('wheel',      onWheel);
+      el.removeEventListener('mousemove',  onMouseMove);
+      el.removeEventListener('mousedown',  onMouseDown);
+      el.removeEventListener('mouseup',    onRelease);
+      el.removeEventListener('mouseleave', onRelease);
       setChartReady(false);
       chart.remove();
       chartRef.current  = null;
       seriesRef.current = null;
       linesRef.current  = [];
     };
-  }, []);
+  }, []); // mount only — callback kept fresh via priceChangeCbRef
 
   // ── Load candles when symbol changes ───────────────────────
   useEffect(() => {
@@ -136,8 +227,6 @@ export default function AlertChart({ symbol, alerts = [] }) {
 
     setLoading(true);
     setError(false);
-
-    // Clear existing price lines
     linesRef.current.forEach(({ line }) => {
       try { seriesRef.current?.removePriceLine(line); } catch {}
     });
@@ -147,7 +236,7 @@ export default function AlertChart({ symbol, alerts = [] }) {
     fetchCandles(symbol)
       .then(candles => {
         if (cancelled || symRef.current !== symbol || !seriesRef.current) return;
-        if (candles.length === 0) { setError(true); return; }
+        if (!candles.length) { setError(true); return; }
         seriesRef.current.setData(candles);
         chartRef.current?.timeScale().fitContent();
         setError(false);
@@ -164,18 +253,13 @@ export default function AlertChart({ symbol, alerts = [] }) {
     if (!chartReady || !seriesRef.current) return;
     const series = seriesRef.current;
 
-    // Remove all old lines
-    linesRef.current.forEach(({ line }) => {
-      try { series.removePriceLine(line); } catch {}
-    });
+    linesRef.current.forEach(({ line }) => { try { series.removePriceLine(line); } catch {} });
     linesRef.current = [];
 
-    // Draw exact price lines
     alerts.forEach(alert => {
       try {
-        const isAbove = alert.direction === 'above';
-        const color   = isAbove ? '#D4AF37' : '#ef4444';
-        const line    = series.createPriceLine({
+        const color = alert.direction === 'above' ? '#D4AF37' : '#ef4444';
+        const line  = series.createPriceLine({
           price:            alert.target,
           color,
           lineWidth:        1,
@@ -183,25 +267,21 @@ export default function AlertChart({ symbol, alerts = [] }) {
           axisLabelVisible: false,
           title:            '',
         });
-        linesRef.current.push({ id: alert.id, line });
+        // Store target so drag detection knows each line's y-coordinate
+        linesRef.current.push({ id: alert.id, line, target: alert.target });
       } catch {}
     });
   }, [alerts, chartReady]);
 
   return (
     <div className="alert-chart-wrap">
-      {/* The Lightweight Charts canvas */}
       <div ref={containerRef} className="alert-chart-canvas" />
-
-      {/* Loading spinner */}
       {loading && !error && (
         <div className="alert-chart-overlay">
           <div className="alert-chart-spinner" />
           <span>{symbol}</span>
         </div>
       )}
-
-      {/* Error fallback */}
       {error && (
         <div className="alert-chart-overlay">
           <span className="alert-chart-err">⚠ לא ניתן לטעון נתוני {symbol}</span>
