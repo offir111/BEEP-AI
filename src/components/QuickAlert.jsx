@@ -27,6 +27,7 @@ export default function QuickAlert({
   symbol:       initSymbol    = 'BTC',
   currentPrice: initPrice     = null,
   onClose,
+  onSymbolChange,              // callback(sym) when user switches symbol inside the dialog
   stockGainers  = [],
   cryptoGainers = [],
   embedded      = false,       // true → renders inline in AlertsPage (no overlay)
@@ -166,27 +167,31 @@ export default function QuickAlert({
     }
   };
 
-  /* ── START: add + close ──────────────────────────────────── */
+  /* ── START: add (if input present) then ALWAYS close ────── */
+  // Matches S.T.B: START always calls onClose even when input is empty.
   const handleStart = () => {
     const t = parseFloat(inputVal);
-    if (!t || t <= 0) return;
-    const safeDir = resolveDirection(t);
-    if (editId) {
-      editAlert(editId, { target: t, direction: safeDir, duration });
-      setEditId(null);
-    } else {
-      const result = addAlert({ symbol: symbol.toUpperCase(), direction: safeDir, target: t, duration, note: '' });
-      if (result === null) {
-        // Duplicate — flash input, stay open
-        setDupFlash(true);
-        setTimeout(() => setDupFlash(false), 900);
-        return;
+    if (t && t > 0) {
+      // There is a valid target — add or update the alert
+      const safeDir = resolveDirection(t);
+      if (editId) {
+        editAlert(editId, { target: t, direction: safeDir, duration });
+        setEditId(null);
+      } else {
+        const result = addAlert({ symbol: symbol.toUpperCase(), direction: safeDir, target: t, duration, note: '' });
+        if (result === null) {
+          // Duplicate — flash input, stay open (don't close)
+          setDupFlash(true);
+          setTimeout(() => setDupFlash(false), 900);
+          return;
+        }
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission().catch(() => {});
+        }
       }
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission().catch(() => {});
-      }
+      setInputVal('');
     }
-    setInputVal('');
+    // ALWAYS close — even when input was empty (S.T.B behavior)
     onClose?.();
   };
 
@@ -202,9 +207,11 @@ export default function QuickAlert({
 
   /* ── Select symbol ───────────────────────────────────────── */
   const selectSymbol = (sym) => {
-    setSymbol(sym.toUpperCase());
+    const s = sym.toUpperCase();
+    setSymbol(s);
     setEditId(null);
     setInputVal('');
+    onSymbolChange?.(s);  // notify parent (AlertsPage) to update chart
   };
 
   /* ── Save edited slot ────────────────────────────────────── */

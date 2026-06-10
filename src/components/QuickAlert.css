@@ -52,6 +52,8 @@
     0 0 0 1px #d4af374d,
     0 0 32px #d4af3761,
     0 0 60px #d4af3724;
+  /* ── 30% overall size reduction so chart is visible behind ── */
+  zoom: 0.7;
 }
 
 /* ── Top section ─────────────────────────────────────────────── */
