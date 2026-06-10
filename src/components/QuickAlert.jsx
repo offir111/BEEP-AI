@@ -437,7 +437,23 @@ export default function QuickAlert({
           </div>
         </div>
 
-        {/* ═══ BOTTOM — alert list ════════════════════════════ */}
+        {/* ═══ FOOTER — fixed above list ══════════════════════ */}
+        <div className="sa-alert-footer">
+          <button className="sa-alert-apply-btn" onClick={handleStart}>
+            <span className="sa-alert-apply-label">▶ START</span>
+            <span className="sa-alert-apply-check">✓</span>
+          </button>
+          <button className="sa-alert-clear-sym-btn"
+            onClick={() => setConfirmClearSym(true)}>
+            נקה {symbol}
+          </button>
+          <button className="sa-alert-clear-all-btn"
+            onClick={() => setConfirmClearAll(true)}>
+            נקה הכל
+          </button>
+        </div>
+
+        {/* ═══ BOTTOM — alert list (scrollable, below footer) ═ */}
         <div className="sa-alert-bottom">
           <div className="sa-alert-bottom-hdr">
             <span className="sa-alert-bottom-title">📋 התראות — {symbol}</span>
@@ -487,22 +503,6 @@ export default function QuickAlert({
               ))}
             </div>
           )}
-        </div>
-
-        {/* ═══ FOOTER ════════════════════════════════════════ */}
-        <div className="sa-alert-footer">
-          <button className="sa-alert-apply-btn" onClick={handleStart}>
-            <span className="sa-alert-apply-label">▶ START</span>
-            <span className="sa-alert-apply-check">✓</span>
-          </button>
-          <button className="sa-alert-clear-sym-btn"
-            onClick={() => setConfirmClearSym(true)}>
-            נקה {symbol}
-          </button>
-          <button className="sa-alert-clear-all-btn"
-            onClick={() => setConfirmClearAll(true)}>
-            נקה הכל
-          </button>
         </div>
 
         {/* ═══ CONFIRM: clear symbol ═════════════════════════ */}
