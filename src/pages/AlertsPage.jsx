@@ -1,11 +1,10 @@
 /**
  * AlertsPage.jsx
  *
- * Layout:
- *   • Lightweight Charts fills the page (exact alert price lines)
- *   • QuickAlert dialog floats as a semi-transparent overlay
- *   • Closing the dialog leaves the chart + lines visible
- *   • "פתח התראות" button reopens the dialog
+ * Layout (matches news tab size):
+ *   • QuickAlert dialog at the top (inline, not overlay)
+ *   • AlertChart below — same sizing as the news widget (600px, border)
+ *   • Closing dialog shows a reopen button above the chart
  */
 import { useState, useEffect, useMemo } from 'react';
 import { useAlerts, fetchLivePrice } from '../context/AlertsContext';
@@ -20,10 +19,10 @@ export default function AlertsPage() {
   const [livePrice,   setLivePrice]   = useState(null);
   const [showDialog,  setShowDialog]  = useState(true);
 
-  // Mark fired alerts seen on page open
+  // Mark fired alerts as seen on page open
   useEffect(() => { markSeen(); }, [markSeen]);
 
-  // Fetch live price for QuickAlert display
+  // Live price for QuickAlert display
   useEffect(() => {
     setLivePrice(null);
     let cancelled = false;
@@ -33,7 +32,7 @@ export default function AlertsPage() {
     return () => { cancelled = true; };
   }, [chartSymbol]);
 
-  // Stable reference — only changes when alerts/symbol actually change
+  // Stable array — only recomputes when alerts / symbol change
   const symAlerts = useMemo(
     () => alerts.filter(a => !a.triggered && a.symbol === chartSymbol.toUpperCase()),
     [alerts, chartSymbol]
@@ -42,33 +41,34 @@ export default function AlertsPage() {
   return (
     <div className="ap-root">
 
-      {/* ── Lightweight Charts + exact price lines ── */}
-      <div className="ap-chart">
-        <AlertChart
+      {/* ── Dialog (inline above chart) ── */}
+      {showDialog ? (
+        <QuickAlert
+          embedded
           symbol={chartSymbol}
-          alerts={symAlerts}
+          currentPrice={livePrice}
+          onClose={() => setShowDialog(false)}
+          onSymbolChange={setChartSymbol}
         />
-
-        {/* Reopen button when dialog is closed */}
-        {!showDialog && (
+      ) : (
+        <div className="ap-reopen-bar">
           <button className="ap-reopen" onClick={() => setShowDialog(true)}>
             🔔 פתח התראות
             {symAlerts.length > 0 && (
               <span className="ap-reopen-badge">{symAlerts.length}</span>
             )}
           </button>
-        )}
+        </div>
+      )}
+
+      {/* ── Chart — same size/style as news tab ── */}
+      <div className="ap-chart">
+        <AlertChart
+          symbol={chartSymbol}
+          alerts={symAlerts}
+        />
       </div>
 
-      {/* ── Alerts dialog overlay ── */}
-      {showDialog && (
-        <QuickAlert
-          symbol={chartSymbol}
-          currentPrice={livePrice}
-          onClose={() => setShowDialog(false)}
-          onSymbolChange={setChartSymbol}
-        />
-      )}
     </div>
   );
 }

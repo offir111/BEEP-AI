@@ -16,6 +16,8 @@ import './AlertChart.css';
 const BINANCE = {
   BTC:  'BTCUSDT', ETH:  'ETHUSDT', SOL:  'SOLUSDT', BNB:  'BNBUSDT',
   XRP:  'XRPUSDT', DOGE: 'DOGEUSDT', ADA:  'ADAUSDT', AVAX: 'AVAXUSDT',
+  BSOL: 'BSOLUSDT',
+  KEEL: 'KEELBTC',
 };
 
 // ── Fetch OHLCV candles ───────────────────────────────────────
@@ -176,8 +178,8 @@ export default function AlertChart({ symbol, alerts = [] }) {
         const line    = series.createPriceLine({
           price:            alert.target,
           color,
-          lineWidth:        2,
-          lineStyle:        LineStyle.Dashed,
+          lineWidth:        1,
+          lineStyle:        LineStyle.Solid,
           axisLabelVisible: true,
           title:            `🔔 ${alert.target.toLocaleString()}`,
         });

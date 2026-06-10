@@ -69,7 +69,7 @@ function updateAppBadge(count) {
 }
 
 // ── Price fetch ───────────────────────────────────────────────
-const CRYPTO_BINANCE = { BTC:'BTCUSDT', ETH:'ETHUSDT', SOL:'SOLUSDT', BNB:'BNBUSDT', XRP:'XRPUSDT', DOGE:'DOGEUSDT', ADA:'ADAUSDT', AVAX:'AVAXUSDT' };
+const CRYPTO_BINANCE = { BTC:'BTCUSDT', ETH:'ETHUSDT', SOL:'SOLUSDT', BNB:'BNBUSDT', XRP:'XRPUSDT', DOGE:'DOGEUSDT', ADA:'ADAUSDT', AVAX:'AVAXUSDT', BSOL:'BSOLUSDT', KEEL:'KEELBTC' };
 
 export async function fetchLivePrice(symbol) {
   const sym = symbol.toUpperCase().replace('GOLD','GC=F');
