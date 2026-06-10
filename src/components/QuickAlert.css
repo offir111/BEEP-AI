@@ -639,7 +639,7 @@
 .sa-alert-strip {
   background: #12121eeb;
   border-top: 1px solid #d4af3740;
-  border-radius: 0 0 10px 10px;
+  border-radius: 0 0 14px 14px;   /* matches dialog border-radius */
   flex-shrink: 0;
   display: grid;
   grid-template-columns: repeat(5, 1fr);

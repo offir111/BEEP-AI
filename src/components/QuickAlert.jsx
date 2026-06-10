@@ -437,7 +437,7 @@ export default function QuickAlert({
           </div>
         </div>
 
-        {/* ═══ FOOTER — fixed above list ══════════════════════ */}
+        {/* ═══ FOOTER ════════════════════════════════════════ */}
         <div className="sa-alert-footer">
           <button className="sa-alert-apply-btn" onClick={handleStart}>
             <span className="sa-alert-apply-label">▶ START</span>
@@ -453,57 +453,25 @@ export default function QuickAlert({
           </button>
         </div>
 
-        {/* ═══ BOTTOM — alert list (scrollable, below footer) ═ */}
-        <div className="sa-alert-bottom">
-          <div className="sa-alert-bottom-hdr">
-            <span className="sa-alert-bottom-title">📋 התראות — {symbol}</span>
-            <span className="sa-alert-bottom-count">{symAlerts.length}</span>
-          </div>
-
-          <div className="sa-alert-list">
-            {symAlerts.length === 0 ? (
-              <div className="sa-alert-empty">אין התראות ל-{symbol}</div>
-            ) : symAlerts.map(a => {
-              const fired  = a.triggered;
-              const isLoss = a.direction === 'below';
-              return (
-                <div key={a.id}
-                  className={`sa-alert-row${fired ? ' sa-alert-row--triggered' : ''}`}
-                  onClick={() => !fired && enterEdit(a)}>
-                  <span className={`sa-alert-row-dir${isLoss ? ' sa-alert-row-dir--loss' : ''}`}>
-                    {a.direction === 'above' ? '↑' : '↓'}
+        {/* ═══ STRIP — compact alerts row at bottom ══════════ */}
+        {alerts.length > 0 && (
+          <div className="sa-alert-strip">
+            {alerts.slice(0, 10).map(a => (
+              <div key={a.id} className="sa-alert-strip-item sa-alert-strip-item--btn"
+                onClick={() => selectSymbol(a.symbol)}>
+                <div className="sa-alert-strip-body">
+                  <span className="sa-alert-strip-dot"
+                    style={{ color: a.direction === 'below' ? '#f87171' : '#fbbf24' }}>●</span>
+                  <span className="sa-alert-strip-price">
+                    {a.symbol} {a.target.toLocaleString('en', { maximumFractionDigits: 2 })}
                   </span>
-                  <span className="sa-alert-row-price">
-                    ${a.target.toLocaleString('en', { maximumFractionDigits: 4 })}
-                  </span>
-                  {fired && <span className="sa-alert-row-badge">🔔 הופעל</span>}
-                  <button className="sa-alert-row-del"
-                    onClick={e => { e.stopPropagation(); removeAlert(a.id); }}>✕</button>
                 </div>
-              );
-            })}
+                <button className="sa-alert-strip-del"
+                  onClick={e => { e.stopPropagation(); removeAlert(a.id); }}>✕</button>
+              </div>
+            ))}
           </div>
-
-          {/* Compact strip — all-symbols overview (up to 10) */}
-          {alerts.length > 0 && (
-            <div className="sa-alert-strip">
-              {alerts.slice(0, 10).map(a => (
-                <div key={a.id} className="sa-alert-strip-item sa-alert-strip-item--btn"
-                  onClick={() => selectSymbol(a.symbol)}>
-                  <div className="sa-alert-strip-body">
-                    <span className="sa-alert-strip-dot"
-                      style={{ color: a.direction === 'below' ? '#f87171' : '#fbbf24' }}>●</span>
-                    <span className="sa-alert-strip-price">
-                      {a.symbol} {a.target.toLocaleString('en', { maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <button className="sa-alert-strip-del"
-                    onClick={e => { e.stopPropagation(); removeAlert(a.id); }}>✕</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* ═══ CONFIRM: clear symbol ═════════════════════════ */}
         {confirmClearSym && (
