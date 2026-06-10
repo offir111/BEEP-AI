@@ -59,8 +59,8 @@
     0 0 0 1px #d4af374d,
     0 0 32px #d4af3761,
     0 0 60px #d4af3724;
-  /* ── 30% overall size reduction so chart is visible behind ── */
-  zoom: 0.7;
+  /* ── Dialog size: zoom 0.84 (was 0.7 → +20%) ── */
+  zoom: 0.84;
 }
 
 /* ── Top section ─────────────────────────────────────────────── */
