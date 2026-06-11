@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAlerts } from '../context/AlertsContext';
+import BitcoinCandleWidget from '../components/BitcoinCandleWidget';
 import './HomePage.css';
 
 // ── Live BTC ticker ────────────────────────────────────────────
@@ -171,6 +172,9 @@ export default function HomePage({ navigate }) {
         <MarketPill symbol="SOL-USD"  label="SOL" />
         <FearGreedMini />
       </div>
+
+      {/* ── Bitcoin candle animation widget ── */}
+      <BitcoinCandleWidget btc={btc} navigate={navigate} />
 
       {/* ── 2 Feature cards ── */}
       <div className="hp-features">
