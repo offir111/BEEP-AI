@@ -134,15 +134,15 @@ function AppInner() {
         {page === 'crypto'    && <CryptoPage />}
         {page === 'news'      && <NewsPage   />}
         {page === 'alerts'    && <AlertsPage />}
-        {page === 'model-w'   && <ModelWPage />}
-        {page === 'model-bit' && <ModelBitPage />}
-        {page === 'model-smc' && <ModelSmcPage />}
-        {page === 'finviz'    && <FinvizPage />}
-        {page === 'etoro'     && <EtoroPage  />}
+        {page === 'model-w'    && <ModelWPage    navigate={navigate} />}
+        {page === 'model-bit'  && <ModelBitPage  navigate={navigate} />}
+        {page === 'model-smc'  && <ModelSmcPage  navigate={navigate} />}
+        {page === 'finviz'     && <FinvizPage     navigate={navigate} />}
+        {page === 'etoro'      && <EtoroPage      navigate={navigate} />}
         {page === 'twitter'    && <TwitterPage />}
-        {page === 'model-grid' && <ModelGridPage />}
-        {page === 'daily'      && <DailyPage  />}
-        {page === 'sot'       && <ScanOfTodayPage navigate={navigate} />}
+        {page === 'model-grid' && <ModelGridPage  navigate={navigate} />}
+        {page === 'daily'      && <DailyPage      navigate={navigate} />}
+        {page === 'sot'        && <ScanOfTodayPage navigate={navigate} />}
         {page === '404'       && <NotFoundPage navigate={navigate} />}
       </main>
     </div>

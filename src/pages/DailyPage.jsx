@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import RobotNavTabs from '../components/RobotNavTabs';
 import './DailyPage.css';
 
 const NEWS = [
@@ -117,7 +118,7 @@ const SIG_LABELS = {
 };
 const COLORS = ['#76b900','#F7931A','#4285F4','#e31937','#0082fb','#9945FF','#F3BA2F','#627EEA'];
 
-export default function DailyPage() {
+export default function DailyPage({ navigate }) {
   const [items,    setItems]    = useState(NEWS); // start with static, replace with live
   const [loading,  setLoading]  = useState(true);
   const [lastScan, setLastScan] = useState('');
@@ -148,6 +149,8 @@ export default function DailyPage() {
 
   return (
     <div className="dp-wrap">
+
+      <RobotNavTabs currentPage="daily" navigate={navigate} />
 
       {/* Header */}
       <div className="dp-header">

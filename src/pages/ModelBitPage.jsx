@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import IframeWithFallback from '../components/IframeWithFallback';
+import RobotNavTabs from '../components/RobotNavTabs';
 import './ModelBitPage.css';
 
 const BOT_URL = 'https://oh-my-god-production.up.railway.app/api/modelbit/status';
@@ -22,7 +23,7 @@ function PnlBadge({ val }) {
   );
 }
 
-export default function ModelBitPage() {
+export default function ModelBitPage({ navigate }) {
   // BTC live price
   const [btc,     setBtc]     = useState(null);
   const [flash,   setFlash]   = useState(null);
@@ -91,6 +92,8 @@ export default function ModelBitPage() {
 
   return (
     <div className="mb-wrap">
+
+      <RobotNavTabs currentPage="model-bit" navigate={navigate} />
 
       {/* Header */}
       <div className="mb-header">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import RobotNavTabs from '../components/RobotNavTabs';
 import './FinvizPage.css';
 
 const PATTERNS = [
@@ -184,7 +185,7 @@ function LivePatternResult({ data }) {
   );
 }
 
-export default function FinvizPage() {
+export default function FinvizPage({ navigate }) {
   const [filter, setFilter]         = useState('הכל');
   const [scanning, setScanning]     = useState(false);
   const [scanResult, setScanResult] = useState(null);
@@ -222,6 +223,8 @@ export default function FinvizPage() {
 
   return (
     <div className="fv-wrap">
+
+      <RobotNavTabs currentPage="finviz" navigate={navigate} />
 
       {/* Header */}
       <div className="fv-header">

@@ -52,7 +52,7 @@ function MarketPill({ symbol, label, prefix = '$' }) {
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(d => {
         clearTimeout(timer);
-        if (d.price) { setPrice(d.price); setChange(d.change); setFailed(false); }
+        if (d.price) { setPrice(d.price); setChange(d.changePercent ?? 0); setFailed(false); }
         else setFailed(true);
       })
       .catch(() => { clearTimeout(timer); setFailed(true); });

@@ -3,7 +3,7 @@
 /* accent: teal/cyan #22d3ee (same color as LIVE tag in home card) */
 
 .mg-wrap {
-  max-width: 860px;
+  max-width: 900px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;

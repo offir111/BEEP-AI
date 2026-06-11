@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import RobotNavTabs from '../components/RobotNavTabs';
 import './EtoroPage.css';
 
 // Fetch live prices for TOP3 symbols
@@ -16,8 +17,8 @@ async function fetchLivePrices() {
       fetch('/api/market?symbol=NVDA').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
       fetch('/api/market?symbol=GOOGL').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
     ]);
-    if (nvda.price)  prices['NVDA']  = { price: nvda.price,  change: nvda.change  };
-    if (googl.price) prices['GOOGL'] = { price: googl.price, change: googl.change };
+    if (nvda.price)  prices['NVDA']  = { price: nvda.price,  change: nvda.changePercent  ?? 0 };
+    if (googl.price) prices['GOOGL'] = { price: googl.price, change: googl.changePercent ?? 0 };
   } catch {}
   return prices;
 }
@@ -131,7 +132,7 @@ function RiskDots({ risk }) {
   );
 }
 
-export default function EtoroPage() {
+export default function EtoroPage({ navigate }) {
   const [openTrader, setOpenTrader] = useState(null);
   const [livePrices, setLivePrices] = useState({});
   const [pricesLoaded, setPricesLoaded] = useState(false);
@@ -144,6 +145,8 @@ export default function EtoroPage() {
 
   return (
     <div className="et-wrap">
+
+      <RobotNavTabs currentPage="etoro" navigate={navigate} />
 
       {/* Header */}
       <div className="et-header">

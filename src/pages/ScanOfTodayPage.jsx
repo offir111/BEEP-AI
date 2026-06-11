@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import RobotNavTabs from '../components/RobotNavTabs';
 
 // ============================================================
 //  S.O.T — Scan Of Today  |  עיצוב חדש + לוגיקה אמיתית
@@ -369,27 +370,10 @@ export default function ScanOfTodayPage({ navigate }) {
         <ParticleNet />
       </div>
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 520, margin: '0 auto', padding: '0 16px 50px' }}>
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 900, margin: '0 auto', padding: '0 16px 50px' }}>
 
         {/* ── טאב-בר ── */}
-        <nav style={{ display: 'flex', gap: 7, overflowX: 'auto', padding: '14px 0 16px', scrollbarWidth: 'none' }}>
-          {SOT_TABS.map(t => (
-            <button key={t.id} onClick={() => !t.current && navigate(t.id)}
-              aria-current={t.current ? 'page' : undefined}
-              style={{
-                flex: '0 0 auto', padding: '8px 16px', borderRadius: 999,
-                fontSize: 13, fontWeight: 700, cursor: t.current ? 'default' : 'pointer',
-                border: t.current ? '1px solid transparent' : '1px solid rgba(168,85,247,.25)',
-                background: t.current ? GRAD : 'rgba(255,255,255,.04)',
-                color: t.current ? '#fff' : '#c4b5d4',
-                boxShadow: t.current ? '0 4px 16px rgba(168,85,247,.4)' : 'none',
-                position: 'relative',
-              }}>
-              {t.label}
-              {!t.current && <span style={{ fontSize: 10, marginInlineStart: 4, opacity: 0.6 }}>↗</span>}
-            </button>
-          ))}
-        </nav>
+        <RobotNavTabs currentPage="sot" navigate={navigate} />
 
         {/* ── כותרת + רובוט (רק כשלא סורק) ── */}
         {!scanning && (

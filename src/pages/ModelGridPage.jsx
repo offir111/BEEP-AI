@@ -7,6 +7,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import IframeWithFallback from '../components/IframeWithFallback';
+import RobotNavTabs from '../components/RobotNavTabs';
 import './ModelGridPage.css';
 
 const PORTFOLIO_URL  = 'https://raw.githubusercontent.com/offir111/model-grid/master/data/portfolio.json';
@@ -46,7 +47,7 @@ function GridBar({ levels = [] }) {
   );
 }
 
-export default function ModelGridPage() {
+export default function ModelGridPage({ navigate }) {
   // BTC price
   const [btc,     setBtc]     = useState(null);
   const [flash,   setFlash]   = useState(null);
@@ -133,6 +134,8 @@ export default function ModelGridPage() {
 
   return (
     <div className="mg-wrap">
+
+      <RobotNavTabs currentPage="model-grid" navigate={navigate} />
 
       {/* ── Header ── */}
       <div className="mg-header">

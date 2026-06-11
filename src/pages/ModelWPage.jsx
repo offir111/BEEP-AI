@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import IframeWithFallback from '../components/IframeWithFallback';
+import RobotNavTabs from '../components/RobotNavTabs';
 import './ModelWPage.css';
 
 const PERF_URL = 'https://raw.githubusercontent.com/offir111/model-w/master/data/performance_log.json';
@@ -94,7 +95,7 @@ function CoinCard({ coin, onSelect, selected }) {
   );
 }
 
-export default function ModelWPage() {
+export default function ModelWPage({ navigate }) {
   const [selected, setSelected]     = useState(COINS[0]);
   const [scanTime, setScanTime]      = useState('');
   const [refreshKey, setRefreshKey]  = useState(0);
@@ -139,6 +140,8 @@ export default function ModelWPage() {
 
   return (
     <div className="mw-wrap">
+
+      <RobotNavTabs currentPage="model-w" navigate={navigate} />
 
       {/* Header */}
       <div className="mw-header">

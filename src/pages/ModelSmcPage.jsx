@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import IframeWithFallback from '../components/IframeWithFallback';
+import RobotNavTabs from '../components/RobotNavTabs';
 import './ModelSmcPage.css';
 
 const STOCKS = [
@@ -32,7 +33,7 @@ function StockCard({ stock, onSelect, selected }) {
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(d => {
         if (d.price !== null) {
-          setData({ price: d.price, change: d.change });
+          setData({ price: d.price, change: d.changePercent ?? 0 });
         } else {
           setError(true);
         }
@@ -82,7 +83,7 @@ function StockCard({ stock, onSelect, selected }) {
   );
 }
 
-export default function ModelSmcPage() {
+export default function ModelSmcPage({ navigate }) {
   const [selected, setSelected]    = useState(STOCKS[0]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [lastUpdate, setLastUpdate] = useState('');
@@ -102,6 +103,8 @@ export default function ModelSmcPage() {
 
   return (
     <div className="smc-wrap">
+
+      <RobotNavTabs currentPage="model-smc" navigate={navigate} />
 
       {/* Header */}
       <div className="smc-header">
