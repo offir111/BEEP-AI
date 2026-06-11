@@ -18,7 +18,7 @@ const MORE_PAGES = [
   { id: 'model-smc', icon: '📐', label: 'Model SMC' },
   { id: 'finviz',    icon: '🔍', label: 'FINVIZ'    },
   { id: 'etoro',     icon: '📊', label: 'eToro'     },
-  { id: 'twitter',   icon: '📡', label: 'Feed'      },
+  { id: 'model-grid', icon: '📐', label: 'Model Grid' },
   { id: 'daily',     icon: '🤖', label: 'Daily AI'  },
 ];
 

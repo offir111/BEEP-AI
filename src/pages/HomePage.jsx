@@ -211,7 +211,7 @@ export default function HomePage({ navigate }) {
         <RobotCard icon="📐" name="Model SMC"  desc="Smart Money מוסדי"       tag="אנליזה" tagColor="#a78bfa" onClick={() => navigate('model-smc')} />
         <RobotCard icon="📊" name="FINVIZ"     desc="9 תבניות ריוורסל"        tag="סריקה" tagColor="#f59e0b" onClick={() => navigate('finviz')} />
         <RobotCard icon="📋" name="eToro"      desc="קופי טריידינג"            tag="Demo"  tagColor="#94a3b8" onClick={() => navigate('etoro')} />
-        <RobotCard icon="📡" name="Feed"       desc="Whale Alerts + טוויטר"   tag="Demo"  tagColor="#94a3b8" onClick={() => navigate('twitter')} />
+        <RobotCard icon="📐" name="Model Grid"  desc="גריד BTC — רמות קנייה"   tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('model-grid')} />
         <RobotCard icon="🗞️" name="Daily AI"   desc="חדשות מדורגות AI"         tag="אצור"  tagColor="#94a3b8" onClick={() => navigate('daily')} />
       </div>
 
@@ -223,7 +223,7 @@ export default function HomePage({ navigate }) {
         <button className="hp-quick-btn" onClick={() => navigate('news')}>📰<br/><small>חדשות</small></button>
         <button className="hp-quick-btn" onClick={() => navigate('daily')}>📅<br/><small>יומי</small></button>
         <button className="hp-quick-btn" onClick={() => navigate('etoro')}>📋<br/><small>eToro</small></button>
-        <button className="hp-quick-btn" onClick={() => navigate('twitter')}>🐦<br/><small>טוויטר</small></button>
+        <button className="hp-quick-btn" onClick={() => navigate('model-grid')}>📐<br/><small>Model Grid</small></button>
       </div>
 
     </div>

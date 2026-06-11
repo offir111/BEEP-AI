@@ -1,0 +1,2222 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <title>Model GRID — BEEP BEEP · מרכז שליטה</title>
+  <style>
+    :root {
+      --font-scale: 1;
+      --bg: #0a0f14;
+      --panel: #121c28;
+      --panel-border: #3d5a80;
+      --text: #ffffff;
+      --text-muted: #c8d8e8;
+      --gold: #ffd700;
+      --profit: #00e676;
+      --loss: #ff5252;
+      --btc: #ff9f00;
+      --buy: #4fc3f7;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body {
+      width:100%; margin:0;
+      background:var(--bg); color:var(--text);
+      font-family:'Segoe UI', Tahoma, Arial, sans-serif;
+      font-size: calc(16px * var(--font-scale));
+      line-height: 1.35;
+    }
+    html, body { height:100%; overflow:hidden; margin:0; padding:0; }
+    body.text-xl { --font-scale: 1.15; }
+    body.text-xxl { --font-scale: 1.28; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .sb-dot, .bc-dot, .dl { animation: none !important; }
+    }
+
+    /* ── HEADER (legacy — hidden) ── */
+    .header {
+      grid-column: 1 / -1;
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+      padding:10px 16px;
+      background:#080f18; border-bottom:2px solid var(--panel-border);
+    }
+    .header-brand { min-width:200px; }
+    .header-title { font-size: calc(1.35rem * var(--font-scale)); font-weight:800; color:var(--gold); letter-spacing:.5px; }
+    .header-tagline { font-size: calc(.85rem * var(--font-scale)); color:var(--text-muted); margin-top:4px; font-weight:600; }
+    .header-hero { display:flex; gap:20px; align-items:center; flex-wrap:wrap; justify-content:center; flex:1; }
+    .hero-stat { text-align:center; min-width:100px; padding:6px 12px; border-radius:10px; border:2px solid var(--panel-border); background:var(--panel); }
+    .hero-stat.btc-box { border-color:var(--btc); background:#1a1200; }
+    .hero-val { font-size: calc(1.65rem * var(--font-scale)); font-weight:800; line-height:1.1; }
+    .hero-lbl { font-size: calc(.8rem * var(--font-scale)); color:var(--text-muted); font-weight:700; margin-top:4px; }
+    .btc-now { font-size: calc(2rem * var(--font-scale)); font-weight:800; color:var(--btc); }
+    .ref-txt { font-size: calc(.8rem * var(--font-scale)); color:var(--text-muted); text-align:center; margin-top:4px; font-weight:600; }
+    .hdr-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .status-badge {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 12px; border-radius:24px;
+      font-size: calc(.8rem * var(--font-scale)); font-weight:800; letter-spacing:.5px;
+      margin-top:6px; border:2px solid;
+    }
+    .sb-sim  { background:#0a2540; border-color:#4fc3f7; color:#4fc3f7; }
+    .sb-live { background:#003318; border-color:var(--profit); color:var(--profit); }
+    .sb-dot  { width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 2s infinite; }
+    .hdr-btn {
+      background:var(--panel); border:2px solid var(--panel-border); border-radius:8px;
+      color:var(--gold); font-size: calc(.85rem * var(--font-scale)); font-weight:700;
+      padding:10px 14px; min-height:44px; cursor:pointer; white-space:nowrap;
+    }
+    .hdr-btn:hover, .hdr-btn:focus { border-color:var(--gold); outline:3px solid #ffd70044; }
+    .font-btn { min-width:44px; font-size:1.1rem; padding:8px; }
+
+    /* ── BOTS BAR ── */
+    .bots-bar {
+      grid-column:1/-1;
+      display:grid; grid-template-columns:repeat(4,1fr);
+      gap:10px; padding:10px 16px;
+      background:#060c14; border-bottom:2px solid var(--panel-border);
+    }
+    .bot-card {
+      background:var(--panel); border:2px solid var(--panel-border); border-radius:10px;
+      padding:10px 12px; min-height:76px; cursor:pointer;
+      display:flex; align-items:center; gap:10px;
+    }
+    .bot-card:hover { border-color:var(--gold); }
+    .bot-card.active { border-color:var(--gold); border-width:3px; background:#1a2838; box-shadow:0 0 12px #ffd70033; }
+    .bc-dot  { width:10px;height:10px;border-radius:50%;background:var(--profit);flex-shrink:0;animation:pulse 2s infinite; }
+    .bc-icon { font-size:1.5rem; flex-shrink:0; }
+    .bc-r    { flex:1; min-width:0; }
+    .bc-name { font-size: calc(1rem * var(--font-scale)); font-weight:800; color:var(--gold); }
+    .bc-row  { display:flex; gap:8px; margin-top:6px; align-items:center; flex-wrap:wrap; }
+    .bc-pnl  { font-size: calc(1.2rem * var(--font-scale)); font-weight:800; }
+    .bc-wl   { font-size: calc(.9rem * var(--font-scale)); font-weight:700; }
+    .bc-lbl  { font-size: calc(.8rem * var(--font-scale)); color:var(--text-muted); font-weight:700; margin-right:auto; }
+    .bc-badge { font-size: calc(.7rem * var(--font-scale)); padding:3px 8px; border-radius:8px; font-weight:800; border:1px solid; }
+    .bc-badge-sim  { background:#0a2540; border-color:#4fc3f7; color:#4fc3f7; }
+    .bc-badge-live { background:#003318; border-color:var(--profit); color:var(--profit); }
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+    /* ── LEFT STATS ── */
+    .left {
+      grid-column:1; grid-row:3;
+      padding:10px 12px;
+      display:flex; flex-direction:column; gap:10px; overflow-y:auto;
+      border-left:2px solid var(--panel-border);
+    }
+    .green{color:var(--profit);} .red{color:var(--loss);} .blue{color:var(--gold);} .orange{color:var(--btc);}
+
+    .stat-cards { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .stat-card {
+      background:var(--panel); border:2px solid var(--panel-border); border-radius:10px;
+      padding:12px; text-align:center;
+    }
+    .stat-card.wide { grid-column:1 / -1; }
+    .stat-val { font-size: calc(1.45rem * var(--font-scale)); font-weight:800; }
+    .stat-sub { font-size: calc(.85rem * var(--font-scale)); color:var(--gold); font-weight:700; margin-top:4px; }
+    .stat-lbl { font-size: calc(.8rem * var(--font-scale)); color:var(--text-muted); font-weight:700; margin-top:6px; }
+
+    .grid-viz { background:var(--panel); border:2px solid var(--panel-border); border-radius:10px; padding:12px; }
+    .vt  { font-size: calc(.9rem * var(--font-scale)); color:var(--text); font-weight:800; margin-bottom:8px; }
+    .rl  { display:flex; justify-content:space-between; font-size: calc(.85rem * var(--font-scale)); font-weight:700; margin-bottom:6px; }
+    .rb  { position:relative; height:24px; background:#0a1520; border-radius:12px; border:2px solid var(--panel-border); margin-bottom:10px; }
+    .rf  { height:100%; background:linear-gradient(90deg,#004a6a,#0088cc); border-radius:10px 0 0 10px; }
+    .pp  { position:absolute; top:-6px; width:4px; height:36px; background:var(--btc); border-radius:2px; transform:translateX(-50%); box-shadow:0 0 10px #ff9f0088; }
+    .pl  { position:absolute; top:-22px; left:50%; transform:translateX(-50%); font-size: calc(.85rem * var(--font-scale)); color:var(--btc); white-space:nowrap; font-weight:800; }
+    .gm4 { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+    .gm  { background:#0a1520; border-radius:8px; padding:8px; text-align:center; border:2px solid var(--panel-border); }
+    .gmv { font-size: calc(1.1rem * var(--font-scale)); font-weight:800; color:var(--gold); }
+    .gml { font-size: calc(.75rem * var(--font-scale)); color:var(--text-muted); font-weight:700; margin-top:4px; }
+
+    .profit-curve { background:var(--panel); border:2px solid var(--panel-border); border-radius:10px; padding:12px; }
+    .pc-title { font-size: calc(.9rem * var(--font-scale)); font-weight:800; margin-bottom:8px; display:flex; justify-content:space-between; }
+    #profit-canvas { width:100%; height:72px; display:block; }
+
+    .mdd-main { text-align:center; padding:8px; background:#0a1520; border-radius:8px; border:2px solid var(--panel-border); margin-top:8px; }
+    .mdd-main-val { font-size: calc(1.3rem * var(--font-scale)); font-weight:800; }
+    .mdd-mini { display:flex; justify-content:space-around; margin-top:8px; font-size: calc(.75rem * var(--font-scale)); color:var(--text-muted); font-weight:600; }
+
+    /* ── CENTER — CHART ── */
+    .center {
+      grid-column:2; grid-row:3;
+      display:flex; flex-direction:column;
+      border-left:2px solid var(--panel-border);
+      overflow:hidden;
+    }
+    .chart-header {
+      padding:10px 14px;
+      font-size: calc(.9rem * var(--font-scale)); font-weight:800;
+      border-bottom:2px solid var(--panel-border); flex-shrink:0;
+      display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;
+      background:var(--panel);
+    }
+    .chart-info { display:flex; gap:14px; align-items:center; font-size: calc(.85rem * var(--font-scale)); font-weight:700; flex-wrap:wrap; }
+    .ci-item { display:flex; gap:6px; align-items:center; }
+    .ci-dot  { width:12px;height:12px;border-radius:50%; }
+    .chart-wrap {
+      flex:1; overflow:hidden; position:relative;
+      border:2px solid #ffd70033; margin:8px; border-radius:10px;
+    }
+    #tv-chart   { width:100%; height:100%; }
+    #grid-overlay { position:absolute; inset:0; pointer-events:none; z-index:10; }
+
+    /* ── BOTTOM PANEL (tabs) ── */
+    .bottom-panel {
+      grid-column:1 / -1; grid-row:4;
+      display:flex; flex-direction:column;
+      background:#060c14; border-top:2px solid var(--panel-border);
+      min-height:200px; max-height:32vh;
+    }
+    .tab-bar { display:flex; gap:8px; padding:8px 12px; border-bottom:2px solid var(--panel-border); flex-wrap:wrap; }
+    .tab-btn {
+      font-size: calc(.95rem * var(--font-scale)); font-weight:800;
+      padding:10px 18px; min-height:44px; border-radius:8px; cursor:pointer;
+      background:var(--panel); border:2px solid var(--panel-border); color:var(--text);
+    }
+    .tab-btn.active { border-color:var(--gold); color:var(--gold); background:#1a2838; }
+    .tab-btn:focus { outline:3px solid #ffd70055; }
+    .tab-body { flex:1; overflow:hidden; display:flex; flex-direction:column; padding:8px 12px; }
+    .tab-pane { display:none; flex:1; overflow:hidden; flex-direction:column; }
+    .tab-pane.active { display:flex; }
+    .levels-toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px; }
+    .levels-toolbar .leg { display:flex; gap:12px; font-size: calc(.85rem * var(--font-scale)); font-weight:700; }
+    .leg span { display:flex; align-items:center; gap:6px; }
+    .dg { width:10px;height:10px;border-radius:50%; }
+    .ls { flex:1; overflow-y:auto; }
+    .glv-row { padding:8px 10px; border-bottom:2px solid #09151f; min-height:44px; }
+    .glv-row:hover { background:#0a1520; }
+    .glv-top { display:flex; justify-content:space-between; align-items:center; font-size: calc(.95rem * var(--font-scale)); font-weight:700; gap:8px; flex-wrap:wrap; }
+    .glv-num { color:var(--text-muted); font-weight:800; min-width:28px; }
+    .glv-buy  { color:var(--buy); font-weight:800; }
+    .glv-sell { color:var(--text); font-weight:700; }
+    .glv-prof { color:var(--profit); font-weight:800; }
+    .glv-bar-wrap { height:6px; background:#0a1520; border-radius:3px; margin-top:6px; }
+    .glv-filled  { background:#003318; }
+    .glv-current { background:#332200; }
+
+    .log-wrap { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+    .log-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px; }
+    .ft { font-size: calc(.95rem * var(--font-scale)); font-weight:800; }
+    .log-filter { display:flex; gap:8px; }
+    .lf-btn {
+      font-size: calc(.9rem * var(--font-scale)); font-weight:700;
+      padding:8px 14px; min-height:44px; border-radius:8px; cursor:pointer;
+      background:var(--panel); border:2px solid var(--panel-border); color:var(--text);
+    }
+    .lf-btn.act { border-color:var(--gold); color:var(--gold); background:#1a2838; }
+    .fscr { flex:1; overflow-y:auto; }
+    .log-entry { display:flex; align-items:center; gap:10px; padding:10px 8px; min-height:48px; border-bottom:2px solid #09151f; font-size: calc(.9rem * var(--font-scale)); }
+    .log-icon { font-size:1.2rem; }
+    .log-title { font-weight:800; }
+    .log-sub { font-size: calc(.8rem * var(--font-scale)); color:var(--text-muted); font-weight:600; margin-top:2px; }
+    .log-profit { font-size: calc(1rem * var(--font-scale)); font-weight:800; color:var(--profit); }
+    .log-time { font-size: calc(.8rem * var(--font-scale)); color:var(--text-muted); font-weight:600; }
+    .log-table { width:100%; border-collapse:collapse; font-size: calc(.9rem * var(--font-scale)); }
+    .log-table th { padding:8px; text-align:right; color:var(--text-muted); font-weight:800; border-bottom:2px solid var(--panel-border); }
+    .log-table td { padding:10px 8px; border-bottom:1px solid #09151f; font-weight:700; }
+    .log-table tr.sell-row { background:#003318; }
+
+    .tiles-panel { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+    .tiles-toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px; }
+    .tiles-toolbar-title { font-size: calc(.95rem * var(--font-scale)); font-weight:800; }
+    .hist-btn { font-size: calc(.85rem * var(--font-scale)); font-weight:700; padding:8px 14px; min-height:44px; background:var(--panel); border:2px solid var(--gold); border-radius:8px; color:var(--gold); cursor:pointer; }
+    #tiles-row { display:flex; gap:10px; overflow-x:auto; padding-bottom:8px; }
+
+    /* ── STATUS ── */
+    .status {
+      grid-column:1/-1; grid-row:5;
+      background:#050b12; border-top:2px solid var(--panel-border);
+      padding:8px 16px;
+      display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+      font-size: calc(.85rem * var(--font-scale)); font-weight:700; color:var(--text-muted);
+    }
+    .dl { width:8px;height:8px;background:var(--profit);border-radius:50%;display:inline-block;margin-left:6px;animation:pulse 2s infinite; }
+
+    /* ══ MODALS ══ */
+    .modal-overlay {
+      position:fixed; inset:0; background:#00000088; z-index:1000;
+      display:flex; align-items:center; justify-content:center;
+      backdrop-filter:blur(3px);
+    }
+    .modal-overlay.hidden { display:none; }
+    .modal-box {
+      background:var(--panel); border:2px solid var(--gold); border-radius:12px;
+      padding:24px; min-width:400px; max-width:560px; width:92vw;
+      box-shadow:0 8px 32px #00000080; position:relative;
+    }
+    .modal-title { font-size: calc(1.2rem * var(--font-scale)); font-weight:800; color:var(--gold); margin-bottom:8px; }
+    .modal-sub { font-size: calc(.9rem * var(--font-scale)); color:var(--text-muted); margin-bottom:16px; font-weight:600; }
+    .modal-close {
+      position:absolute; top:12px; left:12px;
+      background:none; border:none; color:#ffffff; font-size:1.1rem;
+      cursor:pointer; line-height:1; padding:2px 6px;
+    }
+    .modal-close:hover { color:#ff5252; }
+
+    /* Settings modal */
+    .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
+    .sg-item { background:#0a1520; border:1px solid #0f2030; border-radius:7px; padding:8px 10px; }
+    .sg-label { font-size: calc(.8rem * var(--font-scale)); color:var(--text-muted); font-weight:700; margin-bottom:4px; }
+    .sg-val   { font-size: calc(1.1rem * var(--font-scale)); font-weight:800; color:var(--gold); }
+    .sg-sub   { font-size: calc(.75rem * var(--font-scale)); color:var(--text-muted); margin-top:4px; }
+    .modal-note { background:#071520; border:2px solid var(--panel-border); border-radius:8px; padding:12px; font-size: calc(.85rem * var(--font-scale)); font-weight:600; }
+
+    /* Calculator modal */
+    .calc-form { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+    .cf-row { display:flex; flex-direction:column; gap:3px; }
+    .cf-label { font-size: calc(.85rem * var(--font-scale)); font-weight:700; color:var(--text-muted); }
+    .cf-input {
+      background:#0a1520; border:2px solid var(--panel-border); border-radius:8px;
+      color:var(--text); font-size: calc(1rem * var(--font-scale)); padding:12px 14px; min-height:48px; outline:none;
+    }
+    .cf-input:focus { border-color:var(--gold); outline:3px solid #ffd70044; }
+    .calc-btn {
+      background:#003a5a; border:2px solid #4fc3f7; border-radius:8px;
+      color:var(--gold); font-size: calc(1rem * var(--font-scale)); font-weight:800;
+      padding:14px; min-height:48px; cursor:pointer; width:100%;
+    }
+    .calc-btn:hover { background:#004a6a; }
+    .calc-results { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+    .cr-item { background:#0a1520; border:1px solid #0f2030; border-radius:7px; padding:8px 10px; text-align:center; }
+    .cr-val { font-size: calc(1.15rem * var(--font-scale)); font-weight:800; color:var(--profit); }
+    .cr-lbl { font-size: calc(.8rem * var(--font-scale)); color:var(--text-muted); font-weight:700; margin-top:4px; }
+
+    /* Wizard modal */
+    .wiz-steps { display:flex; gap:6px; margin-bottom:18px; }
+    .wiz-step {
+      flex:1; text-align:center; padding:6px 4px;
+      border-radius:7px; font-size:.6rem;
+      background:#0a1520; border:1px solid #0f2030; color:#ffffff;
+      transition:all .2s; cursor:pointer;
+    }
+    .wiz-step.active { background:#002535; border-color:#005a8a; color:#ffd700; font-weight:700; }
+    .wiz-step.done   { background:#002510; border-color:#005a30; color:#00a050; }
+    .wiz-num  { font-size:.8rem; font-weight:700; display:block; margin-bottom:2px; }
+    .wiz-lbl  { font-size:.54rem; }
+    .wiz-content { background:#0a1520; border:1px solid #0f2030; border-radius:8px; padding:14px; margin-bottom:14px; min-height:130px; }
+    .wiz-title { font-size:.82rem; font-weight:700; color:#ffd700; margin-bottom:6px; }
+    .wiz-desc  { font-size:.66rem; color:#ffffff; line-height:1.6; }
+    .wiz-field { margin-top:10px; }
+    .wiz-nav { display:flex; gap:8px; justify-content:flex-start; }
+    .wiz-btn {
+      background:#0a2030; border:1px solid #005a8a; border-radius:7px;
+      color:#ffd700; font-size:.68rem; font-weight:700; padding:6px 16px;
+      cursor:pointer; transition:all .2s;
+    }
+    .wiz-btn:hover { background:#003a50; }
+    .wiz-btn.primary { background:#003a5a; }
+    .wiz-btn.gray    { background:#0a1520; border-color:#152535; color:#ffffff; }
+
+    ::-webkit-scrollbar{width:10px} ::-webkit-scrollbar-track{background:var(--bg)} ::-webkit-scrollbar-thumb{background:var(--panel-border);border-radius:5px}
+
+    /* ══ LIVE TILES ══ */
+    .tile {
+      flex-shrink:0; width:96px; min-height:88px; border-radius:10px; padding:8px 10px;
+      background:var(--panel); border:3px solid var(--btc);
+      text-align:center; cursor:default;
+    }
+    .tile.waiting  { border-color:#f7931a; }
+    .tile.bought   { border-color:#00e676; }
+    .tile.loss     { border-color:#ff4444; }
+    .tile.sold-win { border-color:#00e676; background:#001a0e; }
+    .tile.sold-los { border-color:#ff4444; background:#1a0000; }
+    .tile-lbl  { font-size: calc(.75rem * var(--font-scale)); color:var(--text); font-weight:700; margin-bottom:4px; }
+    .tile-price{ font-size: calc(.95rem * var(--font-scale)); font-weight:800; color:var(--text); }
+    .tile-pct  { font-size: calc(.85rem * var(--font-scale)); font-weight:800; margin-top:4px; }
+    .tile-sub  { font-size: calc(.75rem * var(--font-scale)); color:var(--text-muted); font-weight:600; margin-top:4px; }
+    .tile-pair { display:flex; gap:3px; }
+    .tile-arrow{ display:flex;align-items:center;color:#555;font-size:.8rem;}
+
+    /* History calendar */
+    .hist-day {
+      font-size: calc(.8rem * var(--font-scale)); font-weight:700;
+      padding:6px 10px; border-radius:6px; cursor:pointer;
+      background:var(--panel); border:2px solid var(--panel-border); color:var(--text-muted);
+    }
+    .toggle-levels-btn {
+      font-size: calc(.85rem * var(--font-scale)); font-weight:700;
+      padding:8px 14px; min-height:44px; border-radius:8px; cursor:pointer;
+      background:#0a2540; border:2px solid #4fc3f7; color:#4fc3f7;
+    }
+    .num-ltr { direction:ltr; unicode-bidi:embed; display:inline-block; }
+    .hist-day:hover { border-color:#ffd700; color:#ffd700; }
+    .hist-day.active { border-color:#ffd700; color:#ffd700; background:#0d1e30; }
+
+    /* ══════════════════════════════════════════════════════════
+       MODEL GRID — Winner UI v3 (Senior-friendly terminal)
+       ══════════════════════════════════════════════════════════ */
+    .root {
+      display:grid;
+      width:100%;
+      height:100%;
+      overflow-y:auto;
+      overflow-x:hidden;
+      -webkit-overflow-scrolling:touch;
+      grid-template-rows:auto auto minmax(0,1fr) minmax(200px,320px) auto;
+      grid-template-columns:minmax(220px,28vw) minmax(0,1fr);
+      background:linear-gradient(165deg,#0b1220 0%,#070d14 45%,#0a1018 100%);
+    }
+    .mg-cmd {
+      grid-column:1/-1; display:flex; align-items:center; justify-content:space-between;
+      gap:10px; flex-wrap:wrap; padding:8px 16px;
+      background: linear-gradient(90deg, #0d1624, #111d2e);
+      border-bottom:3px solid #2a4a6a;
+    }
+    .mg-brand { display:flex; align-items:center; gap:14px; }
+    .mg-logo {
+      width:48px; height:48px; border-radius:12px;
+      background: linear-gradient(135deg, #ffd700, #ff9f00);
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.6rem; box-shadow:0 4px 16px #ffd70044;
+    }
+    .mg-title { font-size:calc(1.5rem * var(--font-scale)); font-weight:900; color:#fff; letter-spacing:.3px; }
+    .mg-sub { font-size:calc(.88rem * var(--font-scale)); color:#c8d8e8; font-weight:700; margin-top:2px; }
+    .mg-pills { display:flex; gap:10px; flex-wrap:wrap; flex:1; justify-content:center; }
+    .mg-pill {
+      display:flex; align-items:center; gap:8px; padding:10px 16px; min-height:48px;
+      border-radius:999px; border:2px solid; font-size:calc(.88rem * var(--font-scale)); font-weight:800;
+      background:#121c28;
+    }
+    .mg-pill.ok { border-color:#00e676; color:#00e676; background:#002818; }
+    .mg-pill.warn { border-color:#ff9f00; color:#ff9f00; background:#2a1a00; }
+    .mg-pill.info { border-color:#4fc3f7; color:#4fc3f7; background:#0a2540; }
+    .mg-pill-dot { width:10px; height:10px; border-radius:50%; background:currentColor; }
+    .mg-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .mg-btn {
+      border:2px solid #3d5a80; background:#121c28; color:#fff;
+      border-radius:10px; padding:10px 16px; min-height:48px; min-width:48px;
+      font-size:calc(.88rem * var(--font-scale)); font-weight:800; cursor:pointer;
+    }
+    .mg-btn:hover, .mg-btn:focus { border-color:#ffd700; color:#ffd700; outline:3px solid #ffd70044; }
+    .mg-btn.gold { border-color:#ffd700; color:#ffd700; background:#1a2838; }
+    .mg-kpi { display:none !important; }
+    .mg-kpi-compact {
+      display:grid; grid-template-columns:1fr 1fr; gap:6px;
+      margin-bottom:12px; padding-bottom:12px;
+      border-bottom:2px solid #2a4a6a;
+    }
+    .mg-kc {
+      background:#0a1520; border:1px solid #2a4a6a; border-radius:8px;
+      padding:6px 8px; text-align:center;
+    }
+    .mg-kc-l {
+      display:block; font-size:calc(.68rem * var(--font-scale)); color:#8aa4be;
+      font-weight:800; text-transform:uppercase; margin-bottom:2px;
+    }
+    .mg-kc-v {
+      display:block; font-size:calc(.95rem * var(--font-scale)); font-weight:900; line-height:1.2;
+    }
+    .mg-stage {
+      grid-column:1/-1; grid-row:3;
+      display:grid; grid-template-columns:minmax(220px,28vw) minmax(0,1fr);
+      min-height:0; overflow:hidden;
+    }
+    .mg-sidebar {
+      padding:8px 10px; display:flex; flex-direction:column; gap:8px;
+      overflow-y:auto; overflow-x:hidden;
+      border-left:2px solid #2a4a6a;
+      min-height:0;
+    }
+    .mg-panel {
+      background:#121c28; border:2px solid #3d5a80; border-radius:12px; padding:10px;
+    }
+    .mg-panel-h {
+      font-size:calc(.92rem * var(--font-scale)); font-weight:900; color:#ffd700;
+      margin-bottom:8px; padding-bottom:6px; border-bottom:2px solid #2a4a6a;
+      display:flex; align-items:center; gap:8px;
+    }
+    .mg-verdict {
+      font-size:calc(.9rem * var(--font-scale)); font-weight:800; line-height:1.45;
+      padding:10px; border-radius:10px; border:2px solid #3d5a80;
+      background:#0a1520; margin-bottom:8px;
+    }
+    .mg-verdict.good { border-color:#00e676; background:#002818; }
+    .mg-verdict.caution { border-color:#ff9f00; background:#2a1a00; }
+    .mg-checklist { list-style:none; display:flex; flex-direction:column; gap:10px; }
+    .mg-checklist li {
+      font-size:calc(.82rem * var(--font-scale)); font-weight:700; padding:7px 9px;
+      background:#0a1520; border-radius:8px; border-right:3px solid #3d5a80;
+    }
+    .mg-checklist li.ok { border-right-color:#00e676; }
+    .mg-checklist li.warn { border-right-color:#ff9f00; }
+    .mg-range-big { margin-top:8px; }
+    .mg-range-bar { height:28px; background:#0a1520; border-radius:14px; border:2px solid #3d5a80; position:relative; margin:10px 0; }
+    .mg-range-fill { height:100%; border-radius:12px 0 0 12px; background:linear-gradient(90deg,#0066aa,#00aaff); }
+    .mg-range-marker {
+      position:absolute; top:-8px; width:6px; height:44px; background:#ff9f00;
+      border-radius:3px; transform:translateX(-50%); box-shadow:0 0 12px #ff9f0088;
+    }
+    .mg-mini-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .mg-mini-cell {
+      text-align:center; padding:10px; background:#0a1520; border-radius:10px;
+      border:2px solid #2a4a6a;
+    }
+    .mg-mini-cell b { display:block; font-size:calc(1.2rem * var(--font-scale)); color:#ffd700; margin-top:4px; }
+    .mg-chart-col {
+      display:flex; flex-direction:column;
+      height:100%; min-width:0;
+      background:#080c12; overflow:hidden;
+    }
+    .mg-chart-top {
+      flex:0 0 auto;
+      padding:6px 12px; background:#121c28; border-bottom:2px solid #2a4a6a;
+      display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;
+    }
+    .mg-chart-top h2 { font-size:calc(.92rem * var(--font-scale)); font-weight:900; }
+    .mg-chart-wrap {
+      flex:1 1 auto; min-height:0; height:100%;
+      margin:4px; border-radius:12px; border:2px solid #ffd70055;
+      overflow:hidden; position:relative;
+    }
+    #tv-chart {
+      width:100%; height:100%;
+      min-height:0; display:block;
+    }
+    #tv-chart iframe { width:100%; height:100%; border:0; display:block; }
+    #grid-overlay { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+    .mg-dock {
+      grid-column:1/-1; grid-row:4;
+      display:flex; flex-direction:column;
+      min-height:0; max-height:min(22dvh,240px);
+      background:#060c14; border-top:3px solid #2a4a6a;
+    }
+    @media (max-height:720px) {
+      .root { grid-template-rows:auto auto minmax(0,1fr) minmax(72px,16dvh) auto; }
+      .mg-sidebar .profit-curve { display:none; }
+      .mg-pills { display:none; }
+    }
+    @media (max-width:900px) {
+      .root { grid-template-columns:1fr; grid-template-rows:auto auto minmax(0,1fr) minmax(72px,18dvh) auto; }
+      .mg-stage { grid-template-columns:1fr; grid-template-rows:minmax(0,32vh) minmax(0,1fr); }
+      .mg-sidebar { max-height:32vh; border-left:none; border-bottom:2px solid #2a4a6a; }
+    }
+    .mg-dock-tabs { display:flex; gap:8px; padding:10px 16px; flex-wrap:wrap; background:#0a1018; }
+    .mg-dock-tab {
+      padding:12px 22px; min-height:50px; border-radius:10px 10px 0 0;
+      border:2px solid #3d5a80; border-bottom:none; background:#121c28;
+      font-size:calc(.95rem * var(--font-scale)); font-weight:800; color:#c8d8e8; cursor:pointer;
+    }
+    .mg-dock-tab.active { background:#1a2838; border-color:#ffd700; color:#ffd700; margin-bottom:-2px; padding-bottom:14px; }
+    .mg-dock-body { flex:1; overflow:hidden; padding:12px 16px; min-height:0; }
+    .mg-dock-pane { display:none; height:100%; flex-direction:column; overflow:hidden; }
+    .mg-dock-pane.active { display:flex; }
+    .mg-overview-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; height:100%; overflow-y:auto; }
+    @media (max-width:900px) { .mg-overview-grid { grid-template-columns:1fr; } }
+    .mg-ov-card {
+      background:#121c28; border:2px solid #3d5a80; border-radius:12px; padding:16px;
+    }
+    .mg-ov-card h3 { font-size:calc(.95rem * var(--font-scale)); font-weight:900; color:#ffd700; margin-bottom:12px; }
+    .mg-ov-big { font-size:calc(1.8rem * var(--font-scale)); font-weight:900; }
+    .mg-ov-row {
+      display:flex; justify-content:space-between; padding:10px 0;
+      border-bottom:1px solid #2a4a6a; font-size:calc(.92rem * var(--font-scale)); font-weight:700;
+    }
+    .mg-ladder .glv-row { border-radius:10px; margin-bottom:6px; border:2px solid #2a4a6a; padding:12px; }
+    .mg-ladder .glv-filled { border-color:#00e676; background:#002818; }
+    .mg-ladder .glv-current { border-color:#ff9f00; background:#2a1a00; }
+    .profit-curve { padding:8px !important; }
+    .profit-curve #profit-canvas { height:48px !important; }
+    .mg-foot {
+      grid-column:1/-1; grid-row:5;
+      padding:10px 20px; background:#050810; border-top:2px solid #2a4a6a;
+      display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;
+      font-size:calc(.88rem * var(--font-scale)); font-weight:700; color:#c8d8e8;
+    }
+
+    /* ══ BELL BUTTON — real-time price alerts ══ */
+    .mg-bell-btn {
+      position:relative; background:none;
+      border:2px solid #3d5a80; border-radius:50%;
+      width:44px; height:44px; min-width:44px;
+      font-size:1.35rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      transition:border-color .2s, box-shadow .2s;
+      flex-shrink:0;
+    }
+    .mg-bell-btn:hover, .mg-bell-btn:focus { border-color:#ffd700; outline:3px solid #ffd70033; box-shadow:0 0 10px #ffd70044; }
+    .mg-bell-btn.has-alerts { border-color:#ff9f00; box-shadow:0 0 12px #ff9f0055; animation:bellShake 4s ease-in-out infinite; }
+    .mg-bell-badge {
+      position:absolute; top:-5px; left:-5px;
+      background:#ff5252; color:#fff; border-radius:50%;
+      width:19px; height:19px; font-size:.62rem; font-weight:900;
+      display:flex; align-items:center; justify-content:center;
+      border:2px solid #0a0f14;
+    }
+    @keyframes bellShake {
+      0%,50%,100%{ transform:rotate(0deg); }
+      52%{ transform:rotate(12deg); }
+      56%{ transform:rotate(-10deg); }
+      60%{ transform:rotate(8deg); }
+      64%{ transform:rotate(-6deg); }
+      68%{ transform:rotate(3deg); }
+      72%{ transform:rotate(0deg); }
+    }
+
+    /* Alert modal content */
+    .alert-modal-list { display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto; margin-bottom:12px; }
+    .alert-item {
+      display:flex; align-items:center; gap:10px; padding:10px 12px;
+      background:#0a1520; border:2px solid #3d5a80; border-radius:10px;
+      font-size:calc(.88rem * var(--font-scale)); font-weight:700;
+    }
+    .alert-item.triggered { border-color:#00e676; background:#002818; }
+    .alert-item.above { border-color:#00aaff; }
+    .alert-item.below { border-color:#ff9f00; }
+    .alert-dir { font-size:1.1rem; }
+    .alert-price { flex:1; font-size:calc(1rem * var(--font-scale)); font-weight:800; font-variant-numeric:tabular-nums; direction:ltr; }
+    .alert-remove {
+      background:none; border:1px solid #3d5a80; border-radius:6px;
+      color:#ff5252; font-size:.85rem; font-weight:800;
+      padding:4px 10px; min-height:32px; cursor:pointer;
+    }
+    .alert-remove:hover { background:#1a0000; border-color:#ff5252; }
+    .alert-add-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .alert-input {
+      flex:1; min-width:120px; background:#0a1520; border:2px solid #3d5a80; border-radius:8px;
+      color:#fff; font-size:calc(1rem * var(--font-scale)); padding:10px 14px; min-height:44px; outline:none;
+      direction:ltr; font-variant-numeric:tabular-nums;
+    }
+    .alert-input:focus { border-color:#ffd700; outline:3px solid #ffd70033; }
+    .alert-add-btn {
+      background:#003a5a; border:2px solid #4fc3f7; border-radius:8px;
+      color:#ffd700; font-size:calc(.9rem * var(--font-scale)); font-weight:800;
+      padding:10px 16px; min-height:44px; cursor:pointer; white-space:nowrap;
+    }
+    .alert-add-btn:hover { background:#004a6a; }
+    .alert-hint { font-size:calc(.75rem * var(--font-scale)); color:#8aa4be; font-weight:700; margin-top:6px; }
+    .alert-empty { text-align:center; padding:20px; color:#8aa4be; font-size:calc(.85rem * var(--font-scale)); font-weight:700; }
+
+    /* Alert triggered toast */
+    #alert-toast {
+      position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-120px);
+      background:#001a0e; border:3px solid #00e676; border-radius:14px;
+      padding:14px 24px; color:#00e676; font-size:calc(1rem * var(--font-scale)); font-weight:800;
+      box-shadow:0 8px 32px #00000099; z-index:9999; text-align:center;
+      transition:transform .4s cubic-bezier(.34,1.56,.64,1);
+      white-space:nowrap;
+    }
+    #alert-toast.show { transform:translateX(-50%) translateY(0); }
+
+  /* legacy layout only — NOT .mg-bots */
+    .header, .left, .center, .bottom-panel, .status { display:none !important; }
+    .mg-bots {
+      grid-column:1/-1; grid-row:2;
+      display:grid !important;
+      grid-template-columns:repeat(4,1fr);
+      gap:10px; padding:10px 16px;
+      min-height:80px;
+      background:#060c14; border-bottom:3px solid #2a4a6a;
+    }
+    .mg-cmd { grid-row:1; }
+    .tile-pair-wrap {
+      flex-shrink:0; border:2px solid #3d5a80; border-radius:14px; padding:8px;
+      display:flex; gap:8px; align-items:center; background:#0a1218;
+    }
+    .empty-hint {
+      font-size:calc(1rem * var(--font-scale)); font-weight:700; color:#8aa4be;
+      padding:24px; text-align:center;
+    }
+
+    /* ── מצב קומפקט: iframe BEEP BEEP / תצוגת טלפון ── */
+    html.mg-compact {
+      height:100%; overflow:hidden;
+    }
+    html.mg-compact body {
+      --font-scale: 0.92;
+      height:100%; max-height:100%;
+      overflow-x:hidden;
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
+      overscroll-behavior-y:contain;
+    }
+    html.mg-compact .root {
+      display:flex; flex-direction:column;
+      width:100%; min-height:100%;
+      height:auto; max-height:none;
+      grid-template-columns:1fr;
+      grid-template-rows:none;
+      padding-bottom:max(16px, env(safe-area-inset-bottom, 0px));
+    }
+    html.mg-compact .mg-cmd,
+    html.mg-compact .mg-bots,
+    html.mg-compact .mg-stage,
+    html.mg-compact .mg-dock,
+    html.mg-compact .mg-foot {
+      flex-shrink:0;
+      grid-column:unset; grid-row:unset;
+    }
+    html.mg-compact .mg-foot { display:none; }
+    html.mg-compact .mg-cmd {
+      padding:5px 8px; gap:4px; flex-wrap:nowrap;
+    }
+    html.mg-compact .mg-brand { gap:8px; min-width:0; }
+    html.mg-compact .mg-logo { width:34px; height:34px; font-size:1.15rem; border-radius:8px; flex-shrink:0; }
+    html.mg-compact .mg-title { font-size:calc(1.05rem * var(--font-scale)); white-space:nowrap; }
+    html.mg-compact .mg-sub { display:none; }
+    html.mg-compact .mg-pills { display:none !important; }
+    html.mg-compact .mg-actions {
+      gap:4px; flex-shrink:0; flex-wrap:nowrap;
+    }
+    html.mg-compact .mg-btn {
+      min-height:34px; min-width:34px; padding:5px 8px;
+      font-size:calc(.72rem * var(--font-scale)); border-radius:8px;
+    }
+    html.mg-compact .mg-actions .ref-txt { display:none; }
+    html.mg-compact .mg-bots {
+      grid-template-columns:repeat(2,1fr);
+      gap:5px; padding:5px 8px; min-height:0;
+    }
+    html.mg-compact .bot-card {
+      min-height:52px; padding:6px 8px; gap:6px; border-radius:8px;
+    }
+    html.mg-compact .bc-icon { font-size:1.1rem; }
+    html.mg-compact .bc-name { font-size:calc(.78rem * var(--font-scale)); }
+    html.mg-compact .bc-pnl { font-size:calc(.9rem * var(--font-scale)); }
+    html.mg-compact .bc-wl, html.mg-compact .bc-lbl { font-size:calc(.65rem * var(--font-scale)); }
+    html.mg-compact .bc-badge { font-size:calc(.58rem * var(--font-scale)); padding:2px 5px; }
+    html.mg-compact .mg-stage {
+      display:flex; flex-direction:column;
+      grid-template-columns:1fr; grid-template-rows:none;
+      min-height:0; overflow:visible;
+      flex-shrink:0;
+    }
+    html.mg-compact .mg-chart-col {
+      order:1; flex:0 0 auto; width:100%;
+    }
+    html.mg-compact .mg-chart-top {
+      padding:4px 8px; min-height:0;
+    }
+    html.mg-compact .mg-chart-top h2 { font-size:calc(.78rem * var(--font-scale)); }
+    html.mg-compact .chart-info { font-size:calc(.65rem * var(--font-scale)); gap:6px; }
+    html.mg-compact .mg-bell-btn { width:36px; height:36px; min-width:36px; font-size:1.1rem; }
+    html.mg-compact .mg-chart-wrap {
+      flex:0 0 auto;
+      height:clamp(200px, 36vh, 340px);
+      min-height:200px;
+      margin:2px 4px 4px;
+      border-radius:10px;
+    }
+    html.mg-compact .mg-sidebar {
+      order:2; flex:0 0 auto;
+      width:100%; max-width:100%;
+      max-height:min(46vh, 380px);
+      height:auto;
+      padding:4px 6px 8px; gap:8px;
+      border-left:none; border-top:2px solid #2a4a6a;
+      overflow-x:hidden;
+      overflow-y:auto;
+      display:flex; flex-direction:column; flex-wrap:nowrap;
+      -webkit-overflow-scrolling:touch;
+      overscroll-behavior:contain;
+      touch-action:pan-y;
+    }
+    html.mg-compact .mg-sidebar .mg-panel {
+      flex:0 0 auto;
+      width:100%; min-width:0; max-width:100%;
+      padding:8px 10px; margin:0;
+    }
+    html.mg-compact .mg-sidebar .mg-panel.profit-curve { display:none; }
+    html.mg-compact .mg-panel-h { font-size:calc(.75rem * var(--font-scale)); margin-bottom:4px; padding-bottom:4px; }
+    html.mg-compact .mg-kpi-compact { margin-bottom:6px; padding-bottom:6px; gap:4px; }
+    html.mg-compact .mg-kc { padding:4px 6px; }
+    html.mg-compact .mg-kc-l { font-size:calc(.58rem * var(--font-scale)); }
+    html.mg-compact .mg-kc-v { font-size:calc(.82rem * var(--font-scale)); }
+    html.mg-compact .mg-verdict {
+      display:block;
+      font-size:calc(.8rem * var(--font-scale));
+      padding:8px;
+    }
+    html.mg-compact .mg-checklist {
+      display:flex;
+      gap:6px;
+    }
+    html.mg-compact .mg-checklist li {
+      font-size:calc(.72rem * var(--font-scale));
+      padding:6px 8px;
+    }
+    html.mg-compact .mg-range-bar { height:22px; margin:6px 0; }
+    html.mg-compact .mg-range-marker { height:34px; top:-6px; }
+    html.mg-compact .mg-mini-grid { gap:6px; }
+    html.mg-compact .mg-mini-cell { padding:8px; }
+    html.mg-compact .mg-dock {
+      flex-shrink:0;
+      max-height:none; min-height:0;
+      overflow:visible;
+    }
+    html.mg-compact .mg-dock-tabs {
+      padding:4px 6px; gap:4px; flex-wrap:nowrap; overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+    }
+    html.mg-compact .mg-dock-tab {
+      min-height:36px; padding:6px 10px; flex-shrink:0;
+      font-size:calc(.7rem * var(--font-scale)); border-radius:8px 8px 0 0;
+    }
+    html.mg-compact .mg-dock-tab.active { padding-bottom:8px; }
+    html.mg-compact .mg-dock-body {
+      padding:6px 8px;
+      overflow:visible;
+      min-height:0;
+    }
+    html.mg-compact .mg-dock-pane.active {
+      overflow-y:visible;
+      max-height:none;
+      min-height:80px;
+    }
+    html.mg-compact .mg-overview-grid,
+    html.mg-compact .mg-dock-pane.active .ls,
+    html.mg-compact .mg-dock-pane.active .log-wrap,
+    html.mg-compact .mg-dock-pane.active .tiles-panel {
+      overflow-y:visible;
+      max-height:none;
+    }
+    html.mg-compact .mg-ov-big { font-size:calc(1.2rem * var(--font-scale)); }
+    html.mg-compact .modal-box { max-width:96vw; max-height:90vh; overflow-y:auto; }
+
+    @media (max-width:520px), (max-height:640px) {
+      html:not(.mg-compact) { height:100%; overflow:hidden; }
+      html:not(.mg-compact) body {
+        --font-scale: 0.9;
+        height:100%; overflow-x:hidden; overflow-y:auto;
+        -webkit-overflow-scrolling:touch;
+      }
+      html:not(.mg-compact) .root {
+        display:flex; flex-direction:column;
+        min-height:100%; height:auto; max-height:none;
+        grid-template-columns:1fr; grid-template-rows:none;
+      }
+      html:not(.mg-compact) .mg-foot { display:none; }
+      html:not(.mg-compact) .mg-pills { display:none; }
+      html:not(.mg-compact) .mg-bots { grid-template-columns:repeat(2,1fr); padding:6px 8px; min-height:0; }
+      html:not(.mg-compact) .mg-stage {
+        grid-template-columns:1fr;
+        grid-template-rows:none;
+        overflow:visible;
+      }
+      html:not(.mg-compact) .mg-chart-wrap {
+        height:clamp(200px, 36vh, 340px);
+        min-height:200px;
+      }
+      html:not(.mg-compact) .mg-sidebar {
+        width:100%;
+        max-height:min(46vh, 380px);
+        border-left:none; border-top:2px solid #2a4a6a;
+        overflow-x:hidden;
+        overflow-y:auto;
+        -webkit-overflow-scrolling:touch;
+        touch-action:pan-y;
+      }
+      html:not(.mg-compact) .mg-sidebar .mg-panel {
+        width:100%; min-width:0;
+      }
+      html:not(.mg-compact) .mg-sidebar .profit-curve { display:none; }
+      html:not(.mg-compact) .mg-dock { max-height:none; overflow:visible; }
+      html:not(.mg-compact) .mg-dock-body,
+      html:not(.mg-compact) .mg-dock-pane.active { overflow-y:visible; max-height:none; }
+      html:not(.mg-compact) .mg-btn { min-height:36px; padding:6px 10px; font-size:calc(.78rem * var(--font-scale)); }
+      html:not(.mg-compact) .mg-dock-tab { min-height:40px; padding:8px 12px; font-size:calc(.78rem * var(--font-scale)); }
+    }
+  </style>
+</head>
+<body>
+<div class="root" id="root">
+  <div style="grid-column:1/-1;display:flex;align-items:center;justify-content:center;color:#ffffff">טוען...</div>
+</div>
+
+<!-- ══ SETTINGS MODAL ══ -->
+<div class="modal-overlay hidden" id="modal-settings">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-settings')">✕</button>
+    <div class="modal-title">⚙️ הגדרות בוט נוכחיות</div>
+    <div class="modal-sub">פרמטרים שחושבו ע״י AI — מתעדכנים אוטומטית בכל DGT Reset</div>
+    <div class="settings-grid" id="settings-content"></div>
+    <div class="modal-note">💡 שינוי פרמטרים דורש עריכת <code>grid_simulator.py</code> ב-GitHub ו-push. הבוט יאפס בריצה הבאה.</div>
+  </div>
+</div>
+
+<!-- ══ CALCULATOR MODAL ══ -->
+<div class="modal-overlay hidden" id="modal-calc">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('modal-calc')">✕</button>
+    <div class="modal-title">📐 מחשבון גריד</div>
+    <div class="modal-sub">חשב רווחיות לפי פרמטרים שאתה בוחר</div>
+    <div class="calc-form">
+      <div class="cf-row">
+        <label class="cf-label">💰 הון השקעה ($)</label>
+        <input class="cf-input" id="c-inv" type="number" value="1000" min="100" step="100" />
+      </div>
+      <div class="cf-row">
+        <label class="cf-label">⬇️ מחיר תחתון ($)</label>
+        <input class="cf-input" id="c-low" type="number" value="70000" step="100" />
+      </div>
+      <div class="cf-row">
+        <label class="cf-label">⬆️ מחיר עליון ($)</label>
+        <input class="cf-input" id="c-high" type="number" value="82000" step="100" />
+      </div>
+      <div class="cf-row">
+        <label class="cf-label">🔢 מספר רמות גריד</label>
+        <input class="cf-input" id="c-grids" type="number" value="50" min="5" max="200" />
+      </div>
+    </div>
+    <button class="calc-btn" onclick="calcGrid()">⚡ חשב</button>
+    <div style="height:12px;"></div>
+    <div class="calc-results" id="calc-results"></div>
+  </div>
+</div>
+
+<!-- ══ ALERT TOAST ══ -->
+<div id="alert-toast">🔔 <span id="alert-toast-msg"></span></div>
+
+<!-- ══ ALERTS MODAL ══ -->
+<div class="modal-overlay hidden" id="modal-alerts">
+  <div class="modal-box" style="max-width:480px;">
+    <button class="modal-close" onclick="closeModal('modal-alerts')">✕</button>
+    <div class="modal-title">🔔 התראות מחיר — BTC/USDT</div>
+    <div class="modal-sub">קבל התראה כאשר המחיר עובר סף שתגדיר</div>
+    <div id="alert-list" class="alert-modal-list"></div>
+    <div class="alert-add-row">
+      <input class="alert-input" id="alert-price-input" type="number" step="100"
+        placeholder="מחיר BTC ($)" />
+      <button class="alert-add-btn" onclick="addAlertAbove()">⬆️ מעל</button>
+      <button class="alert-add-btn" onclick="addAlertBelow()">⬇️ מתחת</button>
+    </div>
+    <div class="alert-hint">💡 לחץ ⬆️ להתראה כשמחיר יעלה מעל הסף, ⬇️ כשיירד מתחתיו</div>
+  </div>
+</div>
+
+<!-- ══ WIZARD MODAL ══ -->
+<div class="modal-overlay hidden" id="modal-wizard">
+  <div class="modal-box" style="max-width:480px;">
+    <button class="modal-close" onclick="closeModal('modal-wizard')">✕</button>
+    <div class="modal-title">🧙 אשף הגדרת גריד</div>
+    <div class="modal-sub">הגדרה ב-4 שלבים פשוטים</div>
+    <div class="wiz-steps">
+      <div class="wiz-step active" id="ws1" onclick="goWiz(1)"><span class="wiz-num">1</span><span class="wiz-lbl">זוג</span></div>
+      <div class="wiz-step"       id="ws2" onclick="goWiz(2)"><span class="wiz-num">2</span><span class="wiz-lbl">טווח</span></div>
+      <div class="wiz-step"       id="ws3" onclick="goWiz(3)"><span class="wiz-num">3</span><span class="wiz-lbl">הון</span></div>
+      <div class="wiz-step"       id="ws4" onclick="goWiz(4)"><span class="wiz-num">4</span><span class="wiz-lbl">אישור</span></div>
+    </div>
+    <div class="wiz-content" id="wiz-content"></div>
+    <div class="wiz-nav" id="wiz-nav"></div>
+  </div>
+</div>
+
+<script>
+function applyCompactLayout(){
+  const params=new URLSearchParams(location.search);
+  const inBeep=params.get('embed')==='beep'||window.self!==window.top;
+  const narrow=window.innerWidth<=520;
+  const short=window.innerHeight<=640;
+  const compact=inBeep||narrow||short;
+  document.documentElement.classList.toggle('mg-compact',compact);
+  document.documentElement.classList.toggle('mg-in-beep',inBeep);
+}
+applyCompactLayout();
+window.applyCompactLayout = applyCompactLayout;
+
+const BOTS=[
+  {id:'grid',name:'Model GRID',icon:'⚡',pUrl:'https://raw.githubusercontent.com/offir111/model-grid/master/data/portfolio.json',sUrl:'https://raw.githubusercontent.com/offir111/model-grid/master/data/grid_state.json',type:'grid'},
+  {id:'bit', name:'Model BIT', icon:'₿',  pUrl:'https://raw.githubusercontent.com/offir111/model-bit/master/data/portfolio.json',type:'bit'},
+  {id:'w',   name:'Model W',   icon:'🌊', pUrl:'https://raw.githubusercontent.com/offir111/model-w/master/data/performance_log.json',type:'w'},
+  {id:'smc', name:'Model SMC', icon:'📊', pUrl:'https://raw.githubusercontent.com/offir111/model-smc/master/data/portfolio.json',type:'smc'}
+];
+const BTC_URL='https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT';
+
+let botData={}, countdown=60, timer, currentLogFilter='all', wizStep=1;
+let showAllLevels=false, activeBottomTab='overview', lastBtc=0;
+
+function buildVerdict(btc, lower, upper, inPct, pnl, filled, grids){
+  const inRange=btc>=lower&&btc<=upper;
+  const profitOk=pnl>=0;
+  const cls=inRange&&profitOk?'good':'caution';
+  const headline=inRange&&profitOk
+    ? '✅ הכל תקין — הגריד עובד בטווח'
+    : (!inRange ? '⚠️ שים לב — המחיר קרוב או מחוץ לטווח' : '⚠️ שים לב — בדוק את הרווח');
+  return {cls, headline, inRange, profitOk,
+    lines:[
+      inRange?'המחיר נמצא בתוך טווח הגריד':'המחיר מחוץ לטווח הגריד — DGT עלול להתאפס',
+      profitOk?`רווח ממומש חיובי: $${fmt(pnl,2)}`:`רווח ממומש שלילי: $${fmt(pnl,2)}`,
+      `${filled} רמות עם קנייה פתוחה · ${grids-filled} ממתינות לקנייה`,
+      `מיקום בטווח: ${fmt(inPct,0)}% מהתחתון לעליון`
+    ]};
+}
+function buildCompactKpis(btc, pnl, apr, inPct, pc, ac){
+  return `
+    <div class="mg-kpi-compact">
+      <div class="mg-kc"><span class="mg-kc-l">מחיר BTC</span><span class="mg-kc-v orange btc-now num-ltr">$${fmt(btc)}</span></div>
+      <div class="mg-kc"><span class="mg-kc-l">רווח ממומש</span><span class="mg-kc-v ${pc} num-ltr">${pnl>=0?'+':''}$${fmt(pnl,2)}</span></div>
+      <div class="mg-kc"><span class="mg-kc-l">APR שנתי</span><span class="mg-kc-v ${ac} num-ltr">${fmt(apr,1)}%</span></div>
+      <div class="mg-kc"><span class="mg-kc-l">מיקום בגריד</span><span class="mg-kc-v num-ltr">${fmt(inPct,0)}%</span></div>
+    </div>`;
+}
+function buildStatusPills(btc, lower, upper, pnl, inPct){
+  const inRange=btc>=lower&&btc<=upper;
+  return `
+    <div class="mg-pill ${inRange?'ok':'warn'}"><span class="mg-pill-dot"></span>${inRange?'מחיר בטווח':'מחוץ לטווח'}</div>
+    <div class="mg-pill ${pnl>=0?'ok':'warn'}"><span class="mg-pill-dot"></span>${pnl>=0?'ברווח':'בהפסד'}</div>
+    <div class="mg-pill info"><span class="mg-pill-dot"></span>סימולציה SIM</div>
+    <div class="mg-pill info"><span class="mg-pill-dot"></span>בטווח ${fmt(inPct,0)}%</div>`;
+}
+function buildOverviewHtml(btc, p, s, tradeLog, pnl, apr, cycles, filled, grids, inPct, lower, upper, unrealPnl, totalPnl){
+  const today=new Date().toDateString();
+  const todaySells=(tradeLog||[]).filter(t=>t.type==='SELL'&&new Date(t.time).toDateString()===today);
+  const todayProfit=todaySells.reduce((sum,t)=>sum+(t.profit||0),0);
+  const last5=[...tradeLog].reverse().filter(t=>t.type==='SELL').slice(0,5);
+  const tradesHtml=last5.length?last5.map(t=>`
+    <div class="mg-ov-row">
+      <span>מכירה <span class="num-ltr">$${fmt(t.price,0)}</span></span>
+      <span class="green num-ltr">+$${fmt(t.profit,4)}</span>
+    </div>`).join(''):'<div class="empty-hint">עדיין אין מכירות להצגה</div>';
+  return `
+    <div class="mg-overview-grid">
+      <div class="mg-ov-card">
+        <h3>📅 היום</h3>
+        <div class="mg-ov-big ${todayProfit>=0?'green':'red'} num-ltr">${todayProfit>=0?'+':''}$${fmt(todayProfit,2)}</div>
+        <div class="mg-kpi-hint">${todaySells.length} מכירות היום · ${cycles} סייקלים סה״כ</div>
+      </div>
+      <div class="mg-ov-card">
+        <h3>💰 ביצועים</h3>
+        <div class="mg-ov-row"><span>רווח ממומש</span><span class="${pnl>=0?'green':'red'} num-ltr">${pnl>=0?'+':''}$${fmt(pnl,2)}</span></div>
+        <div class="mg-ov-row"><span>רווח צף</span><span class="num-ltr">${unrealPnl>=0?'+':''}$${fmt(unrealPnl,2)}</span></div>
+        <div class="mg-ov-row"><span>APR</span><span class="blue num-ltr">${fmt(apr,1)}%</span></div>
+        <div class="mg-ov-row"><span>סה״כ</span><span class="num-ltr">$${fmt(totalPnl,2)}</span></div>
+      </div>
+      <div class="mg-ov-card" style="grid-column:1/-1">
+        <h3>🕐 מכירות אחרונות</h3>
+        ${tradesHtml}
+      </div>
+      <div class="mg-ov-card">
+        <h3>📐 טווח גריד</h3>
+        <div class="mg-ov-row"><span>תחתון</span><span class="num-ltr">$${fmt(lower,0)}</span></div>
+        <div class="mg-ov-row"><span>עליון</span><span class="num-ltr">$${fmt(upper,0)}</span></div>
+        <div class="mg-ov-row"><span>BTC עכשיו</span><span class="orange num-ltr">$${fmt(btc,0)}</span></div>
+      </div>
+    </div>`;
+}
+
+function applyFontScale(){
+  const idx=parseInt(localStorage.getItem('mgFontIdx')||'0',10);
+  document.body.classList.remove('text-xl','text-xxl');
+  if(idx===1) document.body.classList.add('text-xl');
+  if(idx===2) document.body.classList.add('text-xxl');
+}
+function adjustFont(delta){
+  let idx=parseInt(localStorage.getItem('mgFontIdx')||'0',10);
+  idx=Math.max(0,Math.min(2,idx+delta));
+  localStorage.setItem('mgFontIdx',String(idx));
+  applyFontScale();
+  if(lastBtc) render(lastBtc);
+}
+function setBottomTab(tab){
+  activeBottomTab=tab;
+  document.querySelectorAll('.mg-dock-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  document.querySelectorAll('.mg-dock-pane').forEach(p=>p.classList.toggle('active',p.id==='mg-tab-'+tab));
+}
+function toggleAllLevels(){
+  showAllLevels=!showAllLevels;
+  if(lastBtc) render(lastBtc);
+}
+function buildLevelRows(s,btc,grids,upper,lower){
+  if(!s||!s.grid) return '';
+  let indices=[];
+  if(showAllLevels||!btc){
+    indices=s.grid.map((_,i)=>i);
+  }else{
+    let ci=s.grid.findIndex(lv=>btc>=lv.buy&&btc<lv.sell);
+    if(ci<0) ci=s.grid.reduce((best,lv,i)=>Math.abs(lv.buy-btc)<Math.abs(s.grid[best].buy-btc)?i:best,0);
+    const from=Math.max(0,ci-5), to=Math.min(s.grid.length-1,ci+5);
+    for(let i=from;i<=to;i++) indices.push(i);
+  }
+  return [...indices].reverse().map(i=>{
+    const lv=s.grid[i], idx=i+1;
+    const isFilled=lv.filled;
+    const isHere=!lv.filled&&btc>=lv.buy&&btc<lv.sell;
+    let rowCls='glv-row ';
+    const barPct=upper>lower?((lv.sell-lv.buy)/(upper-lower)*100)*grids*0.6:30;
+    const barW=Math.max(15,Math.min(100,barPct));
+    if(isFilled) rowCls+='glv-filled';
+    else if(isHere) rowCls+='glv-current';
+    const badge=isFilled?'✅ קנוי':isHere?'◉ כאן':'○ ממתין';
+    return `<div class="${rowCls}">
+      <div class="glv-top">
+        <span class="glv-num">#${idx}</span>
+        <span class="glv-buy"><span class="num-ltr">$${fmt(lv.buy,0)}</span></span>
+        <span class="glv-sell">→ <span class="num-ltr">$${fmt(lv.sell,0)}</span></span>
+        <span class="glv-prof">+<span class="num-ltr">$${fmt(lv.profit,4)}</span></span>
+        <span style="font-weight:800">${badge}</span>
+      </div>
+      <div class="glv-bar-wrap"><div class="glv-bar-fill" style="width:${barW}%;background:${isFilled?'#00e676':isHere?'#ff9f00':'#3d5a80'};height:100%;border-radius:3px;"></div></div>
+    </div>`;
+  }).join('');
+}
+applyFontScale();
+const fmt =(n,d=2)=>n==null||isNaN(n)?'—':Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtD=iso=>{if(!iso)return'—';const d=new Date(iso);return d.toLocaleDateString('he-IL')+' '+d.toTimeString().slice(0,5);};
+const fmtT=iso=>{if(!iso)return'—';const d=new Date(iso);return d.toTimeString().slice(0,5);};
+const dayS=iso=>Math.max(0.001,(Date.now()-new Date(iso).getTime())/86400000);
+
+function parseSummary(bot,raw){
+  if(!raw) return null;
+  try{
+    if(bot.type==='grid') return{pnl:raw.realized_pnl||0,wins:raw.total_cycles||0,losses:0,total:raw.total_cycles||0,winRate:100,apr:raw.apr||0,balance:(raw.investment||0)+(raw.realized_pnl||0),label:`APR ${fmt(raw.apr||0,1)}%`,updated:raw.last_updated};
+    if(bot.type==='bit'||bot.type==='smc'){const s=raw.stats||{};return{pnl:raw.total_pnl||0,wins:s.wins||0,losses:s.losses||0,total:s.total||0,winRate:s.win_rate||0,apr:0,balance:(raw.available||0)+(raw.in_trades||0),label:`${fmt(s.win_rate||0,0)}% Win`,updated:raw.last_updated};}
+    if(bot.type==='w'){const a=Array.isArray(raw)?raw:[];const wins=a.filter(t=>t.result==='win').length;const losses=a.filter(t=>t.result==='loss').length;const pnl=a.reduce((s,t)=>s+(t.pnl_usd||0),0);return{pnl,wins,losses,total:a.length,winRate:a.length>0?wins/a.length*100:0,apr:0,balance:1000+pnl,label:`${fmt(a.length>0?wins/a.length*100:0,0)}% Win`,updated:a.length>0?a[a.length-1].close_time:null};}
+  }catch(e){return null;}
+  return null;
+}
+
+async function fetchBot(bot){
+  try{
+    const r=await fetch(bot.pUrl+'?t='+Date.now());
+    const raw=await r.json();
+    botData[bot.id]={raw,summary:parseSummary(bot,raw)};
+    if(bot.sUrl){const r2=await fetch(bot.sUrl+'?t='+Date.now());botData[bot.id].state=r2.ok?await r2.json():null;}
+  }catch(e){botData[bot.id]={raw:null,summary:null,state:null};}
+}
+
+async function load(){
+  const[btcRes]=await Promise.all([fetch(BTC_URL),...BOTS.map(b=>fetchBot(b))]);
+  const btc=parseFloat((await btcRes.json()).price||0);
+  render(btc);
+}
+
+function render(btc){
+  lastBtc=btc;
+  const gD=botData['grid'],p=gD?.raw||{},s=gD?.state||null;
+  const inv=p.investment||0,pnl=p.realized_pnl||0,total=inv+pnl;
+  const apr=p.apr||0,cycles=p.total_cycles||0,dgt=p.dgt_count||0,mdd=p.max_drawdown||0;
+  const d=p.start_time?dayS(p.start_time):0.8;
+  const lower=s?s.lower:0,upper=s?s.upper:0,grids=s?s.grids:0,atr=s?s.atr14:0;
+  const filled=s?s.grid.filter(l=>l.filled).length:0,waiting=grids-filled;
+  const inPct=upper>lower&&btc>0?Math.max(0,Math.min(100,(btc-lower)/(upper-lower)*100)):0;
+  const mid=s&&s.grid?s.grid[Math.floor(grids/2)]:null;
+  const ppc=mid?mid.profit:0,perG=grids>0?inv/grids:0,dcyc=d>0?cycles/d:0;
+  const pc=pnl>=0?'green':'red',ac=apr>=0?'green':'red';
+  const tradeLog=p.trade_log||[];
+
+  // ── Pionex-style calculations ─────────────────────────────────
+  // Unrealized P&L: estimate based on filled levels vs current price
+  const filledLevels = s&&s.grid ? s.grid.filter(l=>l.filled) : [];
+  const btcHolding   = filledLevels.reduce((sum,l)=>sum+(l.qty||0), 0);
+  const usdtHolding  = inv - filledLevels.length*(perG||0);
+  const avgBuyPrice  = btcHolding>0 ? filledLevels.reduce((sum,l)=>sum+(l.buy*(l.qty||0)),0)/btcHolding : (btc||0);
+  const unrealPnl    = btcHolding>0&&btc>0 ? (btc - avgBuyPrice)*btcHolding : 0;
+  const totalPnl     = pnl + unrealPnl;
+  const totalApr     = d>0 ? (totalPnl/inv)/d*365*100 : 0;
+
+  // Runtime string
+  const totalSec = d*86400;
+  const rDays  = Math.floor(totalSec/86400);
+  const rHours = Math.floor((totalSec%86400)/3600);
+  const runtimeStr = `${rDays}d ${rHours}h`;
+
+  // MDD estimates
+  const mdd7  = Math.min(mdd, mdd*0.4);  // rough 7d estimate
+  const mdd30 = Math.min(mdd, mdd*0.75); // rough 30d estimate
+
+  const lvlRows=buildLevelRows(s,btc,grids,upper,lower);
+  const levelsBtnLabel=showAllLevels?`הצג רק סביב המחיר (${grids} רמות)`:`הצג את כל ${grids} הרמות`;
+
+  // ── Bot cards
+  const botCards=BOTS.map(bot=>{
+    const sm=botData[bot.id]?.summary,isA=bot.id==='grid';
+    if(!sm) return `<div class="bot-card ${isA?'active':''} loading"><div class="bc-icon">${bot.icon}</div><div class="bc-r"><div class="bc-name">${bot.name}</div><div class="bc-row"><span style="color:#cccccc;font-size:.6rem">טוען...</span></div></div></div>`;
+    const pc2=sm.pnl>=0?'#00e676':'#ff5252',ps=sm.pnl>=0?'+':'';
+    return `<div class="bot-card ${isA?'active':''}" onclick="switchBot('${bot.id}',event)">
+      <div class="bc-dot"></div>
+      <div class="bc-icon">${bot.icon}</div>
+      <div class="bc-r">
+        <div class="bc-name">${bot.name} <span class="bc-badge bc-badge-sim">SIM</span></div>
+        <div class="bc-row">
+          <span class="bc-pnl" style="color:${pc2}">${ps}$${fmt(sm.pnl,3)}</span>
+          <span class="bc-wl" style="color:#00a050">✅${sm.wins}</span>
+          <span class="bc-wl" style="color:#aa3030">❌${sm.losses}</span>
+          <span class="bc-lbl">${sm.label}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── Activity log HTML
+  const logHtml=buildLogHtml(tradeLog,currentLogFilter);
+  const verdict=buildVerdict(btc,lower,upper,inPct,pnl,filled,grids);
+  const statusPills=buildStatusPills(btc,lower,upper,pnl,inPct);
+  const overviewHtml=buildOverviewHtml(btc,p,s,tradeLog,pnl,apr,cycles,filled,grids,inPct,lower,upper,unrealPnl,totalPnl);
+  const rangeHint=inPct<20?'קרוב לתחתית':inPct>80?'קרוב לעליון':'באמצע הטווח';
+  const compactKpis=buildCompactKpis(btc,pnl,apr,inPct,pc,ac);
+
+  // ── שמור את הגרף לפני rebuild ─────────────────────────────────
+  const chartWrap = document.querySelector('.chart-wrap');
+  const savedChartEl = document.getElementById('tv-chart');
+  const savedOverlay = document.getElementById('grid-overlay');
+  const savedWaiting = document.getElementById('waiting-overlay');
+  const chartAlreadyLoaded = savedChartEl && savedChartEl.querySelector('iframe');
+  // שמור reference לאלמנטים עצמם (לא innerHTML)
+  const savedChartNode   = chartAlreadyLoaded ? savedChartEl.cloneNode(true) : null;
+
+  document.getElementById('root').innerHTML=`
+    <div class="mg-cmd">
+      <div class="mg-brand">
+        <div class="mg-logo">⚡</div>
+        <div>
+          <div class="mg-title">MODEL GRID</div>
+          <div class="mg-sub">BEEP BEEP · מרכז שליטה ל-4 בוטים · BTC/USDT</div>
+        </div>
+      </div>
+      <div class="mg-pills">${statusPills}</div>
+      <div class="mg-actions">
+        <button type="button" class="mg-btn" onclick="history.back()" title="חזרה לאפליקציה" style="border-color:#4fc3f7;color:#4fc3f7;">← חזרה</button>
+        <button type="button" class="mg-btn" onclick="adjustFont(-1)" title="הקטן">A−</button>
+        <button type="button" class="mg-btn" onclick="adjustFont(1)" title="הגדל">A+</button>
+        <button type="button" class="mg-btn gold" onclick="openSettings()">⚙️ הגדרות</button>
+        <button type="button" class="mg-btn" onclick="openCalc()">📐 מחשבון</button>
+        <button type="button" class="mg-btn" onclick="openWizard()">🧙 אשף</button>
+        <span class="ref-txt" id="ref" style="margin-right:8px">רענון ${countdown}ש׳</span>
+      </div>
+    </div>
+
+    <div class="bots-bar mg-bots">${botCards}</div>
+
+    <div class="mg-stage">
+      <aside class="mg-sidebar">
+        <section class="mg-panel">
+          <div class="mg-panel-h">👁️ מבט מהיר</div>
+          ${compactKpis}
+          <div class="mg-verdict ${verdict.cls}">${verdict.headline}</div>
+          <ul class="mg-checklist">
+            ${verdict.lines.map((line,i)=>`<li class="${verdict.inRange&&i===0?'ok':!verdict.profitOk&&i===1?'warn':''}">${line}</li>`).join('')}
+          </ul>
+        </section>
+        <section class="mg-panel">
+          <div class="mg-panel-h">📐 בריאות הגריד</div>
+          <div class="mg-range-big">
+            <div class="rl"><span class="num-ltr">$${fmt(lower,0)}</span><strong class="orange">${fmt(inPct,0)}%</strong><span class="num-ltr">$${fmt(upper,0)}</span></div>
+            <div class="mg-range-bar">
+              <div class="mg-range-fill" style="width:${inPct}%"></div>
+              <div class="mg-range-marker" style="left:${inPct}%"></div>
+            </div>
+            <div class="mg-mini-grid">
+              <div class="mg-mini-cell">רמות<b>${grids}</b></div>
+              <div class="mg-mini-cell">קנויות<b class="green">${filled}</b></div>
+              <div class="mg-mini-cell">ממתינות<b>${waiting}</b></div>
+              <div class="mg-mini-cell">ATR<b class="orange num-ltr">$${fmt(atr,0)}</b></div>
+            </div>
+          </div>
+          <div class="mdd-main" style="margin-top:12px">
+            <div class="mdd-main-val" style="color:${mdd>10?'var(--loss)':'var(--text)'}">${fmt(mdd,1)}%</div>
+            <div class="stat-lbl">ירידה מקסימלית · ${runtimeStr}</div>
+          </div>
+        </section>
+        <section class="mg-panel profit-curve">
+          <div class="pc-title"><span>📈 עקומת רווח</span><span>${cycles}</span></div>
+          <canvas id="profit-canvas"></canvas>
+        </section>
+      </aside>
+      <div class="mg-chart-col">
+        <div class="mg-chart-top">
+          <h2>📈 גרף מחיר + רמות גריד</h2>
+          <div class="chart-info">
+            <span class="ci-item"><span class="ci-dot" style="background:#00e676"></span><strong>${filled}</strong> פוזיציות</span>
+            <span class="ci-item"><span class="ci-dot" style="background:#ff9f00"></span>TradingView</span>
+          </div>
+          <button type="button" class="mg-bell-btn${priceAlerts.length>0?' has-alerts':''}" onclick="openAlerts()" title="התראות מחיר זמן אמת">
+            🔔
+            ${priceAlerts.length>0?`<span class="mg-bell-badge">${priceAlerts.length}</span>`:''}
+          </button>
+        </div>
+        <div class="mg-chart-wrap chart-wrap">
+          <div id="tv-chart"></div>
+          <canvas id="grid-overlay"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="mg-dock">
+      <div class="mg-dock-tabs">
+        <button type="button" class="mg-dock-tab ${activeBottomTab==='overview'?'active':''}" data-tab="overview" onclick="setBottomTab('overview')">🏠 סקירה</button>
+        <button type="button" class="mg-dock-tab ${activeBottomTab==='levels'?'active':''}" data-tab="levels" onclick="setBottomTab('levels')">📊 רמות גריד</button>
+        <button type="button" class="mg-dock-tab ${activeBottomTab==='activity'?'active':''}" data-tab="activity" onclick="setBottomTab('activity')">🎯 פעילות</button>
+        <button type="button" class="mg-dock-tab ${activeBottomTab==='log'?'active':''}" data-tab="log" onclick="setBottomTab('log')">📋 עסקאות</button>
+      </div>
+      <div class="mg-dock-body">
+        <div id="mg-tab-overview" class="mg-dock-pane ${activeBottomTab==='overview'?'active':''}">${overviewHtml}</div>
+        <div id="mg-tab-levels" class="mg-dock-pane mg-ladder ${activeBottomTab==='levels'?'active':''}">
+          <div class="levels-toolbar">
+            <div class="leg">
+              <span><span class="dg" style="background:#00e676"></span>קנוי</span>
+              <span><span class="dg" style="background:#ff9f00"></span>כאן עכשיו</span>
+              <span><span class="dg" style="background:#3d5a80"></span>ממתין</span>
+            </div>
+            <button type="button" class="toggle-levels-btn" onclick="toggleAllLevels()">${levelsBtnLabel}</button>
+          </div>
+          <div class="ls" id="levels-list">${lvlRows}</div>
+        </div>
+        <div id="mg-tab-activity" class="mg-dock-pane ${activeBottomTab==='activity'?'active':''}">
+          <div class="tiles-panel">
+            <div class="tiles-toolbar">
+              <div class="tiles-toolbar-title">🎯 פוזיציות פתוחות ומכירות היום</div>
+              <button type="button" id="hist-btn" class="hist-btn" onclick="toggleHistory()">📅 היסטוריה</button>
+              <span id="hist-date"></span>
+            </div>
+            <div id="hist-cal" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+            <div id="tiles-row">${buildLiveTiles(s, btc, tradeLog)}</div>
+          </div>
+        </div>
+        <div id="mg-tab-log" class="mg-dock-pane ${activeBottomTab==='log'?'active':''}">
+          <div class="log-wrap">
+            <div class="log-head">
+              <div class="ft">📋 יומן עסקאות</div>
+              <div class="log-filter">
+                <button type="button" class="lf-btn ${currentLogFilter==='all'?'act':''}" onclick="setFilter('all')">הכל</button>
+                <button type="button" class="lf-btn ${currentLogFilter==='sell'?'act':''}" onclick="setFilter('sell')">מכירות</button>
+                <button type="button" class="lf-btn ${currentLogFilter==='buy'?'act':''}" onclick="setFilter('buy')">קניות</button>
+              </div>
+            </div>
+            <div class="fscr" id="log-list">${logHtml}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="mg-foot">
+      <div><span class="dl"></span>מערכת פעילה · KuCoin WebSocket</div>
+      <div>עדכון: ${fmtD(p.last_updated)}</div>
+      <div>שווי: <span class="num-ltr">$${fmt(total)}</span> · DGT: ${dgt}</div>
+    </footer>
+  `;
+
+  // Populate settings modal data
+  if(s) populateSettings(s,p);
+
+  // Scroll levels list to current price level
+  scrollToCurrentLevel();
+
+  // Draw Profit Curve
+  drawProfitCurve(tradeLog, pnl);
+
+  // ── אם הגרף כבר טעון — החזר אותו במקום לבנות מחדש ────────────
+  if(chartAlreadyLoaded && savedChartNode){
+    const newChartEl = document.getElementById('tv-chart');
+    const newWrap = document.querySelector('.chart-wrap');
+    if(newChartEl && newWrap){
+      newWrap.replaceChild(savedChartNode, newChartEl);
+    }
+  } else {
+    loadTVChart();
+  }
+  setTimeout(()=>{ applyCompactLayout(); bindChartResize(); }, 600);
+
+  startCountdown();
+}
+
+// ── Profit Curve (Pionex-style stepped chart) ──────────────────
+function drawProfitCurve(tradeLog, totalPnl) {
+  const canvas = document.getElementById('profit-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 200;
+  const H = canvas.offsetHeight || 48;
+  canvas.width  = W;
+  canvas.height = H;
+  ctx.clearRect(0, 0, W, H);
+
+  // Build stepped profit array from sell trades
+  const sells = tradeLog.filter(t => t.type === 'SELL').slice(-60);
+  if (sells.length === 0) {
+    ctx.fillStyle = '#c8d8e8';
+    ctx.font = 'bold 14px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('ממתין לעסקאות...', W/2, H/2);
+    return;
+  }
+
+  let running = 0;
+  const pts = sells.map(t => { running += (t.profit||0); return running; });
+  pts.unshift(0);
+
+  const minV = Math.min(...pts), maxV = Math.max(...pts);
+  const range = maxV - minV || 1;
+  const toY = v => H - 6 - ((v - minV) / range) * (H - 12);
+  const toX = i => (i / (pts.length - 1)) * W;
+
+  // Fill area
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, 'rgba(0,230,118,0.3)');
+  grad.addColorStop(1, 'rgba(0,230,118,0.02)');
+  ctx.beginPath();
+  ctx.moveTo(toX(0), H);
+  pts.forEach((v, i) => {
+    if (i > 0) ctx.lineTo(toX(i-1), toY(pts[i-1])); // stepped
+    ctx.lineTo(toX(i), toY(v));
+  });
+  ctx.lineTo(toX(pts.length-1), H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Stepped line
+  ctx.beginPath();
+  ctx.strokeStyle = '#00e676';
+  ctx.lineWidth = 1.5;
+  pts.forEach((v, i) => {
+    if (i === 0) { ctx.moveTo(toX(i), toY(v)); return; }
+    ctx.lineTo(toX(i-1), toY(pts[i-1]));
+    ctx.lineTo(toX(i), toY(v));
+  });
+  ctx.stroke();
+
+  // Final value label
+  ctx.fillStyle = '#00e676';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`+$${totalPnl.toFixed(2)}`, 4, 10);
+}
+
+// ── Live Tiles Panel ────────────────────────────────────────────
+let historyMode = false;
+let historyDate = null;
+
+function buildLiveTiles(s, btc, tradeLog) {
+  if (!s || !s.grid) return '';
+  const today = new Date().toDateString();
+
+  // עסקאות של היום
+  const todaySells = (tradeLog||[]).filter(t => {
+    if(t.type !== 'SELL') return false;
+    return new Date(t.time).toDateString() === today;
+  });
+  const todayBuys = (tradeLog||[]).filter(t => {
+    if(t.type !== 'BUY') return false;
+    return new Date(t.time).toDateString() === today;
+  });
+
+  let html = '';
+
+  // 1. עסקאות שהסתיימו היום (נמכרו)
+  todaySells.forEach(sell => {
+    const profit = sell.profit || 0;
+    const isWin = profit >= 0;
+    const pct = sell.qty > 0 ? (profit / (sell.price * sell.qty) * 100) : 0;
+    html += `<div class="tile ${isWin?'sold-win':'sold-los'}">
+      <div class="tile-lbl" style="color:#fff">${isWin?'✅ רווח':'❌ הפסד'}</div>
+      <div class="tile-price" style="color:#fff">$${fmt(sell.price,0)}</div>
+      <div class="tile-pct" style="color:#fff">${isWin?'+':''}${fmt(pct,2)}%</div>
+      <div class="tile-sub" style="color:#fff">+$${fmt(profit,4)}</div>
+    </div>`;
+  });
+
+  // 2. פוזיציות פתוחות — זוג בחלונית משותפת עם קו אפור
+  const filledLevels = s.grid.filter(l => l.filled);
+  filledLevels.forEach(lv => {
+    const unrealPct = btc > 0 ? ((btc - lv.buy) / lv.buy * 100) : 0;
+    const isProfit = unrealPct >= 0;
+    html += `<div class="tile-pair-wrap">
+      <!-- ריבוע קנייה — ירוק כמו קודם -->
+      <div class="tile bought" style="margin:0;">
+        <div class="tile-lbl" style="color:#fff">✅ קנוי</div>
+        <div class="tile-price" style="color:#fff">$${fmt(lv.buy,0)}</div>
+        <div class="tile-pct" style="color:#fff">${isProfit?'+':''}${fmt(unrealPct,2)}%</div>
+        <div class="tile-sub" style="color:#fff">צף</div>
+      </div>
+      <!-- חץ -->
+      <div style="color:#555;font-size:.8rem;">›</div>
+      <!-- ריבוע יעד — כתום מקווקו כמו קודם -->
+      <div class="tile" style="margin:0;border-color:#f7931a;border-style:dashed;">
+        <div class="tile-lbl" style="color:#fff">🎯 יעד</div>
+        <div class="tile-price" style="color:#fff">$${fmt(lv.sell,0)}</div>
+        <div class="tile-pct" style="color:#fff">+$${fmt(lv.profit,4)}</div>
+        <div class="tile-sub" style="color:#fff">מכירה</div>
+      </div>
+    </div>`;
+  });
+
+  // רמות ממתינות — מוצגות על הגרף, לא כאן
+
+  return html || '<div class="empty-hint">אין פעילות היום — הרובוט ממתין לתנועת מחיר</div>';
+}
+
+function toggleHistory() {
+  const cal = document.getElementById('hist-cal');
+  if (!cal) return;
+  historyMode = !historyMode;
+  if (historyMode) {
+    // בנה לוח שנה 30 יום
+    const gD = botData['grid'];
+    const tradeLog = gD?.raw?.trade_log || [];
+    // קבץ לפי תאריך
+    const days = {};
+    tradeLog.forEach(t => {
+      const d = new Date(t.time).toLocaleDateString('he-IL');
+      if (!days[d]) days[d] = [];
+      days[d].push(t);
+    });
+    const sorted = Object.keys(days).sort((a,b)=>new Date(b)-new Date(a)).slice(0,30);
+    cal.innerHTML = sorted.map(d => {
+      const sells = days[d].filter(t=>t.type==='SELL');
+      const profit = sells.reduce((s,t)=>s+(t.profit||0),0);
+      const color = profit>=0?'#00e676':'#ff4444';
+      return `<div class="hist-day" onclick="showHistoryDay('${d}')" style="border-color:${color};color:${color};">
+        ${d}<br><span style="font-size:.5rem;">${profit>=0?'+':''}$${fmt(profit,2)}</span>
+      </div>`;
+    }).join('');
+    cal.style.display = 'flex';
+  } else {
+    cal.style.display = 'none';
+    historyDate = null;
+    document.getElementById('hist-date').textContent = '';
+    const s = botData['grid']?.state;
+    const gD = botData['grid'];
+    const btc = parseFloat(document.querySelector('.btc-now')?.textContent?.replace(/[$,]/g,'')||0);
+    const tiles = document.getElementById('tiles-row');
+    if(tiles) tiles.innerHTML = buildLiveTiles(s, btc, gD?.raw?.trade_log||[]);
+  }
+}
+
+function showHistoryDay(dateStr) {
+  historyDate = dateStr;
+  document.getElementById('hist-date').textContent = dateStr;
+  document.querySelectorAll('.hist-day').forEach(el => {
+    el.classList.toggle('active', el.textContent.includes(dateStr.split('/')[0]));
+  });
+  const gD = botData['grid'];
+  const tradeLog = gD?.raw?.trade_log || [];
+  const dayTrades = tradeLog.filter(t => new Date(t.time).toLocaleDateString('he-IL') === dateStr);
+  const s = gD?.state;
+  const btc = parseFloat(document.querySelector('.btc-now')?.textContent?.replace(/[$,]/g,'')||0);
+  const tiles = document.getElementById('tiles-row');
+  if (!tiles) return;
+
+  // הצג רק עסקאות של אותו יום
+  const sells = dayTrades.filter(t=>t.type==='SELL');
+  const buys  = dayTrades.filter(t=>t.type==='BUY');
+  let html = '';
+  sells.forEach(sell => {
+    const profit = sell.profit || 0;
+    const isWin = profit >= 0;
+    html += `<div class="tile ${isWin?'sold-win':'sold-los'}">
+      <div class="tile-lbl">${isWin?'✅ רווח':'❌ הפסד'}</div>
+      <div class="tile-price">$${fmt(sell.price,0)}</div>
+      <div class="tile-pct" style="color:${isWin?'#00e676':'#ff4444'}">${isWin?'+':''}$${fmt(profit,4)}</div>
+      <div class="tile-sub">${fmtT(sell.time)}</div>
+    </div>`;
+  });
+  buys.forEach(buy => {
+    html += `<div class="tile" style="border-color:#8ab0c8;">
+      <div class="tile-lbl">🟡 קניה</div>
+      <div class="tile-price">$${fmt(buy.price,0)}</div>
+      <div class="tile-sub">${fmtT(buy.time)}</div>
+    </div>`;
+  });
+  tiles.innerHTML = html || `<span style="color:#aaa;font-size:.6rem">אין עסקאות ב-${dateStr}</span>`;
+}
+
+
+// ── Grid Target Levels Panel ───────────────────────────────────
+function buildTargetLevels(s, btc) {
+  if (!s || !s.grid || !btc) return '<span style="color:#aaa;font-size:.6rem">טוען...</span>';
+
+  const grid = s.grid;
+  // מצא את הרמה הנוכחית
+  const curIdx = grid.findIndex(lv => btc >= lv.buy && btc < lv.sell);
+  const ci = curIdx >= 0 ? curIdx : grid.reduce((best,lv,i) =>
+    Math.abs(lv.buy - btc) < Math.abs(grid[best].buy - btc) ? i : best, 0);
+
+  // קח 3 רמות מתחת (קנייה עתידית) + הרמה הנוכחית + 3 רמות מעל (מכירה)
+  const from = Math.max(0, ci - 3);
+  const to   = Math.min(grid.length - 1, ci + 3);
+  const levels = [];
+  for (let i = to; i >= from; i--) levels.push({ ...grid[i], idx: i });
+
+  return levels.map(lv => {
+    const isCurrent = lv.idx === ci;
+    const isFilled  = lv.filled;
+    const isAbove   = lv.buy > btc;
+    const isBelow   = lv.buy < btc && !isCurrent;
+
+    let bg, border, label, arrow, priceColor;
+    if (isCurrent) {
+      bg = '#001a30'; border = '#f7931a'; label = '◉ כאן'; arrow = ''; priceColor = '#f7931a';
+    } else if (isFilled && !isAbove) {
+      bg = '#001a0e'; border = '#00e676'; label = '✅ קנוי'; arrow = '↑ SELL'; priceColor = '#00e676';
+    } else if (isAbove) {
+      bg = '#0a1520'; border = '#555'; label = '⏳ ממתין'; arrow = '↓ BUY'; priceColor = '#8ab0c8';
+    } else {
+      bg = '#0a1520'; border = '#555'; label = '⏳ ממתין'; arrow = '↓ BUY'; priceColor = '#8ab0c8';
+    }
+
+    const dist = btc > 0 ? ((lv.buy - btc) / btc * 100).toFixed(2) : '0';
+    const distColor = parseFloat(dist) > 0 ? '#8ab0c8' : '#00e676';
+
+    return `<div style="flex-shrink:0;background:${bg};border:1px solid ${border};border-radius:6px;padding:5px 8px;text-align:center;min-width:80px;">
+      <div style="font-size:.58rem;color:#aaaaaa;margin-bottom:2px;">${label}</div>
+      <div style="font-size:.78rem;font-weight:700;color:${priceColor}">$${fmt(lv.buy,0)}</div>
+      <div style="font-size:.52rem;color:#00e676;margin-top:1px;">→$${fmt(lv.sell,0)}</div>
+      <div style="font-size:.52rem;color:${distColor};margin-top:1px;">${dist > 0 ? '+' : ''}${dist}%</div>
+      <div style="font-size:.52rem;color:#ffd700;margin-top:1px;">+$${fmt(lv.profit,4)}</div>
+    </div>`;
+  }).join(`<div style="display:flex;align-items:center;color:#555;font-size:.8rem;padding:0 2px;">›</div>`);
+}
+
+
+// ── Activity log builder (Pionex-style with transaction table)
+function buildLogHtml(tradeLog, filter){
+  let entries=[...tradeLog].reverse();
+  if(filter==='sell') entries=entries.filter(t=>t.type==='SELL');
+  else if(filter==='buy') entries=entries.filter(t=>t.type==='BUY');
+  entries=entries.slice(0,40);
+  if(!entries.length) return `<div style="text-align:center;padding:16px;color:#cccccc;font-size:.7rem">⏳ ממתין לתנועת מחיר</div>`;
+
+  // Show as transaction table for SELL entries, simple rows for BUY
+  if(filter==='sell' || filter==='all'){
+    const sells = entries.filter(t=>t.type==='SELL');
+    const buys  = entries.filter(t=>t.type==='BUY');
+    let html = '';
+
+    if(sells.length){
+      html += `<table class="log-table"><thead><tr>
+          <th>מחיר קנייה</th><th>מחיר מכירה</th><th>רווח</th><th>שעה</th>
+        </tr></thead><tbody>`;
+      sells.forEach(t=>{
+        const sellPx = t.price||0;
+        const buyPx  = sellPx - (t.profit||0)/(t.qty||0.00001) - sellPx*0.001;
+        html += `<tr class="sell-row">
+          <td><span class="num-ltr">$${fmt(buyPx,0)}</span></td>
+          <td><span class="num-ltr">$${fmt(sellPx,0)}</span></td>
+          <td class="green"><span class="num-ltr">+$${fmt(t.profit,4)}</span></td>
+          <td>${fmtT(t.time)}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+    }
+
+    if(filter==='all' && buys.length){
+      html += buys.slice(0,10).map(t=>`<div class="log-entry">
+        <div class="log-icon">🟡</div>
+        <div class="log-info">
+          <div class="log-title" style="color:#ffd700">BUY ↓ — $${fmt(t.price,0)}</div>
+          <div class="log-sub">${fmt(t.qty,6)} BTC</div>
+        </div>
+        <div class="log-right"><div class="log-time">${fmtT(t.time)}</div></div>
+      </div>`).join('');
+    }
+    return html || `<div style="text-align:center;padding:16px;color:#cccccc;font-size:.7rem">⏳ ממתין לתנועת מחיר</div>`;
+  }
+
+  return entries.map(t=>{
+    const isSell=t.type==='SELL';
+    const icon=isSell?'🟢':'🟡';
+    const titleColor=isSell?'#00e676':'#ffd700';
+    const profitHtml=isSell?`<div class="log-profit">+$${fmt(t.profit,4)}</div>`:'';
+    return `<div class="log-entry">
+      <div class="log-icon">${icon}</div>
+      <div class="log-info">
+        <div class="log-title" style="color:${titleColor}">${isSell?'SELL ↑':'BUY ↓'} — $${fmt(t.price,0)}</div>
+        <div class="log-sub">${fmt(t.qty,6)} BTC</div>
+      </div>
+      <div class="log-right">
+        ${profitHtml}
+        <div class="log-time">${fmtT(t.time)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setFilter(f){
+  currentLogFilter=f;
+  const gD=botData['grid'],p=gD?.raw||{};
+  const logEl=document.getElementById('log-list');
+  if(logEl) logEl.innerHTML=buildLogHtml(p.trade_log||[],f);
+  document.querySelectorAll('.lf-btn').forEach(b=>{
+    b.classList.toggle('act', b.textContent.trim()===(f==='all'?'הכל':f==='sell'?'מכירות':'קניות'));
+  });
+}
+
+function scrollToCurrentLevel(){
+  const el=document.querySelector('.glv-current');
+  if(el) setTimeout(()=>el.scrollIntoView({block:'center',behavior:'smooth'}),300);
+}
+
+// ── Settings modal
+function populateSettings(s,p){
+  const items=[
+    {l:'טווח תחתון',v:`$${fmt(s.lower,0)}`,s:'Lower Bound (AI)'},
+    {l:'טווח עליון',v:`$${fmt(s.upper,0)}`,s:'Upper Bound (AI)'},
+    {l:'רמות גריד',v:`${s.grids}`,s:'Grid Levels'},
+    {l:'ATR-14',v:`$${fmt(s.atr14,0)}`,s:'Spacing Indicator'},
+    {l:'השקעה',v:`$${fmt(p.investment,0)}`,s:'Capital Deployed'},
+    {l:'עמלה/צד',v:`0.05%`,s:'Pionex Taker Fee'},
+    {l:'DGT',v:p.dgt_count>0?`✅ פעיל`:'✅ פעיל',s:'Auto Range Reset'},
+    {l:'REINVEST',v:'✅ פעיל',s:'Compound Profits'},
+  ];
+  const el=document.getElementById('settings-content');
+  if(el) el.innerHTML=items.map(i=>`
+    <div class="sg-item">
+      <div class="sg-label">${i.l}</div>
+      <div class="sg-val">${i.v}</div>
+      <div class="sg-sub">${i.s}</div>
+    </div>`).join('');
+}
+
+function openSettings(){
+  document.getElementById('modal-settings').classList.remove('hidden');
+}
+
+// ── Calculator modal
+function openCalc(){
+  // pre-fill with current grid values
+  const s=botData['grid']?.state;
+  if(s){
+    document.getElementById('c-low').value=Math.round(s.lower);
+    document.getElementById('c-high').value=Math.round(s.upper);
+    document.getElementById('c-grids').value=s.grids;
+  }
+  const p=botData['grid']?.raw;
+  if(p) document.getElementById('c-inv').value=Math.round(p.investment||1000);
+  document.getElementById('calc-results').innerHTML='';
+  document.getElementById('modal-calc').classList.remove('hidden');
+}
+
+function calcGrid(){
+  const inv=parseFloat(document.getElementById('c-inv').value)||1000;
+  const low=parseFloat(document.getElementById('c-low').value)||70000;
+  const high=parseFloat(document.getElementById('c-high').value)||82000;
+  const grids=parseInt(document.getElementById('c-grids').value)||50;
+  if(high<=low||grids<2) return;
+
+  const rangeSize=high-low;
+  const stepPct=rangeSize/(grids*((low+high)/2))*100;
+  const perLevel=inv/grids;
+  const btcPerLevel=perLevel/((low+high)/2);
+  const profitPerCycle=btcPerLevel*(rangeSize/grids)*0.9991; // minus 2×0.05% fee
+  const cyclesPerDay=Math.max(0,(rangeSize/grids)/50*3); // rough estimate
+  const dailyProfit=profitPerCycle*cyclesPerDay*grids*0.2; // conservative
+  const apr=dailyProfit*365/inv*100;
+
+  const el=document.getElementById('calc-results');
+  el.innerHTML=[
+    {l:'📏 צעד/רמה',v:`${fmt(stepPct,2)}%`},
+    {l:'💵 הון/רמה',v:`$${fmt(perLevel,2)}`},
+    {l:'₿ BTC/רמה',v:`${fmt(btcPerLevel,6)}`},
+    {l:'💰 רווח/cycle',v:`$${fmt(profitPerCycle,4)}`},
+    {l:'📅 רווח יומי (est)',v:`$${fmt(dailyProfit,3)}`},
+    {l:'📈 APR (est)',v:`${fmt(apr,1)}%`},
+  ].map(i=>`<div class="cr-item"><div class="cr-val">${i.v}</div><div class="cr-lbl">${i.l}</div></div>`).join('');
+}
+
+// ── Wizard modal
+const wizContent=[
+  {
+    t:'שלב 1 — בחירת זוג מטבעות',
+    d:'הבוט פועל על <strong style="color:#ffd700">BTC/USDT</strong> ב-Pionex.<br><br>ניתן להוסיף זוגות נוספים בעתיד ע״י יצירת instance נפרד עם symbol שונה בסקריפט.',
+    f:'<div class="wiz-field" style="font-size:.7rem;color:#ffd700;background:#002535;padding:8px;border-radius:6px;margin-top:8px;">✅ BTC/USDT — פעיל</div>'
+  },
+  {
+    t:'שלב 2 — הגדרת טווח גריד',
+    d:'ה-AI מחשב אוטומטית את <strong style="color:#f7931a">Lower</strong> ו-<strong style="color:#f7931a">Upper</strong> לפי Percentile 3–97 של 720 שעות אחרונות + 4% padding.<br><br>לשינוי ידני: ערוך את <code>AI_HOURS</code> ב-<code>grid_simulator.py</code>.',
+    f:''
+  },
+  {
+    t:'שלב 3 — הון ופרמטרים',
+    d:'הגדר את ההון, העמלה ואם להשקיע מחדש רווחים:<br><br><code>INVESTMENT = 1000</code><br><code>FEE_PCT = 0.05</code><br><code>REINVEST_ENABLED = True</code>',
+    f:''
+  },
+  {
+    t:'שלב 4 — הפעלה',
+    d:'לאחר שינוי פרמטרים:<br><br>1. ערוך <code>grid_simulator.py</code> ב-GitHub<br>2. Commit + Push<br>3. הבוט יאפס בריצה הבאה (15 דקות)<br><br>✅ GitHub Actions פעיל ורץ כל 15 דקות!',
+    f:'<div class="wiz-field" style="font-size:.68rem;color:#00e676;background:#001a0e;padding:8px;border-radius:6px;margin-top:8px;">🟢 הבוט פועל — אין צורך בהפעלה ידנית</div>'
+  }
+];
+
+function openWizard(){
+  wizStep=1;
+  renderWiz();
+  document.getElementById('modal-wizard').classList.remove('hidden');
+}
+
+function renderWiz(){
+  const c=wizContent[wizStep-1];
+  document.getElementById('wiz-content').innerHTML=`
+    <div class="wiz-title">${c.t}</div>
+    <div class="wiz-desc">${c.d}${c.f}</div>`;
+  for(let i=1;i<=4;i++){
+    const el=document.getElementById('ws'+i);
+    el.className='wiz-step'+(i===wizStep?' active':i<wizStep?' done':'');
+  }
+  const nav=document.getElementById('wiz-nav');
+  let btns='';
+  if(wizStep>1) btns+=`<button class="wiz-btn gray" onclick="goWiz(${wizStep-1})">← אחורה</button>`;
+  if(wizStep<4) btns+=`<button class="wiz-btn primary" onclick="goWiz(${wizStep+1})">קדימה →</button>`;
+  else btns+=`<button class="wiz-btn primary" onclick="closeModal('modal-wizard')">✅ סיום</button>`;
+  nav.innerHTML=btns;
+}
+
+function goWiz(step){
+  wizStep=step;
+  renderWiz();
+}
+
+function closeModal(id){
+  document.getElementById(id).classList.add('hidden');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click',e=>{if(e.target===o) o.classList.add('hidden');});
+});
+
+let tvWidgetLoaded=false, chartWs=null, chartResizeObs=null;
+
+function bindChartResize(){
+  const wrap=document.querySelector('.mg-chart-wrap');
+  const tv=document.getElementById('tv-chart');
+  if(!wrap||!tv) return;
+  const apply=()=>{
+    const w=Math.max(Math.floor(wrap.clientWidth),180);
+    const h=Math.max(Math.floor(wrap.clientHeight),120);
+    if(lwChart){
+      try{ lwChart.resize(w,h); drawGridLines(); }catch(e){}
+    }
+    window.dispatchEvent(new Event('resize'));
+  };
+  apply();
+  if(chartResizeObs) chartResizeObs.disconnect();
+  chartResizeObs=new ResizeObserver(apply);
+  chartResizeObs.observe(wrap);
+  if(typeof ResizeObserver!=='undefined'){
+    const col=document.querySelector('.mg-chart-col');
+    if(col) chartResizeObs.observe(col);
+  }
+}
+let lwChart=null, candleSeries=null, priceLabelSeries=null, priceLines=[];
+const LW_ENABLED = false; // השתמש ב-TradingView Widget
+
+// Real-time BTC price via WebSocket (header only)
+function connectPriceWs(){
+  if(chartWs){ try{ chartWs.close(); }catch(e){} }
+  chartWs = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@miniTicker');
+  chartWs.onmessage = (evt)=>{
+    try{
+      const d = JSON.parse(evt.data);
+      const btc = parseFloat(d.c);
+      const el = document.querySelector('.btc-now');
+      if(el && btc>0) el.textContent='$'+btc.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+      if(btc>0) checkAlerts(btc);
+    }catch(e){}
+  };
+  chartWs.onclose = ()=>setTimeout(connectPriceWs, 3000);
+  chartWs.onerror = ()=>chartWs.close();
+}
+
+function loadTVChart(){
+  const el=document.getElementById('tv-chart');
+  if(!el) return;
+
+  if(LW_ENABLED){
+    // השתמש ב-Lightweight Charts — תומך קווי גריד אמיתיים
+    if(lwChart) return; // כבר טעון
+    loadLWScript(el);
+    return;
+  }
+
+  // TradingView Widget (fallback)
+  if(tvWidgetLoaded && el.querySelector('iframe')) return;
+  el.innerHTML=''; tvWidgetLoaded=false;
+  const s=document.createElement('script');
+  s.src='https://s3.tradingview.com/tv.js';
+  s.onload=()=>{
+    new TradingView.widget({
+      container_id:'tv-chart', width:'100%', height:'100%',
+      symbol:'BINANCE:BTCUSDT', interval:'15', timezone:'Asia/Jerusalem',
+      theme:'dark', style:'1', locale:'he_IL', toolbar_bg:'#070d14',
+      enable_publishing:false, hide_top_toolbar:false,
+      backgroundColor:'#070d14', gridColor:'#0d1820',
+      studies:[],
+    });
+    tvWidgetLoaded=true;
+    setTimeout(bindChartResize, 350);
+  };
+  document.head.appendChild(s);
+  connectPriceWs();
+}
+
+function loadLWScript(el){
+  // אם הגרף כבר קיים ב-DOM — לא נגע בו
+  if(lwChart && el.querySelector('canvas')) return;
+  // גרף נהרס ברענון — נאפס ונבנה מחדש
+  lwChart=null; candleSeries=null; priceLabelSeries=null; priceLines=[];
+  el.innerHTML='';
+  if(window.LightweightCharts){ buildLWChart(el); connectPriceWs(); return; }
+  const s=document.createElement('script');
+  s.src='https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js';
+  s.onload=()=>{ buildLWChart(el); };
+  document.head.appendChild(s);
+  connectPriceWs();
+}
+
+async function buildLWChart(el){
+  const rect=el.getBoundingClientRect();
+  const w=rect.width||800, h=rect.height||400;
+
+  lwChart=LightweightCharts.createChart(el,{
+    width:w, height:h,
+    layout:{ background:{type:'solid',color:'#070d14'}, textColor:'#ffffff' },
+    grid:{ vertLines:{color:'transparent'}, horzLines:{color:'transparent'} },
+    crosshair:{
+      mode: LightweightCharts.CrosshairMode.Normal,
+      vertLine:{ color:'#ffd700', labelBackgroundColor:'#ffd700' },
+      horzLine:{ color:'#ffd700', labelBackgroundColor:'#ffd700' },
+    },
+    rightPriceScale:{ borderColor:'#0f2030', scaleMargins:{top:0.05,bottom:0.05} },
+    timeScale:{ borderColor:'#0f2030', timeVisible:true, secondsVisible:false, rightOffset:5 },
+  });
+
+  const wrap=el.closest('.mg-chart-wrap')||el;
+  new ResizeObserver(entries=>{
+    for(const e of entries){
+      if(lwChart) lwChart.resize(e.contentRect.width, e.contentRect.height);
+    }
+  }).observe(wrap);
+
+  candleSeries=lwChart.addCandlestickSeries({
+    upColor:'#00e676', downColor:'#ff5252',
+    borderUpColor:'#00e676', borderDownColor:'#ff5252',
+    wickUpColor:'#00a050', wickDownColor:'#cc3030',
+    lastValueVisible: false,
+    priceLineVisible: false,
+    priceFormat:{ type:'price', precision:2, minMove:0.01 },
+  });
+  // White label for current price on axis
+  lwChart.applyOptions({
+    rightPriceScale:{
+      borderColor:'#0f2030',
+      scaleMargins:{top:0.05,bottom:0.05},
+    },
+    layout:{
+      background:{type:'solid',color:'#070d14'},
+      textColor:'#ffffff',
+    },
+  });
+
+
+  try{
+    const res=await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=500');
+    const data=await res.json();
+    const candles = data.map(k=>({
+      time:  Math.floor(k[0]/1000),
+      open:  parseFloat(k[1]),
+      high:  parseFloat(k[2]),
+      low:   parseFloat(k[3]),
+      close: parseFloat(k[4]),
+    }));
+    candleSeries.setData(candles);
+
+    // ציור קווי גריד אחרי טעינת נתונים
+    setTimeout(drawGridLines, 500);
+
+  }catch(e){ console.error('Binance fetch failed',e); }
+
+  // ── Real-time WebSocket from Binance ──────────────────────────
+  connectChartWs();
+
+  // Invisible line series — gives us a pure white axis label for current price
+  priceLabelSeries = lwChart.addLineSeries({
+    color:'rgba(0,0,0,0)', lineWidth:1,
+    lastValueVisible:true, priceLineVisible:false,
+    crosshairMarkerVisible:false,
+  });
+
+  drawGridLines();
+}
+
+function clearGridLines(){
+  if(!candleSeries) return;
+  priceLines.forEach(pl=>{ try{ candleSeries.removePriceLine(pl); }catch(e){} });
+  priceLines=[];
+}
+
+function drawGridLines(){
+  const s=botData['grid']?.state;
+  if(!candleSeries||!s||!s.grid) return;
+  clearGridLines();
+
+  const btc=parseFloat(document.querySelector('.btc-now')?.textContent?.replace(/[$,]/g,'')||0);
+  if(!btc) return;
+
+  // ציור כל רמות הגריד
+  s.grid.forEach(lv => {
+    const isFilled  = lv.filled;
+    const isCurrent = btc >= lv.buy && btc < lv.sell;
+
+    // קו קנייה
+    priceLines.push(candleSeries.createPriceLine({
+      price:            lv.buy,
+      color:            isFilled ? '#00ff88' : isCurrent ? '#ff9900' : '#ffffff',
+      lineWidth:        isCurrent ? 3 : isFilled ? 2 : 1,
+      lineStyle:        isFilled || isCurrent ? LightweightCharts.LineStyle.Solid : LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible: false,
+      title:            '',
+    }));
+
+    // קו מכירה — רק לרמות קנויות
+    if(isFilled){
+      priceLines.push(candleSeries.createPriceLine({
+        price:            lv.sell,
+        color:            '#ff3333',
+        lineWidth:        2,
+        lineStyle:        LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible: false,
+        title:            '',
+      }));
+    }
+  });
+
+  // עדכון מחיר נוכחי
+  if(btc>0 && priceLabelSeries){
+    const now = Math.floor(Date.now()/1000);
+    priceLabelSeries.setData([{ time: now-1, value: btc }, { time: now, value: btc }]);
+  }
+}
+
+// ── Draw grid lines on overlay canvas ─────────────────────────
+function drawOverlayGridLines() {
+  const canvas = document.getElementById('grid-overlay');
+  if (!canvas) return;
+  const s = botData['grid']?.state;
+  if (!s || !s.grid) return;
+
+  const W = canvas.offsetWidth;
+  const H = canvas.offsetHeight;
+  canvas.width  = W;
+  canvas.height = H;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  const btc = parseFloat(document.querySelector('.btc-now')?.textContent?.replace(/[$,]/g,'') || 0);
+  if (!btc) return;
+
+  // מחיר גבוה ונמוך נראה בגרף — נאמוד לפי ATR
+  const atr   = s.atr14 || 1000;
+  const upper = s.upper || (btc + atr * 3);
+  const lower = s.lower || (btc - atr * 3);
+
+  // הצג רק רמות שנמצאות בטווח הנראה
+  const visibleLevels = s.grid.filter(lv => lv.buy >= lower * 0.98 && lv.buy <= upper * 1.02);
+
+  const priceToY = (price) => {
+    return H - ((price - lower) / (upper - lower)) * H;
+  };
+
+  visibleLevels.forEach(lv => {
+    const isFilled = lv.filled;
+    const isCurrent = btc >= lv.buy && btc < lv.sell;
+    const buyY  = priceToY(lv.buy);
+    const sellY = priceToY(lv.sell);
+
+    // קו קנייה — לבן מואר
+    ctx.beginPath();
+    ctx.strokeStyle = isFilled ? '#00ff88' : isCurrent ? '#ff9900' : '#ffffff';
+    ctx.lineWidth   = isCurrent ? 3 : 2;
+    ctx.globalAlpha = 1.0;
+    ctx.shadowColor = isFilled ? '#00ff88' : isCurrent ? '#ff9900' : '#ffffff';
+    ctx.shadowBlur  = 8;
+    ctx.setLineDash(isFilled ? [] : [6, 3]);
+    ctx.moveTo(0, buyY);
+    ctx.lineTo(W, buyY);
+    ctx.stroke();
+
+    // תווית מחיר קנייה
+    ctx.shadowBlur = 0;
+    ctx.setLineDash([]);
+    ctx.font = 'bold 11px monospace';
+    ctx.fillStyle = isFilled ? '#00ff88' : isCurrent ? '#ff9900' : '#ffffff';
+    ctx.globalAlpha = 1.0;
+    const label = isFilled ? `✅ BUY $${Math.round(lv.buy).toLocaleString()}` :
+                  isCurrent ? `◉ $${Math.round(lv.buy).toLocaleString()}` :
+                  `↓ BUY $${Math.round(lv.buy).toLocaleString()}`;
+    ctx.fillText(label, 6, buyY - 3);
+
+    // קו מכירה — אדום מואר
+    if (isFilled) {
+      ctx.beginPath();
+      ctx.strokeStyle = '#ff4444';
+      ctx.lineWidth   = 2;
+      ctx.shadowColor = '#ff4444';
+      ctx.shadowBlur  = 8;
+      ctx.setLineDash([4, 4]);
+      ctx.moveTo(0, sellY);
+      ctx.lineTo(W, sellY);
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ff4444';
+      ctx.fillText(`↑ SELL $${Math.round(lv.sell).toLocaleString()}`, 6, sellY - 3);
+    }
+  });
+
+  ctx.globalAlpha = 1.0;
+  ctx.shadowBlur  = 0;
+}
+
+function switchBot(id,e){
+  document.querySelectorAll('.bot-card').forEach(c=>c.classList.remove('active'));
+  e.currentTarget.classList.add('active');
+}
+
+function startCountdown(){
+  clearInterval(timer); countdown=60;
+  timer=setInterval(()=>{
+    countdown--;
+    const el=document.getElementById('ref');
+    if(el) el.textContent=`BTC עכשיו | מתרענן בעוד ${countdown}ש׳`;
+    if(countdown<=0){clearInterval(timer);load();}
+  },1000);
+}
+
+window.addEventListener('resize', ()=>{ applyCompactLayout(); setTimeout(bindChartResize, 80); });
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', ()=>{ setTimeout(bindChartResize, 50); });
+}
+
+// ══ PRICE ALERTS ══════════════════════════════════════════════
+let priceAlerts = loadAlerts();
+let alertToastTimer = null;
+let lastAlertBtc = 0; // used to detect direction crossing
+
+function loadAlerts() {
+  try { return JSON.parse(localStorage.getItem('mg_price_alerts') || '[]'); } catch { return []; }
+}
+function saveAlerts() {
+  try { localStorage.setItem('mg_price_alerts', JSON.stringify(priceAlerts)); } catch {}
+}
+
+function openAlerts() {
+  renderAlertsList();
+  // pre-fill input with current BTC price
+  const btcEl = document.querySelector('.btc-now');
+  if (btcEl) {
+    const val = parseFloat(btcEl.textContent.replace(/[$,]/g,''));
+    if (val > 0) document.getElementById('alert-price-input').value = Math.round(val);
+  }
+  document.getElementById('modal-alerts').classList.remove('hidden');
+}
+
+function renderAlertsList() {
+  const el = document.getElementById('alert-list');
+  if (!el) return;
+  if (!priceAlerts.length) {
+    el.innerHTML = '<div class="alert-empty">אין התראות פעילות<br><span style="font-size:.75rem">הוסף מחיר סף להתראה זמן אמת</span></div>';
+    return;
+  }
+  el.innerHTML = priceAlerts.map((a, i) => `
+    <div class="alert-item ${a.dir}">
+      <span class="alert-dir">${a.dir === 'above' ? '⬆️' : '⬇️'}</span>
+      <span class="alert-price">$${Number(a.price).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})}</span>
+      <span style="font-size:.78rem;color:#8aa4be;font-weight:700">${a.dir === 'above' ? 'כשיעלה מעל' : 'כשיירד מתחת'}</span>
+      <button class="alert-remove" onclick="removeAlert(${i})">✕</button>
+    </div>`).join('');
+}
+
+function addAlertAbove() { addAlert('above'); }
+function addAlertBelow() { addAlert('below'); }
+
+function addAlert(dir) {
+  const raw = parseFloat(document.getElementById('alert-price-input').value);
+  if (!raw || raw <= 0) return;
+  const price = Math.round(raw);
+  // avoid duplicate
+  if (priceAlerts.some(a => a.price === price && a.dir === dir)) return;
+  priceAlerts.push({ id: Date.now(), price, dir });
+  saveAlerts();
+  renderAlertsList();
+  updateBellUI();
+  // request notification permission
+  if (Notification && Notification.permission === 'default') Notification.requestPermission();
+}
+
+function removeAlert(idx) {
+  priceAlerts.splice(idx, 1);
+  saveAlerts();
+  renderAlertsList();
+  updateBellUI();
+}
+
+function updateBellUI() {
+  const btn = document.querySelector('.mg-bell-btn');
+  if (!btn) return;
+  const count = priceAlerts.length;
+  btn.classList.toggle('has-alerts', count > 0);
+  const badge = btn.querySelector('.mg-bell-badge');
+  if (count > 0) {
+    if (badge) { badge.textContent = count; }
+    else { const b = document.createElement('span'); b.className = 'mg-bell-badge'; b.textContent = count; btn.appendChild(b); }
+  } else {
+    if (badge) badge.remove();
+  }
+}
+
+function showAlertToast(msg) {
+  const toast = document.getElementById('alert-toast');
+  const msgEl = document.getElementById('alert-toast-msg');
+  if (!toast || !msgEl) return;
+  msgEl.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(alertToastTimer);
+  alertToastTimer = setTimeout(() => toast.classList.remove('show'), 5000);
+}
+
+function triggerBrowserNotification(msg) {
+  if (Notification && Notification.permission === 'granted') {
+    try {
+      new Notification('🔔 Model GRID — BTC Alert', { body: msg, icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚡</text></svg>' });
+    } catch {}
+  }
+}
+
+function playAlertSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.12);
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.24);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.55);
+  } catch {}
+}
+
+function checkAlerts(btc) {
+  if (!btc || !priceAlerts.length) return;
+  const prev = lastAlertBtc;
+  lastAlertBtc = btc;
+  if (!prev) return; // skip first tick
+
+  const triggered = [];
+  priceAlerts = priceAlerts.filter(a => {
+    const crossed =
+      (a.dir === 'above' && prev < a.price && btc >= a.price) ||
+      (a.dir === 'below' && prev > a.price && btc <= a.price);
+    if (crossed) { triggered.push(a); return false; } // remove once triggered
+    return true;
+  });
+
+  if (triggered.length) {
+    saveAlerts();
+    updateBellUI();
+    triggered.forEach(a => {
+      const dir = a.dir === 'above' ? '⬆️ עלה מעל' : '⬇️ ירד מתחת';
+      const msg = `BTC ${dir} $${a.price.toLocaleString('en-US')} — מחיר עכשיו: $${Math.round(btc).toLocaleString('en-US')}`;
+      showAlertToast(msg);
+      triggerBrowserNotification(msg);
+      playAlertSound();
+    });
+  }
+}
+
+load();
+</script>
+</body>
+</html>

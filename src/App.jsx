@@ -14,7 +14,8 @@ import ModelBitPage from './pages/ModelBitPage';
 import ModelSmcPage from './pages/ModelSmcPage';
 import FinvizPage   from './pages/FinvizPage';
 import EtoroPage    from './pages/EtoroPage';
-import TwitterPage  from './pages/TwitterPage';
+import TwitterPage    from './pages/TwitterPage';
+import ModelGridPage  from './pages/ModelGridPage';
 import DailyPage         from './pages/DailyPage';
 import ScanOfTodayPage   from './pages/ScanOfTodayPage';
 import NotFoundPage      from './pages/NotFoundPage';
@@ -22,7 +23,7 @@ import './App.css';
 
 const VALID_PAGES = [
   'home','charts','crypto','news','alerts',
-  'model-w','model-bit','model-smc',
+  'model-w','model-bit','model-smc','model-grid',
   'finviz','etoro','twitter','daily','sot'
 ];
 
@@ -56,7 +57,7 @@ const PAGE_TITLES = {
   charts: '📈 גרפים', crypto: '₿ קריפטו', news: '📰 חדשות',
   alerts: '🔔 התראות', 'model-w': '🤖 Model W', 'model-bit': '₿ Model BIT',
   'model-smc': '📐 Model SMC', finviz: '📊 FINVIZ', etoro: '📋 eToro',
-  twitter: '🐦 טוויטר', daily: '📅 יומי', sot: '🤖 SOT',
+  twitter: '🐦 טוויטר', 'model-grid': '📐 Model Grid', daily: '📅 יומי', sot: '🤖 SOT',
 };
 
 function PageTopBar({ page, onBack, onClose }) {
@@ -138,8 +139,9 @@ function AppInner() {
         {page === 'model-smc' && <ModelSmcPage />}
         {page === 'finviz'    && <FinvizPage />}
         {page === 'etoro'     && <EtoroPage  />}
-        {page === 'twitter'   && <TwitterPage />}
-        {page === 'daily'     && <DailyPage  />}
+        {page === 'twitter'    && <TwitterPage />}
+        {page === 'model-grid' && <ModelGridPage />}
+        {page === 'daily'      && <DailyPage  />}
         {page === 'sot'       && <ScanOfTodayPage navigate={navigate} />}
         {page === '404'       && <NotFoundPage navigate={navigate} />}
       </main>
