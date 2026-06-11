@@ -1,0 +1,94 @@
+/* MiniChartPanel.css ───────────────────────────────────────────
+   Full-width clickable panel showing a TradingView mini chart.
+   Same visual card style as the old ball widget.
+   ─────────────────────────────────────────────────────────── */
+
+.mcp-wrap {
+  position: relative;
+  width: 100%;
+  height: 148px;          /* matches old ball-widget height */
+  border-radius: 16px;
+  border: 1px solid rgba(180, 140, 220, 0.22);
+  background: linear-gradient(
+    135deg,
+    rgba(72,  38, 110, 0.52) 0%,
+    rgba(100, 65,  30, 0.38) 52%,
+    rgba(65,  45,  18, 0.28) 100%
+  );
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.22s, box-shadow 0.22s, transform 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mcp-wrap:hover {
+  border-color: rgba(212, 175, 55, 0.42);
+  box-shadow: 0 6px 36px rgba(120, 60, 180, 0.15),
+              0 2px 14px rgba(212, 175, 55, 0.10);
+  transform: translateY(-1px);
+}
+
+.mcp-wrap:active {
+  transform: translateY(0);
+}
+
+/* TradingView iframe fills the card */
+.mcp-iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  pointer-events: none;    /* overlay captures all taps */
+  transition: opacity 0.4s;
+  border-radius: 16px;
+}
+
+/* Transparent click overlay */
+.mcp-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  pointer-events: none;    /* pass-through to parent div */
+}
+
+.mcp-hint {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Loading skeleton */
+.mcp-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 20px 24px;
+}
+
+.mcp-loading-bar {
+  height: 12px;
+  width: 70%;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  animation: mcp-shimmer 1.4s ease-in-out infinite;
+}
+
+.mcp-loading-bar--sm {
+  width: 40%;
+  height: 8px;
+}
+
+@keyframes mcp-shimmer {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1;   }
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAlerts } from '../context/AlertsContext';
 import BitcoinCandleWidget from '../components/BitcoinCandleWidget';
+import MiniChartPanel from '../components/MiniChartPanel';
 import './HomePage.css';
 
 // ── Live BTC ticker ────────────────────────────────────────────
@@ -126,14 +127,40 @@ export default function HomePage({ navigate }) {
   const activeAlerts = alerts.filter(a => !a.triggered).length;
   const up = btc ? btc.change >= 0 : true;
 
+  /* Ball animation settled → reveal big price */
+  const [priceVisible, setPriceVisible] = useState(false);
+
   const fmt = (n) => n >= 1000 ? n.toLocaleString('en', { maximumFractionDigits: 0 }) : n.toFixed(2);
 
   return (
     <div className="hp-wrap" dir="rtl">
 
+      {/* ── Mini chart panel (TradingView BTC — click to open full chart) ── */}
+      <MiniChartPanel navigate={navigate} />
+
+      {/* ── Market strip ── */}
+      <div className="hp-market-strip">
+        <MarketPill symbol="^GSPC"    label="S&P 500" />
+        <MarketPill symbol="XAUUSD=X" label="זהב" />
+        <MarketPill symbol="ETH-USD"  label="ETH" />
+        <MarketPill symbol="SOL-USD"  label="SOL" />
+        <FearGreedMini />
+      </div>
+
       {/* ── BTC Hero ── */}
-      <div className={`hp-btc-hero${flash === 'up' ? ' hp-flash-up' : flash === 'down' ? ' hp-flash-down' : ''}`}>
-        <div className="hp-btc-left">
+      <div
+        className={`hp-btc-hero${flash === 'up' ? ' hp-flash-up' : flash === 'down' ? ' hp-flash-down' : ''}`}
+        style={{ position: 'relative' }}
+      >
+        {/* Big price — hidden until ball settles */}
+        <div
+          className="hp-btc-left"
+          style={{
+            opacity: priceVisible ? 1 : 0,
+            transition: 'opacity 0.9s ease',
+            pointerEvents: priceVisible ? 'auto' : 'none',
+          }}
+        >
           <div className="hp-btc-badge">
             <span className="hp-btc-dot" />
             LIVE
@@ -157,24 +184,14 @@ export default function HomePage({ navigate }) {
             </div>
           )}
         </div>
-        <button className="hp-btc-chart-btn" onClick={() => navigate('charts')} aria-label="פתח גרף BTC">
-          <span style={{ fontSize: '1.6rem' }}>📊</span>
-          <span>גרף נרות</span>
-          <span style={{ fontSize: '0.65rem', opacity: 0.65 }}>TradingView</span>
-        </button>
-      </div>
 
-      {/* ── Market strip ── */}
-      <div className="hp-market-strip">
-        <MarketPill symbol="^GSPC"    label="S&P 500" />
-        <MarketPill symbol="XAUUSD=X" label="זהב" />
-        <MarketPill symbol="ETH-USD"  label="ETH" />
-        <MarketPill symbol="SOL-USD"  label="SOL" />
-        <FearGreedMini />
+        {/* Ball animation — absolute overlay, travels full hero width */}
+        <BitcoinCandleWidget
+          btc={btc}
+          navigate={navigate}
+          onSettled={() => setPriceVisible(true)}
+        />
       </div>
-
-      {/* ── Bitcoin candle animation widget ── */}
-      <BitcoinCandleWidget btc={btc} navigate={navigate} />
 
       {/* ── 2 Feature cards ── */}
       <div className="hp-features">
