@@ -6,8 +6,9 @@
  *   • Lightweight Charts fills the box (exact price lines)
  *   • QuickAlert floats as overlay INSIDE the box (contained, not full-viewport)
  */
-import { useState, useEffect, useMemo } from 'react';
-import { useAlerts, fetchLivePrice } from '../context/AlertsContext';
+import { useState, useEffect, useMemo, useContext } from 'react';
+import { useAlerts } from '../context/AlertsContext';
+import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import AlertChart from '../components/AlertChart';
 import QuickAlert from '../components/QuickAlert';
 import './AlertsPage.css';
@@ -16,19 +17,18 @@ export default function AlertsPage() {
   const { alerts, markSeen, editAlert } = useAlerts();
 
   const [chartSymbol, setChartSymbol] = useState('BTC');
-  const [livePrice,   setLivePrice]   = useState(null);
   const [showDialog,  setShowDialog]  = useState(true);
 
-  useEffect(() => { markSeen(); }, [markSeen]);
+  const lqCtx = useContext(LiveQuoteContext);
+  const { price: livePrice } = useQuote(chartSymbol);
 
   useEffect(() => {
-    setLivePrice(null);
-    let cancelled = false;
-    fetchLivePrice(chartSymbol)
-      .then(p => { if (!cancelled && p) setLivePrice(p); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [chartSymbol]);
+    if (!lqCtx || !chartSymbol) return;
+    lqCtx.subscribe([chartSymbol]);
+    return () => lqCtx.unsubscribe([chartSymbol]);
+  }, [chartSymbol, lqCtx]);
+
+  useEffect(() => { markSeen(); }, [markSeen]);
 
   const symAlerts = useMemo(
     () => alerts.filter(a => !a.triggered && a.symbol === chartSymbol.toUpperCase()),

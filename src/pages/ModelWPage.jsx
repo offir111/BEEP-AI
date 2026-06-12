@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
+import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import IframeWithFallback from '../components/IframeWithFallback';
 import RobotNavTabs from '../components/RobotNavTabs';
 import './ModelWPage.css';
@@ -27,28 +28,18 @@ function Skeleton({ w = '60%', h = '22px' }) {
 }
 
 function CoinCard({ coin, onSelect, selected }) {
-  const [data, setData]       = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(false);
+  const lqCtx = useContext(LiveQuoteContext);
+  const { price, change, high, low } = useQuote(coin.short);
 
-  const load = useCallback(() => {
-    setLoading(true); setError(false);
-    fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${coin.symbol}`)
-      .then(r => r.json())
-      .then(d => {
-        setData({
-          price:  parseFloat(d.lastPrice),
-          change: parseFloat(d.priceChangePercent),
-          high:   parseFloat(d.highPrice),
-          low:    parseFloat(d.lowPrice),
-          vol:    parseFloat(d.volume),
-        });
-        setLoading(false);
-      })
-      .catch(() => { setError(true); setLoading(false); });
-  }, [coin.symbol]);
+  useEffect(() => {
+    if (!lqCtx) return;
+    lqCtx.subscribe([coin.short]);
+    return () => lqCtx.unsubscribe([coin.short]);
+  }, [coin.short, lqCtx]);
 
-  useEffect(() => { load(); }, [load]);
+  const data    = price != null ? { price, change, high, low, vol: null } : null;
+  const loading = price == null;
+  const error   = false;
 
   const sig = data ? getSignal(data.change) : null;
   const up  = data ? data.change >= 0 : true;
@@ -77,7 +68,7 @@ function CoinCard({ coin, onSelect, selected }) {
             <Skeleton w="40%" h="16px" />
           </>
         ) : error ? (
-          <div className="mw-err" onClick={e => { e.stopPropagation(); load(); }}>⚠ נסה שוב</div>
+          <div className="mw-err">⚠ מתחבר...</div>
         ) : (
           <>
             <div className="mw-price">

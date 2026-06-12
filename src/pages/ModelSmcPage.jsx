@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import IframeWithFallback from '../components/IframeWithFallback';
 import RobotNavTabs from '../components/RobotNavTabs';
 import './ModelSmcPage.css';
+import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 
 const STOCKS = [
   { symbol: 'AAPL',  name: 'Apple',     sector: 'Tech'    },
@@ -23,26 +24,18 @@ function getSmcSignal(change) {
 }
 
 function StockCard({ stock, onSelect, selected }) {
-  const [data, setData]       = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(false);
+  const lqCtx = useContext(LiveQuoteContext);
+  const { price, change: changeRaw } = useQuote(stock.symbol);
 
-  const load = useCallback(() => {
-    setLoading(true); setError(false);
-    fetch(`/api/market?symbol=${encodeURIComponent(stock.symbol)}`)
-      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(d => {
-        if (d.price !== null) {
-          setData({ price: d.price, change: d.changePercent ?? 0 });
-        } else {
-          setError(true);
-        }
-        setLoading(false);
-      })
-      .catch(() => { setError(true); setLoading(false); });
-  }, [stock.symbol]);
+  useEffect(() => {
+    if (!lqCtx) return;
+    lqCtx.subscribe([stock.symbol]);
+    return () => lqCtx.unsubscribe([stock.symbol]);
+  }, [stock.symbol, lqCtx]);
 
-  useEffect(() => { load(); }, [load]);
+  const data    = price != null ? { price, change: changeRaw ?? 0 } : null;
+  const loading = price == null;
+  const error   = false;
 
   const sig = data ? getSmcSignal(data.change) : null;
   const up  = data ? (data.change || 0) >= 0 : true;
@@ -62,7 +55,7 @@ function StockCard({ stock, onSelect, selected }) {
         {loading ? (
           <div className="smc-skeleton" style={{ width: '70%', height: '22px' }} />
         ) : error ? (
-          <div className="smc-err" onClick={e => { e.stopPropagation(); load(); }}>⚠ נסה שוב</div>
+          <div className="smc-err">⚠ טוען...</div>
         ) : (
           <>
             <div className="smc-price">${data.price.toLocaleString()}</div>
@@ -84,12 +77,10 @@ function StockCard({ stock, onSelect, selected }) {
 }
 
 export default function ModelSmcPage({ navigate }) {
-  const [selected, setSelected]    = useState(STOCKS[0]);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [selected, setSelected] = useState(STOCKS[0]);
   const [lastUpdate, setLastUpdate] = useState('');
 
   const refresh = () => {
-    setRefreshKey(k => k + 1);
     setLastUpdate(new Date().toLocaleTimeString('he-IL', {
       timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit',
     }));
@@ -127,10 +118,10 @@ export default function ModelSmcPage({ navigate }) {
       </div>
 
       {/* Grid */}
-      <div className="smc-grid" key={refreshKey}>
+      <div className="smc-grid">
         {STOCKS.map(s => (
           <StockCard
-            key={s.symbol + refreshKey}
+            key={s.symbol}
             stock={s}
             selected={selected?.symbol === s.symbol}
             onSelect={setSelected}

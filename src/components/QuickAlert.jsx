@@ -6,8 +6,9 @@
  * Source: C:\Users\Admin\Downloads\S.T.B\live\index-BrRuZL4L-v104.js
  * READ ONLY (no source modifications)
  */
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useAlerts, fetchLivePrice } from '../context/AlertsContext';
+import { useState, useEffect, useRef, useCallback, useContext } from 'react';
+import { useAlerts } from '../context/AlertsContext';
+import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import './QuickAlert.css';
 
 /* ── Step-size logic (1:1 from S.T.B) ─────────────────────── */
@@ -42,10 +43,35 @@ export default function QuickAlert({
 
   /* ── Symbol / live price ─────────────────────────────────── */
   const [symbol,       setSymbol]       = useState(initSymbol);
+
+  // ── Live price from centralized WebSocket/polling context ──────
+  const lqCtx = useContext(LiveQuoteContext);
+  const { price: ctxPrice } = useQuote(symbol);
+
+  // Keep livePrice as state — populated from context (live) or prop (initial)
   const [livePrice,    setLivePrice]    = useState(initPrice);
-  const [loadingPrice, setLoadingPrice] = useState(false);
+  const [loadingPrice, setLoadingPrice] = useState(true);
   const livePriceRef = useRef(initPrice);
   useEffect(() => { livePriceRef.current = livePrice; }, [livePrice]);
+
+  // Subscribe/unsubscribe when symbol changes
+  useEffect(() => {
+    if (!lqCtx || !symbol) return;
+    setLoadingPrice(true);
+    lqCtx.subscribe([symbol]);
+    return () => lqCtx.unsubscribe([symbol]);
+  }, [symbol, lqCtx]);
+
+  // Sync live context price → local state (updates continuously from WS)
+  useEffect(() => {
+    if (ctxPrice != null) {
+      setLivePrice(ctxPrice);
+      setLoadingPrice(false);
+    }
+  }, [ctxPrice]);
+
+  // Also accept initial price prop from parent
+  useEffect(() => { if (initPrice && livePrice == null) setLivePrice(initPrice); }, [initPrice]);
 
   /* ── Form state ──────────────────────────────────────────── */
   const [inputVal,  setInputVal]  = useState('');
@@ -87,19 +113,6 @@ export default function QuickAlert({
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  /* ── Fetch price when symbol changes ─────────────────────── */
-  useEffect(() => {
-    setLoadingPrice(true);
-    setLivePrice(null);
-    fetchLivePrice(symbol)
-      .then(p  => { if (p) setLivePrice(p); })
-      .catch(() => {})
-      .finally(() => setLoadingPrice(false));
-  }, [symbol]);
-
-  /* sync prop price */
-  useEffect(() => { if (initPrice) setLivePrice(initPrice); }, [initPrice]);
 
   /* ── Step (hold-repeat, 380ms delay → 70ms interval) ────── */
   const doStep = useCallback((dir) => {

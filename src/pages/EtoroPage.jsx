@@ -1,27 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import RobotNavTabs from '../components/RobotNavTabs';
 import './EtoroPage.css';
-
-// Fetch live prices for TOP3 symbols
-async function fetchLivePrices() {
-  const prices = {};
-  try {
-    // BTC via Binance
-    const btcR = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
-    const btcD = await btcR.json();
-    prices['BTC'] = { price: parseFloat(btcD.lastPrice), change: parseFloat(btcD.priceChangePercent) };
-  } catch {}
-  try {
-    // NVDA and GOOGL via Yahoo proxy
-    const [nvda, googl] = await Promise.all([
-      fetch('/api/market?symbol=NVDA').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-      fetch('/api/market?symbol=GOOGL').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-    ]);
-    if (nvda.price)  prices['NVDA']  = { price: nvda.price,  change: nvda.changePercent  ?? 0 };
-    if (googl.price) prices['GOOGL'] = { price: googl.price, change: googl.changePercent ?? 0 };
-  } catch {}
-  return prices;
-}
+import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 
 const TOP3 = [
   {
@@ -134,14 +114,25 @@ function RiskDots({ risk }) {
 
 export default function EtoroPage({ navigate }) {
   const [openTrader, setOpenTrader] = useState(null);
-  const [livePrices, setLivePrices] = useState({});
-  const [pricesLoaded, setPricesLoaded] = useState(false);
+
+  const lqCtx = useContext(LiveQuoteContext);
+  const { price: btcPrice,   change: btcChange   } = useQuote('BTC');
+  const { price: nvdaPrice,  change: nvdaChange  } = useQuote('NVDA');
+  const { price: googlPrice, change: googlChange } = useQuote('GOOGL');
 
   useEffect(() => {
-    fetchLivePrices().then(p => { setLivePrices(p); setPricesLoaded(true); });
-    const iv = setInterval(() => fetchLivePrices().then(setLivePrices), 30000);
-    return () => clearInterval(iv);
-  }, []);
+    if (!lqCtx) return;
+    lqCtx.subscribe(['BTC', 'NVDA', 'GOOGL']);
+    return () => lqCtx.unsubscribe(['BTC', 'NVDA', 'GOOGL']);
+  }, [lqCtx]);
+
+  // Build livePrices map — same shape as before so rest of JSX unchanged
+  const livePrices = {
+    BTC:   btcPrice   != null ? { price: btcPrice,   change: btcChange   ?? 0 } : null,
+    NVDA:  nvdaPrice  != null ? { price: nvdaPrice,  change: nvdaChange  ?? 0 } : null,
+    GOOGL: googlPrice != null ? { price: googlPrice, change: googlChange ?? 0 } : null,
+  };
+  const pricesLoaded = Object.values(livePrices).some(v => v != null);
 
   return (
     <div className="et-wrap">
