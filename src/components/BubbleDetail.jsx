@@ -11,6 +11,7 @@ const PERIODS = [
   { id: '1d', label: '1D' },
   { id: '1w', label: '1W' },
   { id: '1m', label: '1M' },
+  { id: '1y', label: '1Y' },
 ];
 
 /* ── Chart drawing on canvas ───────────────────────────────── */
@@ -106,7 +107,7 @@ export default function BubbleDetail({ bubble, asset, coinsData, onClose }) {
   const [periodPcts,  setPeriodPcts]  = useState({});  // {1h, 1d, 1w, 1m}
   const [loading,   setLoading]   = useState(true);
 
-  /* Get static % changes from already-loaded coin data */
+  /* Get static % changes from already-loaded data */
   const staticChanges = useCallback(() => {
     if (asset === 'crypto' && coinsData) {
       const c = coinsData.find(x => x.id === bubble.id);
@@ -115,6 +116,17 @@ export default function BubbleDetail({ bubble, asset, coinsData, onClose }) {
         '1d': c.price_change_percentage_24h,
         '1w': c.price_change_percentage_7d_in_currency,
         '1m': c.price_change_percentage_30d_in_currency,
+        '1y': c.price_change_percentage_1y_in_currency,
+      };
+    }
+    if (asset === 'stocks') {
+      // נתוני תקופות ישירות מהבועה (TradingView)
+      return {
+        '1h': bubble.pct_1d ?? bubble.pct,   // TV אין 1H — משתמשים ב-1D
+        '1d': bubble.pct_1d ?? bubble.pct,
+        '1w': bubble.pct_1w ?? null,
+        '1m': bubble.pct_1m ?? null,
+        '1y': bubble.pct_1y ?? null,
       };
     }
     return { '1d': bubble.pct };
@@ -127,7 +139,7 @@ export default function BubbleDetail({ bubble, asset, coinsData, onClose }) {
     setChartPrices(null);
 
     if (asset === 'crypto') {
-      const daysMap = { '1h': 0.042, '1d': 1, '1w': 7, '1m': 30 };
+      const daysMap = { '1h': 0.042, '1d': 1, '1w': 7, '1m': 30, '1y': 365 };
       const days = daysMap[period] || 1;
       fetch(
         `https://api.coingecko.com/api/v3/coins/${bubble.id}/market_chart` +
@@ -185,10 +197,10 @@ export default function BubbleDetail({ bubble, asset, coinsData, onClose }) {
         {/* Header: symbol + close */}
         <div className="bd-hdr">
           <div className="bd-hdr-left">
-            <span className="bd-sym">${bubble.symbol}</span>
             {bubble.name && bubble.name !== bubble.symbol && (
               <span className="bd-name">{bubble.name}</span>
             )}
+            <span className="bd-sym">{bubble.symbol}</span>
           </div>
           <button className="bd-close" onClick={onClose}>✕</button>
         </div>

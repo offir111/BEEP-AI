@@ -17,13 +17,14 @@ const CRYPTO_TABS = [
   { id: '24h', label: '1D' },
   { id: '7d',  label: '1W' },
   { id: '30d', label: '1M' },
+  { id: '1y',  label: '1Y' },
 ];
-// Stock tabs (same display, map to stock-detail period IDs)
 const STOCK_TABS = [
   { id: '1h', label: '1H' },
   { id: '1d', label: '1D' },
   { id: '1w', label: '1W' },
   { id: '1m', label: '1M' },
+  { id: '1y', label: '1Y' },
 ];
 const CAP_OPTS = [
   { id: 'all',  label: 'הכל'  },
@@ -36,7 +37,17 @@ const CAP_OPTS = [
 const CRYPTO_URL =
   'https://api.coingecko.com/api/v3/coins/markets' +
   '?vs_currency=usd&order=market_cap_desc&per_page=50&page=1' +
-  '&sparkline=false&price_change_percentage=1h,24h,7d,30d';
+  '&sparkline=false&price_change_percentage=1h,24h,7d,30d,1y';
+
+// טווחי market cap לסינון קריפטו (זהה ל-stocks)
+const CAP_RANGES = {
+  'all':  { min: 0,              max: Infinity         },
+  '10m':  { min: 10_000_000,     max: 100_000_000      },
+  '100m': { min: 100_000_000,    max: 1_000_000_000    },
+  '1b':   { min: 1_000_000_000,  max: 5_000_000_000    },
+  '5b':   { min: 5_000_000_000,  max: 10_000_000_000   },
+  '10b':  { min: 10_000_000_000, max: Infinity         },
+};
 
 /* ── Data helpers ──────────────────────────────────────────── */
 function getTabPct(coin, tabId) {
@@ -44,6 +55,7 @@ function getTabPct(coin, tabId) {
     case '1h':  return coin.price_change_percentage_1h_in_currency  ?? 0;
     case '7d':  return coin.price_change_percentage_7d_in_currency  ?? 0;
     case '30d': return coin.price_change_percentage_30d_in_currency ?? 0;
+    case '1y':  return coin.price_change_percentage_1y_in_currency  ?? 0;
     default:    return coin.price_change_percentage_24h              ?? 0;
   }
 }
@@ -239,8 +251,9 @@ export default function BubbleChart({ onManualSearch, onClose }) {
   const hoveredIdRef  = useRef(null);   // id of bubble under pointer
   const selectedIdRef = useRef(null);   // id of bubble clicked (for canvas draw)
 
-  const [cryptoStatus, setCryptoStatus] = useState('idle');
-  const [stocksStatus, setStocksStatus] = useState('idle');
+  const [cryptoStatus,  setCryptoStatus]  = useState('idle');
+  const [stocksStatus,  setStocksStatus]  = useState('idle');
+  const [cryptoRetryTrigger, setCryptoRetryTrigger] = useState(0);
 
   /* ── canvas sync ─────────────────────────────────────────── */
   const syncCanvas = useCallback(() => {
@@ -258,7 +271,16 @@ export default function BubbleChart({ onManualSearch, onClose }) {
     if (assetRef.current === 'crypto') {
       const coins = cryptoCoinsRef.current;
       if (!coins.length) return;
-      const items = coins.map(c => ({
+      // סינון לפי market cap (זהה למניות)
+      const capRange = CAP_RANGES[capRef.current] || CAP_RANGES['all'];
+      const filtered = capRange.min > 0
+        ? coins.filter(c => {
+            const mc = c.market_cap || 0;
+            return mc >= capRange.min && (capRange.max === Infinity || mc < capRange.max);
+          })
+        : coins;
+      const pool = filtered.length > 0 ? filtered : coins;
+      const items = pool.map(c => ({
         id: c.id, symbol: c.symbol.toUpperCase(), name: c.name,
         pct: getTabPct(c, tabRef.current),
         market_cap: c.market_cap || 1,
@@ -275,6 +297,11 @@ export default function BubbleChart({ onManualSearch, onClose }) {
         market_cap: s.market_cap || 1,
         price:  s.price,
         volume: s.volume,
+        // כל תקופות — לשימוש ב-BubbleDetail
+        pct_1d: s.pct_1d ?? s.change_pct,
+        pct_1w: s.pct_1w ?? null,
+        pct_1m: s.pct_1m ?? null,
+        pct_1y: s.pct_1y ?? null,
       }));
       bubblesRef.current = makeBubbles(items, w, h, showAllRef.current);
     }
@@ -282,7 +309,8 @@ export default function BubbleChart({ onManualSearch, onClose }) {
 
   /* ── fetch crypto ─────────────────────────────────────────── */
   useEffect(() => {
-    if (cryptoCoinsRef.current.length) return;
+    // אם יש נתונים (לא retry) — דלג
+    if (cryptoCoinsRef.current.length > 0) return;
     setCryptoStatus('loading');
     fetch(CRYPTO_URL)
       .then(r => { if (!r.ok) throw r.status; return r.json(); })
@@ -300,12 +328,12 @@ export default function BubbleChart({ onManualSearch, onClose }) {
         requestAnimationFrame(() => rebuildBubbles());
       })
       .catch(() => setCryptoStatus('error'));
-  }, [rebuildBubbles]);
+  }, [rebuildBubbles, cryptoRetryTrigger]);
 
   /* ── fetch stocks ─────────────────────────────────────────── */
-  const fetchStocks = useCallback((cap) => {
+  const fetchStocks = useCallback((cap, period = '1d') => {
     setStocksStatus('loading');
-    fetch(`/api/tv-screener?cap=${cap}`)
+    fetch(`/api/tv-screener?cap=${cap}&period=${period}`)
       .then(r => { if (!r.ok) throw r.status; return r.json(); })
       .then(data => {
         if (!data.quotes?.length) throw new Error('empty');
@@ -330,35 +358,48 @@ export default function BubbleChart({ onManualSearch, onClose }) {
     assetRef.current = a;
     setAsset(a);
     if (a === 'stocks' && !stocksRef.current.length) {
-      fetchStocks(capRef.current);
+      fetchStocks(capRef.current, tabRef.current);
     } else {
       requestAnimationFrame(() => { rebuildBubbles(); kickBubbles(); });
     }
   }, [fetchStocks, rebuildBubbles, kickBubbles]);
 
-  /* ── tab (crypto) ─────────────────────────────────────────── */
+  /* ── tab (crypto + stocks) ────────────────────────────────── */
   const handleTab = useCallback((id) => {
     tabRef.current = id;
     setActiveTab(id);
-    const coins = cryptoCoinsRef.current;
-    const updated = bubblesRef.current.map(b => {
-      const coin = coins.find(c => c.id === b.id);
-      return { ...b, pct: coin ? getTabPct(coin, id) : b.pct };
-    });
-    const maxAbsPct = Math.max(...updated.map(b => Math.abs(b.pct)), 0.1);
-    bubblesRef.current = updated.map(b => ({
-      ...b,
-      colorN: Math.max(0.2, Math.min(1.0, Math.abs(b.pct) / maxAbsPct)),
-    }));
-    kickBubbles();
-  }, [kickBubbles]);
+    if (assetRef.current === 'crypto') {
+      // קריפטו: עדכון מקומי מהנתונים שכבר בזיכרון
+      const coins = cryptoCoinsRef.current;
+      const updated = bubblesRef.current.map(b => {
+        const coin = coins.find(c => c.id === b.id);
+        return { ...b, pct: coin ? getTabPct(coin, id) : b.pct };
+      });
+      const maxAbsPct = Math.max(...updated.map(b => Math.abs(b.pct)), 0.1);
+      bubblesRef.current = updated.map(b => ({
+        ...b,
+        colorN: Math.max(0.2, Math.min(1.0, Math.abs(b.pct) / maxAbsPct)),
+      }));
+      kickBubbles();
+    } else {
+      // מניות: טעינה מחדש עם ה-period החדש
+      stocksRef.current = [];
+      fetchStocks(capRef.current, id);
+    }
+  }, [kickBubbles, fetchStocks]);
 
-  /* ── cap filter (stocks) ──────────────────────────────────── */
+  /* ── cap filter (stocks + crypto) ────────────────────────── */
   const handleCap = useCallback((id) => {
     capRef.current = id;
     setCapFilter(id);
-    fetchStocks(id);
-  }, [fetchStocks]);
+    if (assetRef.current === 'stocks') {
+      fetchStocks(id, tabRef.current);
+    } else {
+      // קריפטו: סינון מקומי מנתונים קיימים
+      rebuildBubbles();
+      kickBubbles();
+    }
+  }, [fetchStocks, rebuildBubbles, kickBubbles]);
 
   /* ── count toggle ─────────────────────────────────────────── */
   const handleToggle = useCallback(() => {
@@ -637,9 +678,15 @@ export default function BubbleChart({ onManualSearch, onClose }) {
         {curStatus === 'error' && (
           <div className="bc-state bc-state--err">
             <span>⚠ שגיאה בטעינה</span>
-            <button onClick={() =>
-              asset === 'crypto' ? window.location.reload() : fetchStocks(capRef.current)
-            }>נסה שוב</button>
+            <button onClick={() => {
+              if (asset === 'crypto') {
+                cryptoCoinsRef.current = [];
+                setCryptoStatus('idle');
+                setCryptoRetryTrigger(n => n + 1);
+              } else {
+                fetchStocks(capRef.current, tabRef.current);
+              }
+            }}>נסה שוב</button>
           </div>
         )}
 
@@ -668,7 +715,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
       <div className="bc-footer">
         <span className="bc-live-dot">● LIVE</span>
         <span className="bc-credit">
-          {asset === 'crypto' ? 'CoinGecko' : 'TradingView'}
+          {asset === 'crypto' ? 'CoinGecko' : 'TradingView · זמן אמת'}
         </span>
         <button className="bc-manual-btn" onClick={onManualSearch}>
           🔍 סריקה ידנית
