@@ -305,7 +305,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
   /* ── fetch stocks ─────────────────────────────────────────── */
   const fetchStocks = useCallback((cap) => {
     setStocksStatus('loading');
-    fetch(`/api/gainers?cap=${cap}`)
+    fetch(`/api/tv-screener?cap=${cap}`)
       .then(r => { if (!r.ok) throw r.status; return r.json(); })
       .then(data => {
         if (!data.quotes?.length) throw new Error('empty');
@@ -631,7 +631,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
         {curStatus === 'loading' && (
           <div className="bc-state">
             <div className="bc-spinner" />
-            <span>{asset === 'crypto' ? 'טוען קריפטו...' : 'טוען Top Gainers...'}</span>
+            <span>{asset === 'crypto' ? 'טוען קריפטו...' : 'טוען מניות...'}</span>
           </div>
         )}
         {curStatus === 'error' && (
@@ -668,7 +668,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
       <div className="bc-footer">
         <span className="bc-live-dot">● LIVE</span>
         <span className="bc-credit">
-          {asset === 'crypto' ? 'CoinGecko' : 'Yahoo Finance'}
+          {asset === 'crypto' ? 'CoinGecko' : 'TradingView'}
         </span>
         <button className="bc-manual-btn" onClick={onManualSearch}>
           🔍 סריקה ידנית
