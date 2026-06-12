@@ -110,6 +110,38 @@
 }
 .hp-market-strip::-webkit-scrollbar { display: none; }
 
+/* גרפים pill-button in market strip */
+.hp-charts-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(99,102,241,0.12);
+  border: 1px solid rgba(99,102,241,0.35);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.hp-charts-pill:hover {
+  background: rgba(99,102,241,0.22);
+  border-color: rgba(99,102,241,0.6);
+  transform: translateY(-1px);
+}
+.hp-charts-pill .hp-pill-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.hp-charts-pill-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 .hp-pill {
   display: flex;
   flex-direction: column;
@@ -290,6 +322,181 @@
   background: rgba(255,255,255,0.07);
   border-color: rgba(255,255,255,0.15);
   transform: translateY(-2px);
+}
+
+/* ── Stock section ───────────────────────────────────────────── */
+.hp-stock-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hp-stock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.hp-stock-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hp-stock-edit-toggle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(168,85,247,0.3);
+  background: rgba(168,85,247,0.08);
+  color: rgba(255,255,255,0.45);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hp-stock-edit-toggle.--active {
+  background: rgba(99,102,241,0.25);
+  border-color: #6366f1;
+  color: #c7d2fe;
+}
+
+/* ── Grid ── */
+.hp-stock-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+/* ── Base button ── */
+.hp-stock-btn {
+  position: relative;
+  padding: 11px 6px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(168,85,247,0.22);
+  color: rgba(255,255,255,0.75);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s, color 0.15s;
+  letter-spacing: 0.03em;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+.hp-stock-btn:hover {
+  background: rgba(168,85,247,0.14);
+  border-color: rgba(168,85,247,0.45);
+  color: #e9d5ff;
+  transform: translateY(-1px);
+}
+.hp-stock-btn.--active {
+  background: rgba(99,102,241,0.22);
+  border-color: #6366f1;
+  color: #c7d2fe;
+  box-shadow: 0 0 12px rgba(99,102,241,0.28);
+}
+.hp-stock-btn.--edit-mode {
+  border-color: rgba(168,85,247,0.45);
+  background: rgba(168,85,247,0.1);
+}
+.hp-stock-btn.--empty {
+  color: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.07);
+  cursor: default;
+}
+
+/* BTC fixed — same look as regular, no special color */
+.hp-stock-btn--fixed {
+  /* inherits .hp-stock-btn */
+}
+
+/* Last searched — same look as regular */
+.hp-stock-btn--last {
+  font-size: 0.75rem;
+}
+.hp-stock-last-badge {
+  font-size: 0.55rem;
+  margin-right: 2px;
+  opacity: 0.45;
+}
+
+/* ── Active state: subtle gold border ONLY, no fill ── */
+.hp-stock-btn.--active,
+.hp-stock-btn--fixed.--active,
+.hp-stock-btn--last.--active {
+  background: rgba(255,255,255,0.04);   /* same as default */
+  border-color: rgba(212,175,55,0.7);   /* gold border */
+  color: rgba(255,255,255,0.9);
+  box-shadow: 0 0 0 1px rgba(212,175,55,0.25);
+}
+
+/* symbol + % layout inside button */
+.hp-stock-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.hp-stock-sym {
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.hp-stock-pct {
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+/* pencil icon in edit mode */
+.hp-stock-pencil {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: 0.55rem;
+  opacity: 0.55;
+}
+
+/* ── Edit cell ── */
+.hp-stock-edit-wrap {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(99,102,241,0.18);
+  border: 1px solid #6366f1;
+  border-radius: 12px;
+  padding: 6px 7px;
+}
+.hp-stock-edit-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #c7d2fe;
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-family: inherit;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+.hp-stock-edit-input::placeholder { color: rgba(255,255,255,0.25); }
+.hp-stock-edit-ok {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #4ade80;
+  padding: 0 2px;
+  flex-shrink: 0;
 }
 
 /* ── Mobile ── */

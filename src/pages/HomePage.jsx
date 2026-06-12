@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAlerts } from '../context/AlertsContext';
-import BitcoinCandleWidget from '../components/BitcoinCandleWidget';
+import ScannerWidget  from '../components/ScannerWidget';
 import MiniChartPanel from '../components/MiniChartPanel';
 import './HomePage.css';
 
-// ── Live BTC ticker ────────────────────────────────────────────
+// ── Live BTC ticker (for market strip flash only) ──────────────
 function useBTC() {
   const [btc, setBtc] = useState(null);
   const [btcError, setBtcError] = useState(false);
@@ -120,23 +120,222 @@ function RobotCard({ icon, name, desc, tag, tagColor, onClick }) {
   );
 }
 
+// ── Stock buttons ──────────────────────────────────────────────
+// Layout (4 cols × 2 rows):
+//   [edit0] [edit1] [edit2] [BTC-fixed]
+//   [edit3] [edit4] [edit5] [last-searched]
+// ──────────────────────────────────────────────────────────────
+const DEFAULT_EDITABLE = ['S&P','SOL','ETH','GOLD','QQQ','AAPL'];
+const LS_SYMBOL_KEY    = 'beepai_chart_sym';
+const LS_LAST_KEY      = 'beepai_last_searched';
+const LS_EDITABLE_KEY  = 'beepai_editable_slots';
+
+const CRYPTO_SET = new Set(['BTC','ETH','SOL','BNB','XRP','ADA','DOT','AVAX','MATIC','LINK','DOGE','LTC','ATOM','RIOT','HUT','MARA','CLSK','BSOL']);
+const STOCK_API  = { 'S&P':'^GSPC','SP500':'^GSPC','GOLD':'XAUUSD=X','SILVER':'XAGUSD=X','OIL':'CL=F' };
+function toApiSym(s) { return STOCK_API[s.toUpperCase()] || s; }
+
+/* hook: fetch % change for a list of symbols, refresh every 30s */
+function useChanges(symbols) {
+  const [ch, setCh] = useState({});
+  const key = useMemo(() => symbols.filter(Boolean).join(','), [symbols]);
+
+  useEffect(() => {
+    if (!key) return;
+    const syms   = key.split(',').filter(Boolean);
+    const crypto = syms.filter(s => CRYPTO_SET.has(s.toUpperCase()));
+    const stocks = syms.filter(s => !CRYPTO_SET.has(s.toUpperCase()));
+
+    const fetchAll = () => {
+      if (crypto.length) {
+        const pairs = JSON.stringify(crypto.map(s => s.toUpperCase() + 'USDT'));
+        fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(pairs)}`)
+          .then(r => r.json())
+          .then(arr => {
+            if (!Array.isArray(arr)) return;
+            const u = {};
+            arr.forEach(t => { u[t.symbol.replace('USDT','')] = parseFloat(t.priceChangePercent); });
+            setCh(p => ({...p,...u}));
+          }).catch(()=>{});
+      }
+      stocks.forEach(sym => {
+        fetch(`/api/market?symbol=${encodeURIComponent(toApiSym(sym))}`)
+          .then(r => r.json())
+          .then(d => { if (d.changePercent != null) setCh(p => ({...p,[sym.toUpperCase()]:+d.changePercent})); })
+          .catch(()=>{});
+      });
+    };
+
+    fetchAll();
+    const iv = setInterval(fetchAll, 30000);
+    return () => clearInterval(iv);
+  }, [key]);
+
+  return ch;
+}
+
+/* small inline % badge */
+function Pct({ sym, changes }) {
+  const v = changes[sym?.toUpperCase()];
+  if (v == null) return null;
+  const up = v >= 0;
+  return (
+    <span className="hp-stock-pct" style={{ color: up ? '#4ade80' : '#f87171' }}>
+      {up ? '+' : ''}{v.toFixed(1)}%
+    </span>
+  );
+}
+
+function loadEditable() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_EDITABLE_KEY));
+    if (Array.isArray(s) && s.length === 6) return s;
+  } catch {}
+  return [...DEFAULT_EDITABLE];
+}
+
+function StockButtons({ selected, onSelect }) {
+  const [slots,      setSlots]      = useState(loadEditable);
+  const [editMode,   setEditMode]   = useState(false);
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [editVal,    setEditVal]    = useState('');
+  const editInputRef = useRef(null);
+
+  const lastSearched = localStorage.getItem(LS_LAST_KEY) || '';
+
+  /* all 8 visible symbols for % fetch */
+  const allSyms = useMemo(() => ['BTC', ...slots, lastSearched].filter(Boolean), [slots, lastSearched]);
+  const changes = useChanges(allSyms);
+
+  useEffect(() => {
+    if (editingIdx !== null) setTimeout(() => editInputRef.current?.focus(), 60);
+  }, [editingIdx]);
+
+  const saveSlots = (next) => { setSlots(next); localStorage.setItem(LS_EDITABLE_KEY, JSON.stringify(next)); };
+  const openEdit  = (i)    => { setEditingIdx(i); setEditVal(slots[i]); };
+  const commitEdit = () => {
+    const sym = editVal.trim().toUpperCase();
+    if (sym && editingIdx !== null) { const n=[...slots]; n[editingIdx]=sym; saveSlots(n); }
+    setEditingIdx(null); setEditVal('');
+  };
+  const exitEditMode = () => { setEditMode(false); setEditingIdx(null); setEditVal(''); };
+
+  // RTL grid — first = visual right
+  // Row1: [BTC] [edit0] [edit1] [edit2]
+  // Row2: [last][edit3] [edit4] [edit5]
+  const cells = [
+    { type:'fixed', sym:'BTC' },
+    { type:'edit', idx:0 },
+    { type:'edit', idx:1 },
+    { type:'edit', idx:2 },
+    { type:'last' },
+    { type:'edit', idx:3 },
+    { type:'edit', idx:4 },
+    { type:'edit', idx:5 },
+  ];
+
+  return (
+    <div className="hp-stock-section">
+      <div className="hp-stock-header">
+        <span className="hp-stock-title">מניות מהירות</span>
+        <button
+          className={`hp-stock-edit-toggle${editMode ? ' --active' : ''}`}
+          onClick={() => editMode ? exitEditMode() : setEditMode(true)}
+        >
+          {editMode ? '✓ סיום' : '✏ עריכה'}
+        </button>
+      </div>
+
+      <div className="hp-stock-grid">
+        {cells.map((cell, pos) => {
+          /* ── BTC fixed ── */
+          if (cell.type === 'fixed') return (
+            <button key="btc"
+              className={`hp-stock-btn hp-stock-btn--fixed${'BTC' === selected ? ' --active' : ''}`}
+              onClick={() => onSelect('BTC')}
+            >
+              <span className="hp-stock-sym">BTC</span>
+              <Pct sym="BTC" changes={changes} />
+            </button>
+          );
+
+          /* ── Last searched ── */
+          if (cell.type === 'last') {
+            const sym   = lastSearched || '';
+            const empty = !sym;
+            return (
+              <button key="last"
+                className={`hp-stock-btn hp-stock-btn--last${!empty && sym===selected ? ' --active' : ''}${empty ? ' --empty' : ''}`}
+                onClick={() => !empty && onSelect(sym)}
+                disabled={empty}
+                title="מניה אחרונה שחיפשת"
+              >
+                {empty ? '—' : <><span className="hp-stock-sym">{sym}</span><Pct sym={sym} changes={changes} /></>}
+              </button>
+            );
+          }
+
+          /* ── Editable slot ── */
+          const i   = cell.idx;
+          const sym = slots[i];
+          const isEditing = editMode && editingIdx === i;
+
+          if (isEditing) return (
+            <div key={i} className="hp-stock-edit-wrap">
+              <input
+                ref={editInputRef}
+                className="hp-stock-edit-input"
+                value={editVal}
+                onChange={e => setEditVal(e.target.value.toUpperCase())}
+                onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingIdx(null); }}
+                maxLength={8}
+                placeholder={sym}
+              />
+              <button className="hp-stock-edit-ok" onClick={commitEdit}>✓</button>
+            </div>
+          );
+
+          return (
+            <button key={i}
+              className={`hp-stock-btn${sym === selected ? ' --active' : ''}${editMode ? ' --edit-mode' : ''}`}
+              onClick={() => editMode ? openEdit(i) : onSelect(sym)}
+            >
+              <span className="hp-stock-sym">{sym}</span>
+              {!editMode && <Pct sym={sym} changes={changes} />}
+              {editMode && <span className="hp-stock-pencil">✏</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────
 export default function HomePage({ navigate }) {
   const { btc, btcError, flash } = useBTC();
   const { alerts } = useAlerts();
   const activeAlerts = alerts.filter(a => !a.triggered).length;
-  const up = btc ? btc.change >= 0 : true;
 
-  /* Ball animation settled → reveal big price */
-  const [priceVisible, setPriceVisible] = useState(false);
+  /* Selected chart symbol — persisted */
+  const [chartSymbol, setChartSymbol] = useState(
+    () => localStorage.getItem(LS_SYMBOL_KEY) || 'BTC'
+  );
 
-  const fmt = (n) => n >= 1000 ? n.toLocaleString('en', { maximumFractionDigits: 0 }) : n.toFixed(2);
+  const handleSymbolSelect = (sym) => {
+    setChartSymbol(sym);
+    localStorage.setItem(LS_SYMBOL_KEY, sym);
+  };
+
+  const handleSearch = (sym) => {
+    localStorage.setItem(LS_LAST_KEY, sym);
+    handleSymbolSelect(sym);
+  };
 
   return (
     <div className="hp-wrap" dir="rtl">
 
-      {/* ── Mini chart panel (TradingView BTC — click to open full chart) ── */}
-      <MiniChartPanel navigate={navigate} />
+      {/* ── Mini chart panel — symbol changes on button click ── */}
+      <MiniChartPanel navigate={navigate} symbol={chartSymbol} />
 
       {/* ── Market strip ── */}
       <div className="hp-market-strip">
@@ -145,53 +344,18 @@ export default function HomePage({ navigate }) {
         <MarketPill symbol="ETH-USD"  label="ETH" />
         <MarketPill symbol="SOL-USD"  label="SOL" />
         <FearGreedMini />
+        {/* גרפים button — opens full chart page */}
+        <button className="hp-charts-pill" onClick={() => navigate('charts')}>
+          <span className="hp-pill-label">גרפים</span>
+          <span className="hp-charts-pill-icon">📈</span>
+        </button>
       </div>
 
-      {/* ── BTC Hero ── */}
-      <div
-        className={`hp-btc-hero${flash === 'up' ? ' hp-flash-up' : flash === 'down' ? ' hp-flash-down' : ''}`}
-        style={{ position: 'relative' }}
-      >
-        {/* Big price — hidden until ball settles */}
-        <div
-          className="hp-btc-left"
-          style={{
-            opacity: priceVisible ? 1 : 0,
-            transition: 'opacity 0.9s ease',
-            pointerEvents: priceVisible ? 'auto' : 'none',
-          }}
-        >
-          <div className="hp-btc-badge">
-            <span className="hp-btc-dot" />
-            LIVE
-          </div>
-          <div className="hp-btc-symbol">₿ Bitcoin</div>
-          <div className="hp-btc-price">
-            {btcError
-            ? <span className="hp-btc-err">⚠ שגיאת חיבור</span>
-            : btc ? `$${fmt(btc.price)}` : <span className="hp-btc-loading">טוען…</span>
-          }
-          </div>
-          {btc && (
-            <div className="hp-btc-change" style={{ color: up ? '#4ade80' : '#f87171' }}>
-              {up ? '▲' : '▼'} {Math.abs(btc.change).toFixed(2)}% — 24H
-            </div>
-          )}
-          {btc && (
-            <div className="hp-btc-hl">
-              <span style={{ color: '#4ade80' }}>H ${fmt(btc.high)}</span>
-              <span style={{ color: '#f87171' }}>  L ${fmt(btc.low)}</span>
-            </div>
-          )}
-        </div>
+      {/* ── SOT Scanner Widget (replaces BTC hero) ── */}
+      <ScannerWidget onSearch={handleSearch} />
 
-        {/* Ball animation — absolute overlay, travels full hero width */}
-        <BitcoinCandleWidget
-          btc={btc}
-          navigate={navigate}
-          onSettled={() => setPriceVisible(true)}
-        />
-      </div>
+      {/* ── 12 Stock buttons ── */}
+      <StockButtons selected={chartSymbol} onSelect={handleSymbolSelect} />
 
       {/* ── 2 Feature cards ── */}
       <div className="hp-features">
