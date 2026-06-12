@@ -1,0 +1,82 @@
+/* ── Flash keyframes ──────────────────────────────────────────────────────── */
+@keyframes lp-flash-up {
+  0%   { color: #4ade80; }
+  100% { color: inherit; }
+}
+
+@keyframes lp-flash-down {
+  0%   { color: #f87171; }
+  100% { color: inherit; }
+}
+
+/* ── Flash utility classes ─────────────────────────────────────────────────── */
+.lp-flash-up {
+  animation: lp-flash-up 0.7s ease;
+}
+
+.lp-flash-down {
+  animation: lp-flash-down 0.7s ease;
+}
+
+/* ── Root wrapper ──────────────────────────────────────────────────────────── */
+.lp-root {
+  display:     inline-flex;
+  align-items: baseline;
+  gap:         0.35em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* ── Price ─────────────────────────────────────────────────────────────────── */
+.lp-price {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.lp-prefix {
+  font-weight: 400;
+  opacity:     0.75;
+  margin-right: 0.05em;
+}
+
+.lp-loading {
+  opacity: 0.4;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+/* ── Change % ──────────────────────────────────────────────────────────────── */
+.lp-change {
+  font-size:          0.85em;
+  font-variant-numeric: tabular-nums;
+  font-weight:        500;
+}
+
+.lp-change--up {
+  color: #4ade80;
+}
+
+.lp-change--down {
+  color: #f87171;
+}
+
+/* ── High / Low ────────────────────────────────────────────────────────────── */
+.lp-hl {
+  display:     inline-flex;
+  align-items: baseline;
+  gap:         0.25em;
+  font-size:   0.78em;
+  opacity:     0.7;
+}
+
+.lp-high {
+  color: #4ade80;
+}
+
+.lp-low {
+  color: #f87171;
+}
+
+.lp-sep {
+  opacity: 0.5;
+}

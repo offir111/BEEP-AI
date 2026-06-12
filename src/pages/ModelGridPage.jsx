@@ -3,11 +3,12 @@
  *
  * Grid bot dashboard — מבנה זהה ל-ModelBitPage.
  * נתונים מ-GitHub (portfolio.json + grid_state.json).
- * BTC live מ-Binance כל 15 שניות.
+ * BTC live מ-LiveQuoteContext (WebSocket).
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import IframeWithFallback from '../components/IframeWithFallback';
 import RobotNavTabs from '../components/RobotNavTabs';
+import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import './ModelGridPage.css';
 
 const PORTFOLIO_URL  = 'https://raw.githubusercontent.com/offir111/model-grid/master/data/portfolio.json';
@@ -48,10 +49,16 @@ function GridBar({ levels = [] }) {
 }
 
 export default function ModelGridPage({ navigate }) {
-  // BTC price
-  const [btc,     setBtc]     = useState(null);
-  const [flash,   setFlash]   = useState(null);
-  const [btcErr,  setBtcErr]  = useState(false);
+  // BTC live price — from centralized LiveQuoteContext
+  const lqCtx = useContext(LiveQuoteContext);
+  const { price: btcPrice, change: btcChange, high: btcHigh, low: btcLow, flash } = useQuote('BTC');
+  const btc = btcPrice != null ? { price: btcPrice, change: btcChange, high: btcHigh, low: btcLow, vol: null } : null;
+  const btcErr = false;
+  useEffect(() => {
+    if (!lqCtx) return;
+    lqCtx.subscribe(['BTC']);
+    return () => lqCtx.unsubscribe(['BTC']);
+  }, [lqCtx]);
 
   // Portfolio data
   const [port,    setPort]    = useState(null);
@@ -64,37 +71,6 @@ export default function ModelGridPage({ navigate }) {
 
   // Tab: overview | levels | trades
   const [tab, setTab] = useState('overview');
-
-  const prevRef = useRef(null);
-
-  // ── BTC every 15s ──────────────────────────────────────────
-  const fetchBtc = useCallback(() => {
-    fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
-      .then(r => r.json())
-      .then(d => {
-        const p = parseFloat(d.lastPrice);
-        if (prevRef.current != null) {
-          setFlash(p > prevRef.current ? 'up' : p < prevRef.current ? 'down' : null);
-          setTimeout(() => setFlash(null), 700);
-        }
-        prevRef.current = p;
-        setBtc({
-          price: p,
-          change: parseFloat(d.priceChangePercent),
-          high: parseFloat(d.highPrice),
-          low:  parseFloat(d.lowPrice),
-          vol:  parseFloat(d.quoteVolume),
-        });
-        setBtcErr(false);
-      })
-      .catch(() => setBtcErr(true));
-  }, []);
-
-  useEffect(() => {
-    fetchBtc();
-    const iv = setInterval(fetchBtc, 15000);
-    return () => clearInterval(iv);
-  }, [fetchBtc]);
 
   // ── Portfolio & grid state ──────────────────────────────────
   const fetchData = useCallback(() => {
@@ -122,12 +98,10 @@ export default function ModelGridPage({ navigate }) {
     return () => clearInterval(iv);
   }, [fetchData]);
 
-  const up    = btc ? btc.change >= 0 : true;
+  const up    = btcChange != null ? btcChange >= 0 : true;
   const pnl   = port?.realized_pnl ?? 0;
   const apr   = port?.apr ?? 0;
-  const inRng = grid && btc
-    ? btc.price >= grid.lower && btc.price <= grid.upper
-    : null;
+  const inRng = grid && btcPrice != null ? btcPrice >= grid.lower && btcPrice <= grid.upper : null;
 
   // Filter log
   const trades = (port?.trade_log ?? []).slice(-30).reverse();
@@ -155,7 +129,7 @@ export default function ModelGridPage({ navigate }) {
           <div className="mg-btc-icon">₿</div>
           <div>
             <div className="mg-btc-label">Bitcoin / USDT</div>
-            <div className="mg-btc-sub">Binance Spot — עדכון כל 15 שניות</div>
+            <div className="mg-btc-sub">Binance WebSocket — עדכון בזמן אמת</div>
           </div>
           {inRng !== null && (
             <span className={`mg-range-badge ${inRng ? 'mg-range-badge--in' : 'mg-range-badge--out'}`}>
@@ -167,7 +141,7 @@ export default function ModelGridPage({ navigate }) {
         {!btc && !btcErr
           ? <Skeleton w="55%" h="48px" />
           : btcErr
-          ? <div className="mg-err" onClick={fetchBtc}>⚠ שגיאת חיבור — לחץ לנסות שוב</div>
+          ? <div className="mg-err">⚠ מתחבר...</div>
           : (
             <>
               <div className="mg-big-price">${fmt(btc.price, 0)}</div>
@@ -295,7 +269,7 @@ export default function ModelGridPage({ navigate }) {
                   </thead>
                   <tbody>
                     {[...grid.grid].reverse().map((lvl, i) => {
-                      const isCurrent = btc && btc.price >= lvl.buy && btc.price <= lvl.sell;
+                      const isCurrent = btcPrice != null && btcPrice >= lvl.buy && btcPrice <= lvl.sell;
                       return (
                         <tr key={i} className={isCurrent ? 'mg-row-current' : ''}>
                           <td className="mg-muted">{grid.grid.length - i}</td>

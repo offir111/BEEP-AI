@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import IframeWithFallback from '../components/IframeWithFallback';
 import RobotNavTabs from '../components/RobotNavTabs';
+import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import './ModelBitPage.css';
 
 const BOT_URL = 'https://oh-my-god-production.up.railway.app/api/modelbit/status';
@@ -24,43 +25,22 @@ function PnlBadge({ val }) {
 }
 
 export default function ModelBitPage({ navigate }) {
-  // BTC live price
-  const [btc,     setBtc]     = useState(null);
-  const [flash,   setFlash]   = useState(null);
-  const [btcErr,  setBtcErr]  = useState(false);
+  // BTC live price — from centralized LiveQuoteContext
+  const lqCtx = useContext(LiveQuoteContext);
+  const { price: btcPrice, change: btcChange, high: btcHigh, low: btcLow, flash } = useQuote('BTC');
+  const btc = btcPrice != null ? { price: btcPrice, change: btcChange, high: btcHigh, low: btcLow } : null;
+  const btcErr = false; // context auto-reconnects
+  useEffect(() => {
+    if (!lqCtx) return;
+    lqCtx.subscribe(['BTC']);
+    return () => lqCtx.unsubscribe(['BTC']);
+  }, [lqCtx]);
 
   // Bot data
   const [bot,     setBot]     = useState(null);
   const [botLoad, setBotLoad] = useState(true);
   const [botErr,  setBotErr]  = useState(false);
   const [isDemo,  setIsDemo]  = useState(false);
-
-  const prevRef = useRef(null);
-  const btcRef  = useRef(null);
-
-  // ── Fetch BTC every 15s ──
-  const fetchBtc = useCallback(() => {
-    fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
-      .then(r => r.json())
-      .then(d => {
-        const p = parseFloat(d.lastPrice);
-        if (prevRef.current != null) {
-          setFlash(p > prevRef.current ? 'up' : p < prevRef.current ? 'down' : null);
-          setTimeout(() => setFlash(null), 700);
-        }
-        prevRef.current = p;
-        setBtc({ price: p, change: parseFloat(d.priceChangePercent), high: parseFloat(d.highPrice), low: parseFloat(d.lowPrice), vol: parseFloat(d.quoteVolume) });
-        btcRef.current = p;
-        setBtcErr(false);
-      })
-      .catch(() => setBtcErr(true));
-  }, []);
-
-  useEffect(() => {
-    fetchBtc();
-    const iv = setInterval(fetchBtc, 15000);
-    return () => clearInterval(iv);
-  }, [fetchBtc]);
 
   // ── Fetch Bot status every 30s ──
   const fetchBot = useCallback(() => {
@@ -88,7 +68,7 @@ export default function ModelBitPage({ navigate }) {
     return () => clearInterval(iv);
   }, [fetchBot]);
 
-  const up = btc ? btc.change >= 0 : true;
+  const up = btcChange != null ? btcChange >= 0 : true;
 
   return (
     <div className="mb-wrap">
@@ -118,11 +98,11 @@ export default function ModelBitPage({ navigate }) {
           <div className="mb-btc-icon">₿</div>
           <div>
             <div className="mb-btc-label">Bitcoin / USDT</div>
-            <div className="mb-btc-sub">Binance Spot — עדכון כל 15 שניות</div>
+            <div className="mb-btc-sub">Binance WebSocket — עדכון בזמן אמת</div>
           </div>
         </div>
         {!btc && !btcErr ? <Skeleton w="55%" h="48px" /> :
-         btcErr ? <div className="mb-err" onClick={fetchBtc}>⚠ שגיאת חיבור — לחץ לנסות שוב</div> : (
+         btcErr ? <div className="mb-err">⚠ מתחבר...</div> : (
           <>
             <div className="mb-big-price">${fmt(btc.price)}</div>
             <div className="mb-change-row">
@@ -198,7 +178,7 @@ export default function ModelBitPage({ navigate }) {
                       <tr key={i}>
                         <td><span className={pos.type==='LONG'?'mb-type-long':'mb-type-short'}>{pos.type}</span></td>
                         <td>${fmt(pos.entry_price ?? pos.entry)}</td>
-                        <td>${fmt(btc?.price ?? pos.current_price)}</td>
+                        <td>${fmt(btcPrice ?? pos.current_price)}</td>
                         <td style={{color:'#ef4444'}}>${fmt(pos.stop_loss ?? pos.stop)}</td>
                         <td style={{color:'#4ade80'}}>${fmt(pos.target_price ?? pos.target)}</td>
                         <td><PnlBadge val={pos.pnl_pct ?? pos.pnl} /></td>

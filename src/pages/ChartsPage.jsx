@@ -1,9 +1,18 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useContext, useMemo } from 'react';
 import { useAlerts } from '../context/AlertsContext';
 import AlertLine          from '../components/AlertLine';
 import QuickAlert         from '../components/QuickAlert';
 import IframeWithFallback from '../components/IframeWithFallback';
+import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import './ChartsPage.css';
+
+/* Map a ChartsPage SYMBOLS entry → LiveQuoteContext symbol key */
+function toCtxSym(active) {
+  if (!active || active.isCustom) return null;
+  if (active.binance) return active.binance.replace('USDT', '');
+  const map = { 'GC=F': 'GOLD', 'XAUUSD=X': 'GOLD', 'XAGUSD=X': 'SILVER', '^GSPC': 'S&P' };
+  return map[active.priceApi] || active.priceApi;
+}
 
 const SYMBOLS = [
   { id:'BTCUSD',  label:'Bitcoin',   exchange:'BINANCE', binance:'BTCUSDT',  priceApi:'BTC'   },
@@ -65,12 +74,51 @@ export default function ChartsPage() {
   const [active,    setActive]    = useState(SYMBOLS[0]);
   const [interval,  setInterval]  = useState('D');
   const [showAlert, setShowAlert] = useState(false);
-  const [livePrice, setLivePrice] = useState(null);
   const containerRef = useRef(null);
   const searchWrapRef = useRef(null);
   const [containerH, setContainerH] = useState(480);
 
   const { query, results, loading, open, search, close, setOpen } = useSymbolSearch();
+
+  // ── Centralized live price via LiveQuoteContext ──────────────
+  const lqCtx   = useContext(LiveQuoteContext);
+  const ctxSym  = useMemo(() => toCtxSym(active), [active]);
+  const { price: ctxPrice } = useQuote(ctxSym);
+
+  useEffect(() => {
+    if (!lqCtx || !ctxSym) return;
+    lqCtx.subscribe([ctxSym]);
+    return () => lqCtx.unsubscribe([ctxSym]);
+  }, [ctxSym, lqCtx]);
+
+  // For custom (search-result) symbols: local fetch fallback
+  const [localPrice, setLocalPrice] = useState(null);
+  useEffect(() => {
+    setLocalPrice(null);
+    if (!active?.isCustom) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        let p = null;
+        if (active.binance) {
+          const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${active.binance}`);
+          const d = await r.json();
+          p = parseFloat(d.price);
+        } else {
+          const r = await fetch(`/api/market?symbol=${encodeURIComponent(active.priceApi)}`);
+          const d = await r.json();
+          p = d.price ? parseFloat(d.price) : null;
+        }
+        if (!cancelled && p) setLocalPrice(p);
+      } catch {}
+    };
+    poll();
+    const iv = setInterval(poll, 15000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, [active]);
+
+  // Unified live price: context (WebSocket/polling) or local fallback
+  const livePrice = ctxSym ? (ctxPrice ?? null) : localPrice;
 
   // Measure container height for alert lines
   useEffect(() => {
@@ -108,31 +156,6 @@ export default function ChartsPage() {
     setActive(custom);
     close();
   };
-
-  // Fetch live price for active symbol
-  useEffect(() => {
-    setLivePrice(null);
-    const s = active;
-    let cancelled = false;
-    const fetch_ = async () => {
-      try {
-        let p = null;
-        if (s.binance) {
-          const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${s.binance}`);
-          const d = await r.json();
-          p = parseFloat(d.price);
-        } else {
-          const r = await fetch(`/api/market?symbol=${encodeURIComponent(s.priceApi)}`);
-          const d = await r.json();
-          p = d.price;
-        }
-        if (!cancelled && p) setLivePrice(p);
-      } catch {}
-    };
-    fetch_();
-    const iv = setInterval(fetch_, 15000);
-    return () => { cancelled = true; clearInterval(iv); };
-  }, [active]);
 
   // Active non-triggered alerts for current symbol
   const activeShort = active.binance

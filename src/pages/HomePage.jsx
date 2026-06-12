@@ -1,79 +1,34 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import { useAlerts } from '../context/AlertsContext';
 import ScannerWidget  from '../components/ScannerWidget';
 import MiniChartPanel from '../components/MiniChartPanel';
+import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import './HomePage.css';
-
-// ── Live BTC ticker (for market strip flash only) ──────────────
-function useBTC() {
-  const [btc, setBtc] = useState(null);
-  const [btcError, setBtcError] = useState(false);
-  const [flash, setFlash] = useState(null);
-  const prevRef = useRef(null);
-
-  const fetch_ = useCallback(() => {
-    fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT')
-      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(d => {
-        const price  = parseFloat(d.lastPrice);
-        const change = parseFloat(d.priceChangePercent);
-        const high   = parseFloat(d.highPrice);
-        const low    = parseFloat(d.lowPrice);
-        if (prevRef.current !== null) {
-          if (price > prevRef.current) setFlash('up');
-          else if (price < prevRef.current) setFlash('down');
-          setTimeout(() => setFlash(null), 600);
-        }
-        prevRef.current = price;
-        setBtcError(false);
-        setBtc({ price, change, high, low });
-      })
-      .catch(() => setBtcError(true));
-  }, []);
-
-  useEffect(() => {
-    fetch_();
-    const iv = setInterval(fetch_, 15000);
-    return () => clearInterval(iv);
-  }, [fetch_]);
-
-  return { btc, btcError, flash };
-}
+import '../components/LivePrice.css';
 
 // ── Small market pill ─────────────────────────────────────────
-function MarketPill({ symbol, label, prefix = '$' }) {
-  const [price,   setPrice]   = useState(null);
-  const [change,  setChange]  = useState(null);
-  const [failed,  setFailed]  = useState(false);
-  const [retry,   setRetry]   = useState(0);
+function MarketPill({ sym, label, prefix = '$' }) {
+  const ctx = useContext(LiveQuoteContext);
+  const { price, change, flash } = useQuote(sym);
 
   useEffect(() => {
-    setFailed(false);
-    const timer = setTimeout(() => setFailed(true), 15000);
-    fetch(`/api/market?symbol=${encodeURIComponent(symbol)}`)
-      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(d => {
-        clearTimeout(timer);
-        if (d.price) { setPrice(d.price); setChange(d.changePercent ?? 0); setFailed(false); }
-        else setFailed(true);
-      })
-      .catch(() => { clearTimeout(timer); setFailed(true); });
-    return () => clearTimeout(timer);
-  }, [symbol, retry]);
+    ctx?.subscribe([sym]);
+    return () => ctx?.unsubscribe([sym]);
+  }, [sym, ctx]);
 
   const up = (change || 0) >= 0;
   return (
-    <div className="hp-pill" onClick={failed ? () => setRetry(r => r + 1) : undefined}
-      style={failed ? { cursor: 'pointer' } : undefined} title={failed ? 'לחץ לרענון' : undefined}>
+    <div className="hp-pill">
       <span className="hp-pill-label">{label}</span>
-      {price
+      {price != null
         ? <>
-            <span className="hp-pill-price">{prefix}{price.toLocaleString('en', { maximumFractionDigits: price < 10 ? 2 : 0 })}</span>
+            <span className={`hp-pill-price${flash === 'up' ? ' lp-flash-up' : flash === 'down' ? ' lp-flash-down' : ''}`}>
+              {prefix}{price.toLocaleString('en', { maximumFractionDigits: price < 10 ? 2 : 0 })}
+            </span>
             <span className="hp-pill-change" style={{ color: up ? '#4ade80' : '#f87171' }}>
               {up ? '▲' : '▼'}{Math.abs(change).toFixed(1)}%
             </span>
           </>
-        : failed ? <span className="hp-pill-failed" title="לחץ לרענון">↺</span>
         : <span className="hp-pill-loading">…</span>
       }
     </div>
@@ -130,57 +85,21 @@ const LS_SYMBOL_KEY    = 'beepai_chart_sym';
 const LS_LAST_KEY      = 'beepai_last_searched';
 const LS_EDITABLE_KEY  = 'beepai_editable_slots';
 
-const CRYPTO_SET = new Set(['BTC','ETH','SOL','BNB','XRP','ADA','DOT','AVAX','MATIC','LINK','DOGE','LTC','ATOM','RIOT','HUT','MARA','CLSK','BSOL']);
-const STOCK_API  = { 'S&P':'^GSPC','SP500':'^GSPC','GOLD':'XAUUSD=X','SILVER':'XAGUSD=X','OIL':'CL=F' };
-function toApiSym(s) { return STOCK_API[s.toUpperCase()] || s; }
-
-/* hook: fetch % change for a list of symbols, refresh every 30s */
-function useChanges(symbols) {
-  const [ch, setCh] = useState({});
-  const key = useMemo(() => symbols.filter(Boolean).join(','), [symbols]);
-
-  useEffect(() => {
-    if (!key) return;
-    const syms   = key.split(',').filter(Boolean);
-    const crypto = syms.filter(s => CRYPTO_SET.has(s.toUpperCase()));
-    const stocks = syms.filter(s => !CRYPTO_SET.has(s.toUpperCase()));
-
-    const fetchAll = () => {
-      if (crypto.length) {
-        const pairs = JSON.stringify(crypto.map(s => s.toUpperCase() + 'USDT'));
-        fetch(`https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(pairs)}`)
-          .then(r => r.json())
-          .then(arr => {
-            if (!Array.isArray(arr)) return;
-            const u = {};
-            arr.forEach(t => { u[t.symbol.replace('USDT','')] = parseFloat(t.priceChangePercent); });
-            setCh(p => ({...p,...u}));
-          }).catch(()=>{});
-      }
-      stocks.forEach(sym => {
-        fetch(`/api/market?symbol=${encodeURIComponent(toApiSym(sym))}`)
-          .then(r => r.json())
-          .then(d => { if (d.changePercent != null) setCh(p => ({...p,[sym.toUpperCase()]:+d.changePercent})); })
-          .catch(()=>{});
-      });
-    };
-
-    fetchAll();
-    const iv = setInterval(fetchAll, 30000);
-    return () => clearInterval(iv);
-  }, [key]);
-
-  return ch;
-}
-
 /* small inline % badge */
-function Pct({ sym, changes }) {
-  const v = changes[sym?.toUpperCase()];
-  if (v == null) return null;
-  const up = v >= 0;
+function Pct({ sym }) {
+  const ctx = useContext(LiveQuoteContext);
+  const { change, flash } = useQuote(sym);
+  useEffect(() => {
+    if (!ctx || !sym) return;
+    ctx.subscribe([sym]);
+    return () => ctx.unsubscribe([sym]);
+  }, [sym, ctx]);
+  if (change == null) return null;
+  const up = change >= 0;
   return (
-    <span className="hp-stock-pct" style={{ color: up ? '#4ade80' : '#f87171' }}>
-      {up ? '+' : ''}{v.toFixed(1)}%
+    <span className={`hp-stock-pct${flash === 'up' ? ' lp-flash-up' : flash === 'down' ? ' lp-flash-down' : ''}`}
+      style={{ color: up ? '#4ade80' : '#f87171' }}>
+      {up ? '+' : ''}{change.toFixed(1)}%
     </span>
   );
 }
@@ -201,10 +120,6 @@ function StockButtons({ selected, onSelect }) {
   const editInputRef = useRef(null);
 
   const lastSearched = localStorage.getItem(LS_LAST_KEY) || '';
-
-  /* all 8 visible symbols for % fetch */
-  const allSyms = useMemo(() => ['BTC', ...slots, lastSearched].filter(Boolean), [slots, lastSearched]);
-  const changes = useChanges(allSyms);
 
   useEffect(() => {
     if (editingIdx !== null) setTimeout(() => editInputRef.current?.focus(), 60);
@@ -254,7 +169,7 @@ function StockButtons({ selected, onSelect }) {
               onClick={() => onSelect('BTC')}
             >
               <span className="hp-stock-sym">BTC</span>
-              <Pct sym="BTC" changes={changes} />
+              <Pct sym="BTC" />
             </button>
           );
 
@@ -269,7 +184,7 @@ function StockButtons({ selected, onSelect }) {
                 disabled={empty}
                 title="מניה אחרונה שחיפשת"
               >
-                {empty ? '—' : <><span className="hp-stock-sym">{sym}</span><Pct sym={sym} changes={changes} /></>}
+                {empty ? '—' : <><span className="hp-stock-sym">{sym}</span><Pct sym={sym} /></>}
               </button>
             );
           }
@@ -300,7 +215,7 @@ function StockButtons({ selected, onSelect }) {
               onClick={() => editMode ? openEdit(i) : onSelect(sym)}
             >
               <span className="hp-stock-sym">{sym}</span>
-              {!editMode && <Pct sym={sym} changes={changes} />}
+              {!editMode && <Pct sym={sym} />}
               {editMode && <span className="hp-stock-pencil">✏</span>}
             </button>
           );
@@ -312,7 +227,6 @@ function StockButtons({ selected, onSelect }) {
 
 // ── Main ──────────────────────────────────────────────────────
 export default function HomePage({ navigate }) {
-  const { btc, btcError, flash } = useBTC();
   const { alerts } = useAlerts();
   const activeAlerts = alerts.filter(a => !a.triggered).length;
 
@@ -339,10 +253,10 @@ export default function HomePage({ navigate }) {
 
       {/* ── Market strip ── */}
       <div className="hp-market-strip">
-        <MarketPill symbol="^GSPC"    label="S&P 500" />
-        <MarketPill symbol="XAUUSD=X" label="זהב" />
-        <MarketPill symbol="ETH-USD"  label="ETH" />
-        <MarketPill symbol="SOL-USD"  label="SOL" />
+        <MarketPill sym="S&P"   label="S&P 500" />
+        <MarketPill sym="GOLD"  label="זהב" />
+        <MarketPill sym="ETH"   label="ETH" />
+        <MarketPill sym="SOL"   label="SOL" />
         <FearGreedMini />
         {/* גרפים button — opens full chart page */}
         <button className="hp-charts-pill" onClick={() => navigate('charts')}>

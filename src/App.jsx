@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { AlertsProvider } from './context/AlertsContext';
+import { AlertsProvider }     from './context/AlertsContext';
+import { LiveQuoteProvider }  from './context/LiveQuoteContext';
 import LoginScreen  from './components/LoginScreen';
 import Header       from './components/Header';
 import NavBar       from './components/NavBar';
@@ -151,9 +152,11 @@ function AppInner() {
 
 export default function App() {
   return (
-    <AlertsProvider>
-      <OfflineBanner />
-      <AppInner />
-    </AlertsProvider>
+    <LiveQuoteProvider>
+      <AlertsProvider>
+        <OfflineBanner />
+        <AppInner />
+      </AlertsProvider>
+    </LiveQuoteProvider>
   );
 }
