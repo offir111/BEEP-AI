@@ -25,7 +25,7 @@ function getSmcSignal(change) {
 
 function StockCard({ stock, onSelect, selected }) {
   const lqCtx = useContext(LiveQuoteContext);
-  const { price, change: changeRaw } = useQuote(stock.symbol);
+  const { price, change: changeRaw, flash } = useQuote(stock.symbol);
 
   useEffect(() => {
     if (!lqCtx) return;
@@ -58,7 +58,7 @@ function StockCard({ stock, onSelect, selected }) {
           <div className="smc-err">⚠ טוען...</div>
         ) : (
           <>
-            <div className="smc-price">${data.price.toLocaleString()}</div>
+            <div className={`smc-price${flash === 'up' ? ' lp-flash-up' : flash === 'down' ? ' lp-flash-down' : ''}`}>${data.price.toLocaleString()}</div>
             <div className="smc-change" style={{ color: up ? 'var(--accent-green)' : 'var(--accent-red)' }}>
               {up ? '▲' : '▼'} {Math.abs(data.change).toFixed(2)}%
             </div>

@@ -104,9 +104,9 @@ export default function ModelBitPage({ navigate }) {
         {!btc && !btcErr ? <Skeleton w="55%" h="48px" /> :
          btcErr ? <div className="mb-err">⚠ מתחבר...</div> : (
           <>
-            <div className="mb-big-price">${fmt(btc.price)}</div>
+            <div className={`mb-big-price${flash === 'up' ? ' lp-flash-up' : flash === 'down' ? ' lp-flash-down' : ''}`}>${fmt(btcPrice)}</div>
             <div className="mb-change-row">
-              <span className="mb-change-24" style={{ color: up ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+              <span className={`mb-change-24${flash === 'up' ? ' lp-flash-up' : flash === 'down' ? ' lp-flash-down' : ''}`}>
                 {up ? '▲' : '▼'} {Math.abs(btc.change).toFixed(2)}% — 24H
               </span>
             </div>

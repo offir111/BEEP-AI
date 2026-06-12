@@ -79,7 +79,7 @@ export function LiveQuoteProvider({ children }) {
         ...prev,
         [symbol]: { ...(prev[symbol] || {}), flash: null },
       }));
-    }, 700);
+    }, 1400);
   }, []);
 
   // ── Quote update helper ──────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ export function LiveQuoteProvider({ children }) {
             ...q,
             [sym]: { ...(q[sym] || {}), flash: null },
           }));
-        }, 700);
+        }, 1400);
       }
       return { ...prev, [sym]: next };
     });

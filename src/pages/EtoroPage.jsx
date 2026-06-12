@@ -116,9 +116,9 @@ export default function EtoroPage({ navigate }) {
   const [openTrader, setOpenTrader] = useState(null);
 
   const lqCtx = useContext(LiveQuoteContext);
-  const { price: btcPrice,   change: btcChange   } = useQuote('BTC');
-  const { price: nvdaPrice,  change: nvdaChange  } = useQuote('NVDA');
-  const { price: googlPrice, change: googlChange } = useQuote('GOOGL');
+  const { price: btcPrice,   change: btcChange,   flash: btcFlash   } = useQuote('BTC');
+  const { price: nvdaPrice,  change: nvdaChange,  flash: nvdaFlash  } = useQuote('NVDA');
+  const { price: googlPrice, change: googlChange, flash: googlFlash } = useQuote('GOOGL');
 
   useEffect(() => {
     if (!lqCtx) return;
@@ -128,9 +128,9 @@ export default function EtoroPage({ navigate }) {
 
   // Build livePrices map — same shape as before so rest of JSX unchanged
   const livePrices = {
-    BTC:   btcPrice   != null ? { price: btcPrice,   change: btcChange   ?? 0 } : null,
-    NVDA:  nvdaPrice  != null ? { price: nvdaPrice,  change: nvdaChange  ?? 0 } : null,
-    GOOGL: googlPrice != null ? { price: googlPrice, change: googlChange ?? 0 } : null,
+    BTC:   btcPrice   != null ? { price: btcPrice,   change: btcChange   ?? 0, flash: btcFlash   } : null,
+    NVDA:  nvdaPrice  != null ? { price: nvdaPrice,  change: nvdaChange  ?? 0, flash: nvdaFlash  } : null,
+    GOOGL: googlPrice != null ? { price: googlPrice, change: googlChange ?? 0, flash: googlFlash } : null,
   };
   const pricesLoaded = Object.values(livePrices).some(v => v != null);
 
@@ -171,7 +171,12 @@ export default function EtoroPage({ navigate }) {
               <div>
                 <div className="et-rec-ticker" style={{ color: r.color }}>{r.ticker}</div>
                 <div className="et-rec-name">{r.name}</div>
-                {lp && <div className="et-live-price">${lp.price.toLocaleString()} <span style={{color:lpUp?'#4ade80':'#ef4444'}}>{lpUp?'▲':'▼'}{Math.abs(lp.change).toFixed(2)}%</span></div>}
+                {lp && (
+                  <div className={`et-live-price${lp.flash === 'up' ? ' lp-flash-up' : lp.flash === 'down' ? ' lp-flash-down' : ''}`}>
+                    ${lp.price.toLocaleString()}
+                    <span style={{color: lpUp ? '#4ade80' : '#ef4444'}}>{lpUp?'▲':'▼'}{Math.abs(lp.change).toFixed(2)}%</span>
+                  </div>
+                )}
               </div>
               <span className="et-rec-signal">{r.signal}</span>
             </div>

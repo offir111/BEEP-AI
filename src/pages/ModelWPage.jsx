@@ -29,7 +29,7 @@ function Skeleton({ w = '60%', h = '22px' }) {
 
 function CoinCard({ coin, onSelect, selected }) {
   const lqCtx = useContext(LiveQuoteContext);
-  const { price, change, high, low } = useQuote(coin.short);
+  const { price, change, high, low, flash } = useQuote(coin.short);
 
   useEffect(() => {
     if (!lqCtx) return;
@@ -71,7 +71,7 @@ function CoinCard({ coin, onSelect, selected }) {
           <div className="mw-err">⚠ מתחבר...</div>
         ) : (
           <>
-            <div className="mw-price">
+            <div className={`mw-price${flash === 'up' ? ' lp-flash-up' : flash === 'down' ? ' lp-flash-down' : ''}`}>
               ${data.price >= 1000
                 ? data.price.toLocaleString('en', { maximumFractionDigits: 0 })
                 : data.price.toFixed(2)}

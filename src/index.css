@@ -1,3 +1,23 @@
+/* ─── Global price-flash (trading terminal blink) ───────────── */
+@keyframes lp-flash-up {
+  0%   { color: #4ade80; text-shadow: 0 0 8px rgba(74,222,128,0.7); }
+  18%  { color: #f0f0f0; text-shadow: none; }
+  36%  { color: #4ade80; text-shadow: 0 0 8px rgba(74,222,128,0.7); }
+  54%  { color: #f0f0f0; text-shadow: none; }
+  72%  { color: #4ade80; text-shadow: 0 0 6px rgba(74,222,128,0.4); }
+  100% { color: inherit; text-shadow: none; }
+}
+@keyframes lp-flash-down {
+  0%   { color: #f87171; text-shadow: 0 0 8px rgba(248,113,113,0.7); }
+  18%  { color: #f0f0f0; text-shadow: none; }
+  36%  { color: #f87171; text-shadow: 0 0 8px rgba(248,113,113,0.7); }
+  54%  { color: #f0f0f0; text-shadow: none; }
+  72%  { color: #f87171; text-shadow: 0 0 6px rgba(248,113,113,0.4); }
+  100% { color: inherit; text-shadow: none; }
+}
+.lp-flash-up   { animation: lp-flash-up   1.4s ease-out forwards; }
+.lp-flash-down { animation: lp-flash-down 1.4s ease-out forwards; }
+
 /* ─── Reset & Base ─────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;

@@ -83,7 +83,7 @@ export default function ChartsPage() {
   // ── Centralized live price via LiveQuoteContext ──────────────
   const lqCtx   = useContext(LiveQuoteContext);
   const ctxSym  = useMemo(() => toCtxSym(active), [active]);
-  const { price: ctxPrice } = useQuote(ctxSym);
+  const { price: ctxPrice, flash: ctxFlash } = useQuote(ctxSym);
 
   useEffect(() => {
     if (!lqCtx || !ctxSym) return;
@@ -174,7 +174,11 @@ export default function ChartsPage() {
         <div className="charts-hdr-left">
           <h2 className="charts-title">
             📈 {active.label}
-            {livePrice && <span className="charts-live-price">${parseFloat(livePrice).toLocaleString()}</span>}
+            {livePrice && (
+              <span className={`charts-live-price${ctxFlash === 'up' ? ' lp-flash-up' : ctxFlash === 'down' ? ' lp-flash-down' : ''}`}>
+                ${parseFloat(livePrice).toLocaleString()}
+              </span>
+            )}
           </h2>
           {symAlerts.length > 0 && (
             <span className="charts-alert-count">🔔 {symAlerts.length}</span>
@@ -287,7 +291,11 @@ export default function ChartsPage() {
         <button className="charts-float-bell" onClick={()=>setShowAlert(true)}>
           🔔
           {symAlerts.length > 0 && <span className="charts-float-badge">{symAlerts.length}</span>}
-          {livePrice && <span className="charts-float-price">${parseFloat(livePrice).toLocaleString()}</span>}
+          {livePrice && (
+            <span className={`charts-float-price${ctxFlash === 'up' ? ' lp-flash-up' : ctxFlash === 'down' ? ' lp-flash-down' : ''}`}>
+              ${parseFloat(livePrice).toLocaleString()}
+            </span>
+          )}
         </button>
       </div>
 

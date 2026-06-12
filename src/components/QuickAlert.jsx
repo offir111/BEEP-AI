@@ -46,7 +46,7 @@ export default function QuickAlert({
 
   // ── Live price from centralized WebSocket/polling context ──────
   const lqCtx = useContext(LiveQuoteContext);
-  const { price: ctxPrice } = useQuote(symbol);
+  const { price: ctxPrice, flash: ctxFlash } = useQuote(symbol);
 
   // Keep livePrice as state — populated from context (live) or prop (initial)
   const [livePrice,    setLivePrice]    = useState(initPrice);
@@ -396,7 +396,9 @@ export default function QuickAlert({
               ) : livePrice ? (
                 <>
                   <span className="sa-alert-current-label">מחיר נוכחי ↙ לחץ למלא</span>
-                  <span className="sa-alert-current-price">{fmtP(livePrice)}</span>
+                  <span className={`sa-alert-current-price${ctxFlash === 'up' ? ' lp-flash-up' : ctxFlash === 'down' ? ' lp-flash-down' : ''}`}>
+                    {fmtP(livePrice)}
+                  </span>
                   <span className="sa-alert-current-sym-tag">{symbol}</span>
                 </>
               ) : (

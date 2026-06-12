@@ -144,9 +144,9 @@ export default function ModelGridPage({ navigate }) {
           ? <div className="mg-err">⚠ מתחבר...</div>
           : (
             <>
-              <div className="mg-big-price">${fmt(btc.price, 0)}</div>
+              <div className={`mg-big-price${flash === 'up' ? ' lp-flash-up' : flash === 'down' ? ' lp-flash-down' : ''}`}>${fmt(btcPrice, 0)}</div>
               <div className="mg-change-row">
-                <span className="mg-change-24" style={{ color: up ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                <span className={`mg-change-24${flash === 'up' ? ' lp-flash-up' : flash === 'down' ? ' lp-flash-down' : ''}`}>
                   {up ? '▲' : '▼'} {Math.abs(btc.change).toFixed(2)}% — 24H
                 </span>
               </div>
