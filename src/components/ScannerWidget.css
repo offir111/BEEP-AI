@@ -8,7 +8,7 @@
   border: 1px solid rgba(21, 101, 192, 0.4);
   background: rgba(2, 6, 23, 0.85);
   box-shadow: 0 0 40px rgba(13, 71, 161, 0.22);
-  overflow: hidden;
+  overflow: visible;   /* allow dropdowns to escape */
   position: relative;
 }
 

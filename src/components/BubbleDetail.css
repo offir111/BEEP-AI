@@ -59,6 +59,39 @@
   font-weight: 500;
 }
 
+.bd-hdr-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ⭐ Favorites button */
+.bd-fav-btn {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,214,0,0.22);
+  background: rgba(255,214,0,0.06);
+  color: rgba(255,255,255,0.4);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.bd-fav-btn:hover {
+  background: rgba(255,214,0,0.14);
+  border-color: rgba(255,214,0,0.50);
+  color: #ffd600;
+  transform: scale(1.1);
+}
+.bd-fav-btn--on {
+  background: rgba(255,214,0,0.18);
+  border-color: rgba(255,214,0,0.55);
+  color: #ffd600;
+  box-shadow: 0 0 10px rgba(255,214,0,0.2);
+}
+
 .bd-close {
   width: 28px; height: 28px;
   border-radius: 50%;

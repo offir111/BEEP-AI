@@ -1,17 +1,14 @@
 /**
- * BubbleChart.jsx — cryptobubbles.net pixel-accurate clone
- * • Color  = exact RGB formula: n=clamp(|pct|/maxPct,0.2,1), i=127*(1-n), o=155+100*n
- * • Fill   = radial gradient: transparent center → opaque ring (no glow)
- * • Size   = cap^0.8 scaled so total bubble area = 60% of canvas
- * • Physics = every-frame drift, hard wall -0.7v, size-weighted collision, no gravity
- * • Hover  = white ring | Selected = pulsating blue→white ring (~785ms)
+ * BubbleChart.jsx — cryptobubbles.net clone
+ * Assets: crypto (CoinGecko) | stocks (TradingView) | favorites (personal)
+ * Signal filters: 🔥 VOL | 💥 BREAK | 🚀 MOM
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import './BubbleChart.css';
 import BubbleDetail from './BubbleDetail';
+import { getFavorites, isFavorite } from '../utils/favorites.js';
 
 /* ── Constants ─────────────────────────────────────────────── */
-// Crypto tabs (map to CoinGecko period IDs)
 const CRYPTO_TABS = [
   { id: '1h',  label: '1H' },
   { id: '24h', label: '1D' },
@@ -34,13 +31,11 @@ const CAP_OPTS = [
   { id: '5b',   label: '5B'   },
   { id: '10b',  label: '10B+' },
 ];
-// מביאים 100 מטבעות כדי שלכל פריוד יהיה pool רחב לבחור ממנו
-const CRYPTO_URL =
-  'https://api.coingecko.com/api/v3/coins/markets' +
-  '?vs_currency=usd&order=market_cap_desc&per_page=100&page=1' +
-  '&sparkline=false&price_change_percentage=1h,24h,7d,30d,1y';
-
-// טווחי market cap לסינון קריפטו (זהה ל-stocks)
+const SIGNALS = [
+  { id: 'vol',   emoji: '🔥', label: 'VOLUME',   desc: 'נפח חריג פי 2.5+' },
+  { id: 'break', emoji: '💥', label: 'BREAKOUT', desc: 'פריצה טכנית RSI+SMA' },
+  { id: 'mom',   emoji: '🚀', label: 'MOMENTUM', desc: 'מובילי שבוע' },
+];
 const CAP_RANGES = {
   'all':  { min: 0,              max: Infinity         },
   '10m':  { min: 10_000_000,     max: 100_000_000      },
@@ -49,6 +44,10 @@ const CAP_RANGES = {
   '5b':   { min: 5_000_000_000,  max: 10_000_000_000   },
   '10b':  { min: 10_000_000_000, max: Infinity         },
 };
+const CRYPTO_URL =
+  'https://api.coingecko.com/api/v3/coins/markets' +
+  '?vs_currency=usd&order=market_cap_desc&per_page=100&page=1' +
+  '&sparkline=false&price_change_percentage=1h,24h,7d,30d,1y';
 
 /* ── Data helpers ──────────────────────────────────────────── */
 function getTabPct(coin, tabId) {
@@ -63,26 +62,20 @@ function getTabPct(coin, tabId) {
 
 /* ── Exact cryptobubbles.net color formula ─────────────────── */
 function bubbleRGB(pct, colorN) {
-  // colorN = clamp(|pct|/maxPct, 0.2, 1.0) — pre-computed in makeBubbles
   if (Math.abs(pct) < 0.001) return [127, 127, 127];
-  const i = Math.floor(127 * (1 - colorN));    // dark:   127→0
-  const o = Math.floor(155 + 100 * colorN);    // bright: 155→255
-  return pct >= 0
-    ? [i, o, i]   // green: rgb(dark, bright, dark)
-    : [o, i, i];  // red:   rgb(bright, dark, dark)
+  const i = Math.floor(127 * (1 - colorN));
+  const o = Math.floor(155 + 100 * colorN);
+  return pct >= 0 ? [i, o, i] : [o, i, i];
 }
 
-/* ── Build bubbles — cap^0.8 so total area = 60% of canvas ── */
-function makeBubbles(items, W, H, showAll) {
+/* ── Build bubbles — cap^0.8, total area = 60% canvas ─────── */
+function makeBubbles(items, W, H, showAll, favSet) {
   const pool = showAll
     ? items
     : [...items].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 15);
   if (!pool.length) return [];
 
-  const count      = pool.length;
   const maxAbsPct  = Math.max(...pool.map(c => Math.abs(c.pct)), 0.1);
-
-  // Size: total bubble area = 60% of canvas  (power 0.8, exact original)
   const norm       = cap => Math.pow(Math.max(cap, 1), 0.8);
   const totalNorm  = pool.reduce((s, c) => s + norm(c.market_cap || 1), 0);
   const scaleFactor= (W * H * 0.60) / (totalNorm * Math.PI);
@@ -91,44 +84,42 @@ function makeBubbles(items, W, H, showAll) {
     const rawR   = Math.sqrt(norm(c.market_cap || 1) * scaleFactor);
     const r      = Math.max(14, Math.min(rawR, Math.min(W, H) * 0.38));
     const colorN = Math.max(0.2, Math.min(1.0, Math.abs(c.pct) / maxAbsPct));
-
-    // Exact original: fully random start positions across entire canvas
     const x = r + Math.random() * (W - 2 * r);
     const y = r + Math.random() * (H - 2 * r);
 
+    const assetType = c._type || (c.id && !c.symbol?.includes('-') ? 'crypto' : 'stocks');
+    const favKey    = assetType === 'crypto' ? c.id : c.symbol;
+    const isFav     = favSet ? favSet.has(favKey) : false;
+
     return {
       id: c.id, symbol: c.symbol, name: c.name,
-      r,
-      x, y,
-      vx: (Math.random() - 0.5) * 0.08,  // nearly still at start
+      r, x, y,
+      vx: (Math.random() - 0.5) * 0.08,
       vy: (Math.random() - 0.5) * 0.08,
-      pct:        c.pct,
-      colorN,
+      pct: c.pct, colorN,
       market_cap: c.market_cap,
-      price:      c.price,
-      volume:     c.volume,
+      price: c.price, volume: c.volume,
+      pct_1d: c.pct_1d, pct_1w: c.pct_1w, pct_1m: c.pct_1m, pct_1y: c.pct_1y,
+      _type: assetType,
+      isFav,
     };
   });
 }
 
-/* Font size scaling matching cryptobubbles (fraction of diameter) */
 function symFontSize(diameter, symLen) {
   const frac = symLen < 5 ? 0.55 : symLen < 7 ? 0.45 : symLen < 9 ? 0.35 : 0.25;
   return Math.max(8, frac * diameter);
 }
-function pctFontSize(diameter) {
-  return Math.max(7, 0.30 * diameter);
-}
+function pctFontSize(diameter) { return Math.max(7, 0.30 * diameter); }
 
-/* ── Draw one bubble — exact cryptobubbles.net rendering ─── */
+/* ── Draw one bubble ───────────────────────────────────────── */
 function drawBubble(ctx, b, logo, isHovered, isSelected, now) {
-  const { x, y, r, pct, symbol, colorN = 0.5 } = b;
+  const { x, y, r, pct, symbol, colorN = 0.5, isFav } = b;
   const [R, G, B] = bubbleRGB(pct, colorN);
   const diameter  = r * 2;
   const dpr       = window.devicePixelRatio || 1;
   const border    = Math.max(1.5, Math.round(2 * dpr));
 
-  /* ── 1. Radial gradient fill (transparent center → opaque ring) ── */
   const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
   grad.addColorStop(0,   `rgba(${R},${G},${B},0.05)`);
   grad.addColorStop(0.8, `rgba(${R},${G},${B},0.10)`);
@@ -139,14 +130,11 @@ function drawBubble(ctx, b, logo, isHovered, isSelected, now) {
   ctx.fillStyle = grad;
   ctx.fill();
 
-  /* ── 2. Border: selected (pulsating) | hovered (white) ── */
   if (isSelected) {
-    const t  = 0.5 * Math.sin(0.008 * now) + 0.5;          // 0→1, ~785ms
-    const rr = Math.floor(255 * t);
-    const gg = Math.floor(160 * t) + 95;
+    const t = 0.5 * Math.sin(0.008 * now) + 0.5;
     ctx.beginPath();
     ctx.arc(x, y, r - border * 0.5, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgb(${rr},${gg},255)`;
+    ctx.strokeStyle = `rgb(${Math.floor(255*t)},${Math.floor(160*t)+95},255)`;
     ctx.lineWidth   = border * (t + 2);
     ctx.stroke();
   } else if (isHovered) {
@@ -157,68 +145,61 @@ function drawBubble(ctx, b, logo, isHovered, isSelected, now) {
     ctx.stroke();
   }
 
-  /* ── 3. Text ── */
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
-  const shadowBlur = Math.max(1, 0.02 * diameter);
   ctx.shadowColor  = 'rgba(0,0,0,0.55)';
-  ctx.shadowBlur   = shadowBlur;
+  ctx.shadowBlur   = Math.max(1, 0.02 * diameter);
 
-  // Skip all text for tiny bubbles — nothing fits
-  if (r < 14) {
-    ctx.shadowBlur = 0;
-    ctx.textBaseline = 'alphabetic';
-    return;
-  }
+  if (r < 14) { ctx.shadowBlur = 0; ctx.textBaseline = 'alphabetic'; return; }
 
-  /* ── Helper: measure and auto-shrink to fit maxWidth ── */
-  const autoFitFont = (baseSize, bold, text, maxW) => {
-    const f = `${bold ? 'bold ' : ''}${baseSize}px Arial,sans-serif`;
-    ctx.font = f;
+  const autoFit = (base, bold, text, maxW) => {
+    ctx.font = `${bold ? 'bold ' : ''}${base}px Arial,sans-serif`;
     const w = ctx.measureText(text).width;
-    if (w <= maxW) return baseSize;
-    return Math.max(8, baseSize * (maxW / w));
+    return w <= maxW ? base : Math.max(8, base * (maxW / w));
   };
-
-  const maxTextW = r * 1.80;   // 90% of diameter — guaranteed to stay inside bubble
-  const pctText  = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
-
+  const maxW   = r * 1.80;
+  const absPct = Math.abs(pct);
+  const pctStr = absPct >= 1000 ? absPct.toFixed(0)
+               : absPct >= 100  ? absPct.toFixed(0)
+               : absPct >= 10   ? absPct.toFixed(1)
+               : absPct.toFixed(2);
+  const pctTxt = `${pct >= 0 ? '+' : '-'}${pctStr}%`;
   const hasLogo = logo && r >= 22;
+
   if (hasLogo) {
-    /* Logo upper half */
     const ls = r * 0.32, ly = y - r * 0.22;
     ctx.save();
     ctx.beginPath(); ctx.arc(x, ly, ls, 0, Math.PI * 2); ctx.clip();
     try { ctx.drawImage(logo, x - ls, ly - ls, ls * 2, ls * 2); } catch { /**/ }
     ctx.restore();
     ctx.shadowColor = 'rgba(0,0,0,0.55)';
-    ctx.shadowBlur  = shadowBlur;
-
-    /* Symbol — auto-fit */
-    const ls1 = autoFitFont(r * 0.28, true, symbol, maxTextW * 0.85);
+    ctx.shadowBlur  = Math.max(1, 0.02 * diameter);
+    const s1 = autoFit(r * 0.28, true, symbol, maxW * 0.85);
     ctx.fillStyle = '#fff';
-    ctx.font = `bold ${ls1}px Arial,sans-serif`;
+    ctx.font = `bold ${s1}px Arial,sans-serif`;
     ctx.fillText(symbol, x, y + r * 0.22);
-
-    /* % — auto-fit */
-    const ls2 = autoFitFont(r * 0.22, false, pctText, maxTextW * 0.85);
-    ctx.font = `${ls2}px Arial,sans-serif`;
+    const s2 = autoFit(r * 0.22, false, pctTxt, maxW * 0.85);
+    ctx.font = `${s2}px Arial,sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.90)';
-    ctx.fillText(pctText, x, y + r * 0.52);
-
+    ctx.fillText(pctTxt, x, y + r * 0.52);
   } else {
-    /* No logo — symbol + % stacked, both auto-fit */
-    const rawSym = symFontSize(diameter, symbol.length);
-    const s1 = autoFitFont(rawSym, true, symbol, maxTextW);
+    const s1 = autoFit(symFontSize(diameter, symbol.length), true, symbol, maxW);
     ctx.fillStyle = '#fff';
     ctx.font = `bold ${s1}px Arial,sans-serif`;
     ctx.fillText(symbol, x, y + r * 0.10);
-
-    const rawPct = pctFontSize(diameter);
-    const s2 = autoFitFont(rawPct, false, pctText, maxTextW);
+    const s2 = autoFit(pctFontSize(diameter), false, pctTxt, maxW);
     ctx.font = `${s2}px Arial,sans-serif`;
     ctx.fillStyle = 'rgba(255,255,255,0.90)';
-    ctx.fillText(pctText, x, y + r * 0.55);
+    ctx.fillText(pctTxt, x, y + r * 0.55);
+  }
+
+  // ⭐ favorites indicator
+  if (isFav && r >= 18) {
+    ctx.shadowBlur = 0;
+    ctx.font = `${Math.max(9, r * 0.22)}px Arial`;
+    ctx.textBaseline = 'top';
+    ctx.fillText('⭐', x + r * 0.45, y - r * 0.92);
+    ctx.textBaseline = 'middle';
   }
 
   ctx.shadowBlur = 0;
@@ -234,26 +215,31 @@ export default function BubbleChart({ onManualSearch, onClose }) {
 
   const cryptoCoinsRef = useRef([]);
   const stocksRef      = useRef([]);
+  const favItemsRef    = useRef([]);
 
   const assetRef   = useRef('crypto');
   const tabRef     = useRef('1h');
   const capRef     = useRef('all');
   const showAllRef = useRef(false);
+  const signalRef  = useRef(null);
 
   const [asset,     setAsset]     = useState('crypto');
   const [activeTab, setActiveTab] = useState('1h');
   const [capFilter, setCapFilter] = useState('all');
   const [showAll,   setShowAll]   = useState(false);
+  const [signal,    setSignal]    = useState(null);
   const [selectedBubble, setSelectedBubble] = useState(null);
   const [capOpen,   setCapOpen]   = useState(false);
   const [timeOpen,  setTimeOpen]  = useState(false);
+
   const capDdRef      = useRef(null);
   const timeDdRef     = useRef(null);
-  const hoveredIdRef  = useRef(null);   // id of bubble under pointer
-  const selectedIdRef = useRef(null);   // id of bubble clicked (for canvas draw)
+  const hoveredIdRef  = useRef(null);
+  const selectedIdRef = useRef(null);
 
-  const [cryptoStatus,  setCryptoStatus]  = useState('idle');
-  const [stocksStatus,  setStocksStatus]  = useState('idle');
+  const [cryptoStatus, setCryptoStatus] = useState('idle');
+  const [stocksStatus, setStocksStatus] = useState('idle');
+  const [favStatus,    setFavStatus]    = useState('idle');
   const [cryptoRetryTrigger, setCryptoRetryTrigger] = useState(0);
 
   /* ── canvas sync ─────────────────────────────────────────── */
@@ -269,48 +255,87 @@ export default function BubbleChart({ onManualSearch, onClose }) {
   const rebuildBubbles = useCallback(() => {
     const { w, h } = syncCanvas();
     if (!w) return;
+
+    // Build favorites set for star indicators
+    const favs    = getFavorites();
+    const favSet  = new Set([...favs.crypto, ...favs.stocks]);
+
+    const makeItems = (raw) => makeBubbles(raw, w, h, showAllRef.current, favSet);
+
     if (assetRef.current === 'crypto') {
       const coins = cryptoCoinsRef.current;
       if (!coins.length) return;
-      // סינון לפי market cap (זהה למניות)
+
       const capRange = CAP_RANGES[capRef.current] || CAP_RANGES['all'];
-      const filtered = capRange.min > 0
+      let filtered = capRange.min > 0
         ? coins.filter(c => {
             const mc = c.market_cap || 0;
             return mc >= capRange.min && (capRange.max === Infinity || mc < capRange.max);
           })
         : coins;
+
+      // Client-side signal filter for crypto
+      const sig = signalRef.current;
+      if (sig === 'vol') {
+        filtered = filtered.filter(c => {
+          const vr = (c.total_volume || 0) / (c.market_cap || 1);
+          return vr > 0.08 && (c.price_change_percentage_24h || 0) > 3;
+        });
+      } else if (sig === 'break') {
+        filtered = filtered.filter(c => {
+          const p = c.price_change_percentage_24h || 0;
+          return p > 2 && p < 15 && (c.price_change_percentage_7d_in_currency || 0) > 0;
+        });
+      } else if (sig === 'mom') {
+        filtered = filtered.filter(c =>
+          (c.price_change_percentage_7d_in_currency || 0) > 10 &&
+          (c.price_change_percentage_24h || 0) > 0
+        );
+      }
+
       const pool = filtered.length > 0 ? filtered : coins;
       const items = pool.map(c => ({
         id: c.id, symbol: c.symbol.toUpperCase(), name: c.name,
         pct: getTabPct(c, tabRef.current),
         market_cap: c.market_cap || 1,
-        price:  c.current_price,
-        volume: c.total_volume,
+        price: c.current_price, volume: c.total_volume,
+        _type: 'crypto',
       }));
-      bubblesRef.current = makeBubbles(items, w, h, showAllRef.current);
-    } else {
+      bubblesRef.current = makeItems(items);
+
+    } else if (assetRef.current === 'stocks') {
       const stocks = stocksRef.current;
       if (!stocks.length) return;
       const items = stocks.map(s => ({
         id: s.symbol, symbol: s.symbol, name: s.name,
         pct: s.change_pct,
         market_cap: s.market_cap || 1,
-        price:  s.price,
-        volume: s.volume,
-        // כל תקופות — לשימוש ב-BubbleDetail
+        price: s.price, volume: s.volume,
         pct_1d: s.pct_1d ?? s.change_pct,
         pct_1w: s.pct_1w ?? null,
         pct_1m: s.pct_1m ?? null,
         pct_1y: s.pct_1y ?? null,
+        _type: 'stocks',
       }));
-      bubblesRef.current = makeBubbles(items, w, h, showAllRef.current);
+      bubblesRef.current = makeItems(items);
+
+    } else if (assetRef.current === 'favorites') {
+      const favItems = favItemsRef.current;
+      if (!favItems.length) return;
+      const items = favItems.map(s => ({
+        id: s.id || s.symbol,
+        symbol: s.symbol, name: s.name,
+        pct: s.change_pct || 0,
+        market_cap: s.market_cap || 1,
+        price: s.price, volume: s.volume,
+        _type: s._type || 'stocks',
+      }));
+      bubblesRef.current = makeBubbles(items, w, h, true, favSet); // always show all
     }
   }, [syncCanvas]);
 
   /* ── fetch crypto ─────────────────────────────────────────── */
   useEffect(() => {
-    // אם יש נתונים (לא retry) — דלג
     if (cryptoCoinsRef.current.length > 0) return;
     setCryptoStatus('loading');
     fetch(CRYPTO_URL)
@@ -332,9 +357,11 @@ export default function BubbleChart({ onManualSearch, onClose }) {
   }, [rebuildBubbles, cryptoRetryTrigger]);
 
   /* ── fetch stocks ─────────────────────────────────────────── */
-  const fetchStocks = useCallback((cap, period = '1d') => {
+  const fetchStocks = useCallback((cap, period = '1d', sig = null) => {
     setStocksStatus('loading');
-    fetch(`/api/tv-screener?cap=${cap}&period=${period}`)
+    const params = new URLSearchParams({ cap, period });
+    if (sig) params.set('signal', sig);
+    fetch(`/api/tv-screener?${params}`)
       .then(r => { if (!r.ok) throw r.status; return r.json(); })
       .then(data => {
         if (!data.quotes?.length) throw new Error('empty');
@@ -345,8 +372,97 @@ export default function BubbleChart({ onManualSearch, onClose }) {
       .catch(() => setStocksStatus('error'));
   }, [rebuildBubbles]);
 
-  /* ── kick: physical reaction when params change ─────────── */
-  /* MUST be defined before any handler that uses it           */
+  /* ── fetch favorites ─────────────────────────────────────── */
+  const fetchFavorites = useCallback(() => {
+    const favs = getFavorites();
+    const hasStocks = favs.stocks.length > 0;
+    const hasCrypto = favs.crypto.length > 0;
+
+    if (!hasStocks && !hasCrypto) {
+      favItemsRef.current = [];
+      setFavStatus('empty');
+      return;
+    }
+
+    setFavStatus('loading');
+    const promises = [];
+
+    if (hasStocks) {
+      promises.push(
+        fetch(`/api/fav-quotes?symbols=${favs.stocks.join(',')}`)
+          .then(r => r.json())
+          .then(d => (d.quotes || []).map(s => ({ ...s, _type: 'stocks' })))
+          .catch(() => [])
+      );
+    }
+    if (hasCrypto) {
+      promises.push(
+        fetch(
+          `https://api.coingecko.com/api/v3/coins/markets` +
+          `?ids=${favs.crypto.join(',')}&vs_currency=usd&sparkline=false` +
+          `&price_change_percentage=24h`
+        )
+          .then(r => r.json())
+          .then(coins => coins.map(c => ({
+            id: c.id,
+            symbol: c.symbol.toUpperCase(),
+            name: c.name,
+            price: c.current_price,
+            change_pct: c.price_change_percentage_24h || 0,
+            market_cap: c.market_cap || 1,
+            volume: c.total_volume || 0,
+            image: c.image,
+            _type: 'crypto',
+          })))
+          .catch(() => [])
+      );
+    }
+
+    Promise.all(promises)
+      .then(results => {
+        const all = results.flat();
+        // Load logos for crypto favorites
+        all.forEach(c => {
+          if (c._type === 'crypto' && c.image && !imgCache.current[c.id]) {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = c.image;
+            img.onload = () => { imgCache.current[c.id] = img; };
+          }
+        });
+        favItemsRef.current = all;
+        setFavStatus(all.length ? 'ok' : 'empty');
+        if (all.length) requestAnimationFrame(() => rebuildBubbles());
+      })
+      .catch(() => setFavStatus('error'));
+  }, [rebuildBubbles]);
+
+  /* ── auto-retry on error ─────────────────────────────────── */
+  useEffect(() => {
+    if (cryptoStatus !== 'error') return;
+    const t = setTimeout(() => {
+      cryptoCoinsRef.current = [];
+      setCryptoStatus('loading');
+      setCryptoRetryTrigger(n => n + 1);
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [cryptoStatus]);
+
+  useEffect(() => {
+    if (stocksStatus !== 'error') return;
+    const t = setTimeout(() => {
+      fetchStocks(capRef.current, tabRef.current, signalRef.current);
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [stocksStatus, fetchStocks]);
+
+  useEffect(() => {
+    if (favStatus !== 'error') return;
+    const t = setTimeout(() => fetchFavorites(), 4000);
+    return () => clearTimeout(t);
+  }, [favStatus, fetchFavorites]);
+
+  /* ── kick bubbles ─────────────────────────────────────────── */
   const kickBubbles = useCallback(() => {
     bubblesRef.current.forEach(b => {
       b.vx += (Math.random() - 0.5) * 1.2;
@@ -354,41 +470,55 @@ export default function BubbleChart({ onManualSearch, onClose }) {
     });
   }, []);
 
+  /* ── signal toggle ───────────────────────────────────────── */
+  const handleSignal = useCallback((id) => {
+    const next = signalRef.current === id ? null : id;
+    signalRef.current = next;
+    setSignal(next);
+    if (assetRef.current === 'crypto') {
+      rebuildBubbles();
+      kickBubbles();
+    } else if (assetRef.current === 'stocks') {
+      stocksRef.current = [];
+      fetchStocks(capRef.current, tabRef.current, next);
+    }
+  }, [rebuildBubbles, kickBubbles, fetchStocks]);
+
   /* ── asset toggle ─────────────────────────────────────────── */
   const handleAsset = useCallback((a) => {
     assetRef.current = a;
     setAsset(a);
-    if (a === 'stocks' && !stocksRef.current.length) {
-      fetchStocks(capRef.current, tabRef.current);
+    signalRef.current = null;
+    setSignal(null);
+    if (a === 'favorites') {
+      fetchFavorites();
+    } else if (a === 'stocks' && !stocksRef.current.length) {
+      fetchStocks(capRef.current, tabRef.current, null);
     } else {
       requestAnimationFrame(() => { rebuildBubbles(); kickBubbles(); });
     }
-  }, [fetchStocks, rebuildBubbles, kickBubbles]);
+  }, [fetchStocks, fetchFavorites, rebuildBubbles, kickBubbles]);
 
-  /* ── tab (crypto + stocks) ────────────────────────────────── */
+  /* ── tab ──────────────────────────────────────────────────── */
   const handleTab = useCallback((id) => {
     tabRef.current = id;
     setActiveTab(id);
     if (assetRef.current === 'crypto') {
-      // קריפטו: בנה מחדש — top gainers שונים לכל פריוד
-      // rebuildBubbles ישתמש ב-tabRef.current החדש ויבחר top 15 אחרים
       rebuildBubbles();
       kickBubbles();
-    } else {
-      // מניות: שלוף מ-TradingView עם ה-period החדש
+    } else if (assetRef.current === 'stocks') {
       stocksRef.current = [];
-      fetchStocks(capRef.current, id);
+      fetchStocks(capRef.current, id, signalRef.current);
     }
   }, [rebuildBubbles, kickBubbles, fetchStocks]);
 
-  /* ── cap filter (stocks + crypto) ────────────────────────── */
+  /* ── cap filter ───────────────────────────────────────────── */
   const handleCap = useCallback((id) => {
     capRef.current = id;
     setCapFilter(id);
     if (assetRef.current === 'stocks') {
-      fetchStocks(id, tabRef.current);
+      fetchStocks(id, tabRef.current, signalRef.current);
     } else {
-      // קריפטו: סינון מקומי מנתונים קיימים
       rebuildBubbles();
       kickBubbles();
     }
@@ -403,218 +533,180 @@ export default function BubbleChart({ onManualSearch, onClose }) {
     kickBubbles();
   }, [rebuildBubbles, kickBubbles]);
 
-  /* ── hover (for white ring effect) ───────────────────────── */
+  /* ── hover ────────────────────────────────────────────────── */
   const handleCanvasMove = useCallback((e) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const rect   = canvas.getBoundingClientRect();
-    const scaleX = canvas.width  / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const mx     = (e.clientX - rect.left) * scaleX;
-    const my     = (e.clientY - rect.top)  * scaleY;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width  / rect.width);
+    const my = (e.clientY - rect.top)  * (canvas.height / rect.height);
     let hit = null;
     for (const b of bubblesRef.current) {
       const dx = mx - b.x, dy = my - b.y;
-      if (dx * dx + dy * dy <= (b.r + 4) * (b.r + 4)) { hit = b.id; break; }
+      if (dx*dx + dy*dy <= (b.r+4)*(b.r+4)) { hit = b.id; break; }
     }
     hoveredIdRef.current = hit;
     canvas.style.cursor = hit ? 'pointer' : 'default';
   }, []);
 
-  /* ── canvas click → open detail panel ───────────────────── */
+  /* ── click ────────────────────────────────────────────────── */
   const handleCanvasClick = useCallback((e) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const rect   = canvas.getBoundingClientRect();
-    const scaleX = canvas.width  / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const mx     = (e.clientX - rect.left) * scaleX;
-    const my     = (e.clientY - rect.top)  * scaleY;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width  / rect.width);
+    const my = (e.clientY - rect.top)  * (canvas.height / rect.height);
     for (const b of bubblesRef.current) {
       const dx = mx - b.x, dy = my - b.y;
-      if (dx * dx + dy * dy <= (b.r + 4) * (b.r + 4)) {
+      if (dx*dx + dy*dy <= (b.r+4)*(b.r+4)) {
         selectedIdRef.current = b.id;
         setSelectedBubble({ ...b });
         return;
       }
     }
-    // Click on empty → deselect
     selectedIdRef.current = null;
     setSelectedBubble(null);
   }, []);
 
   /* ── animation loop ───────────────────────────────────────── */
   useEffect(() => {
-    const curStatus = asset === 'crypto' ? cryptoStatus : stocksStatus;
+    const curStatus = asset === 'crypto' ? cryptoStatus
+                    : asset === 'stocks' ? stocksStatus
+                    : favStatus;
     if (curStatus !== 'ok') return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     let lastTime = performance.now();
-
     const animate = () => {
-      const now      = performance.now();
-      const rawDt    = (now - lastTime) / 1000;   // seconds
-      const dt       = Math.min(rawDt, 0.1);       // cap at 100ms
-      lastTime       = now;
+      const now   = performance.now();
+      const dt    = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime    = now;
 
       const { w: W, h: H } = syncCanvas();
       if (!W || !H) { rafRef.current = requestAnimationFrame(animate); return; }
-
-      /* Auto-rebuild if canvas is now visible but bubbles haven't been created yet
-         (happens when RAF fired before React updated display:none → display:block) */
-      if (bubblesRef.current.length === 0) {
-        rebuildBubbles();
-      }
+      if (bubblesRef.current.length === 0) rebuildBubbles();
 
       const ctx = canvas.getContext('2d');
       const bs  = bubblesRef.current;
       if (!bs.length) { rafRef.current = requestAnimationFrame(animate); return; }
 
-      /* Clear (CSS background of .bc-canvas provides dark bg) */
       ctx.clearRect(0, 0, W, H);
 
-      /* ── Physics ── */
-      // Drift: ±0.001×min(W,H) per SECOND (×dt = frame-rate independent)
       const driftMag = 0.001 * Math.min(W, H) * dt;
-      const decay    = Math.pow(0.5, dt);   // half-life = 1s
+      const decay    = Math.pow(0.5, dt);
 
       for (let i = 0; i < bs.length; i++) {
         const b = bs[i];
-
-        /* 1. Every-frame drift × dt — small, organic, continuous */
         b.vx += (Math.random() * 2 - 1) * driftMag;
         b.vy += (Math.random() * 2 - 1) * driftMag;
-
-        /* 2. Exponential damping — half-life = 1s (exact original) */
-        b.vx *= decay;
-        b.vy *= decay;
-
-        /* 3. Speed cap — prevent runaway velocity */
-        const spd = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-        if (spd > 2.5) { b.vx = (b.vx / spd) * 2.5; b.vy = (b.vy / spd) * 2.5; }
-
-        /* 4. Integrate */
-        b.x += b.vx;
-        b.y += b.vy;
-
-        /* 5. Hard wall bounce — 70% restitution (exact original) */
+        b.vx *= decay; b.vy *= decay;
+        const spd = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+        if (spd > 2.5) { b.vx = (b.vx/spd)*2.5; b.vy = (b.vy/spd)*2.5; }
+        b.x += b.vx; b.y += b.vy;
         if (b.x < b.r)     { b.x = b.r;     b.vx *= -0.7; }
         if (b.x > W - b.r) { b.x = W - b.r; b.vx *= -0.7; }
         if (b.y < b.r)     { b.y = b.r;     b.vy *= -0.7; }
         if (b.y > H - b.r) { b.y = H - b.r; b.vy *= -0.7; }
-
-        /* 6. Bubble–bubble collision (size-weighted, exact original × dt) */
         for (let j = i + 1; j < bs.length; j++) {
           const b2  = bs[j];
-          const dx  = b.x - b2.x;
-          const dy  = b.y - b2.y;
-          const dist= Math.max(1, Math.sqrt(dx * dx + dy * dy));
+          const dx  = b.x - b2.x, dy = b.y - b2.y;
+          const dist= Math.max(1, Math.sqrt(dx*dx + dy*dy));
           const sumR= b.r + b2.r;
           if (dist < sumR) {
-            // Scale by dt so collision impulse is frame-rate independent
-            const scale = 6 * dt / dist;
-            const nx    = dx * scale;
-            const ny    = dy * scale;
-            const cA    = 1 - b.r  / sumR;   // fraction for b  (smaller → bigger push)
-            const cB    = b2.r / sumR - 1;   // fraction for b2 (pushes opposite)
-            b.vx  += nx * cA;
-            b.vy  += ny * cA;
-            b2.vx += nx * cB;
-            b2.vy += ny * cB;
+            const sc = 6 * dt / dist;
+            const nx = dx * sc, ny = dy * sc;
+            const cA = 1 - b.r  / sumR;
+            const cB = b2.r / sumR - 1;
+            b.vx  += nx*cA; b.vy  += ny*cA;
+            b2.vx += nx*cB; b2.vy += ny*cB;
           }
         }
       }
 
-      /* ── Draw ── */
-      const selId = selectedIdRef.current;
-      const hovId = hoveredIdRef.current;
-      const nowMs = now;   // for pulsating animation
+      const selId = selectedIdRef.current, hovId = hoveredIdRef.current;
       for (const b of bs) {
-        drawBubble(
-          ctx, b,
+        drawBubble(ctx, b,
           imgCache.current[b.id] || null,
           b.id === hovId && b.id !== selId,
           b.id === selId,
-          nowMs
+          now
         );
       }
-
       rafRef.current = requestAnimationFrame(animate);
     };
 
     rafRef.current = requestAnimationFrame(animate);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [asset, cryptoStatus, stocksStatus, syncCanvas, rebuildBubbles]);
+  }, [asset, cryptoStatus, stocksStatus, favStatus, syncCanvas, rebuildBubbles]);
 
-  const curStatus  = asset === 'crypto' ? cryptoStatus : stocksStatus;
-  const showCanvas = curStatus === 'ok';
-
-  /* ── Close dropdowns on outside click ───────────────────── */
+  /* ── close dropdowns on outside click ───────────────────── */
   useEffect(() => {
-    const handler = (e) => {
+    const h = (e) => {
       if (capDdRef.current  && !capDdRef.current.contains(e.target))  setCapOpen(false);
       if (timeDdRef.current && !timeDdRef.current.contains(e.target)) setTimeOpen(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  const currentTabs = asset === 'crypto' ? CRYPTO_TABS : STOCK_TABS;
-  const activeTabLabel = currentTabs.find(t => t.id === activeTab)?.label || '1H';
-  const capLabel = CAP_OPTS.find(c => c.id === capFilter)?.label || 'הכל';
+  /* ── when favorite changes, refresh star indicators ─────── */
+  const handleFavChanged = useCallback(() => {
+    if (assetRef.current === 'favorites') {
+      fetchFavorites();
+    } else {
+      rebuildBubbles(); // refresh star indicators
+    }
+  }, [fetchFavorites, rebuildBubbles]);
+
+  const curStatus    = asset === 'crypto' ? cryptoStatus
+                     : asset === 'stocks' ? stocksStatus
+                     : favStatus;
+  const showCanvas   = curStatus === 'ok';
+  const currentTabs  = asset === 'crypto' ? CRYPTO_TABS : STOCK_TABS;
+  const activeTabLbl = currentTabs.find(t => t.id === activeTab)?.label || '1H';
+  const capLabel     = CAP_OPTS.find(c => c.id === capFilter)?.label || 'הכל';
 
   /* ── Render ───────────────────────────────────────────────── */
   return (
     <div className="bc-wrap">
 
-      {/* ── Single control row ── */}
+      {/* ── Row 1: main controls ── */}
       <div className="bc-header">
-
-        {/* LEFT: filters */}
         <div className="bc-controls-left">
 
-          {/* 1. Count toggle */}
+          {/* Count toggle */}
           <div className="bc-mode-toggle">
-            <button
-              className={`bc-mode-btn${!showAll ? ' bc-mode-btn--on' : ''}`}
-              onClick={() => showAll && handleToggle()}>
-              15
-            </button>
-            <button
-              className={`bc-mode-btn${showAll ? ' bc-mode-btn--on' : ''}`}
-              onClick={() => !showAll && handleToggle()}>
-              הכל
-            </button>
+            <button className={`bc-mode-btn${!showAll ? ' bc-mode-btn--on' : ''}`}
+              onClick={() => showAll && handleToggle()}>15</button>
+            <button className={`bc-mode-btn${showAll ? ' bc-mode-btn--on' : ''}`}
+              onClick={() => !showAll && handleToggle()}>הכל</button>
           </div>
 
-          {/* 2. Time dropdown */}
-          <div className="bc-dd-wrap" ref={timeDdRef}>
-            <button
-              className="bc-dd-btn"
-              onClick={() => { setTimeOpen(v => !v); setCapOpen(false); }}>
-              {activeTabLabel} <span className="bc-dd-arrow">{timeOpen ? '▴' : '▾'}</span>
-            </button>
-            {timeOpen && (
-              <div className="bc-dd-menu">
-                {currentTabs.map(t => (
-                  <button key={t.id}
-                    className={`bc-dd-item${activeTab === t.id ? ' bc-dd-item--on' : ''}`}
-                    onClick={() => {
-                      asset === 'crypto' ? handleTab(t.id) : setActiveTab(t.id);
-                      setTimeOpen(false);
-                    }}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Time dropdown — hidden for favorites */}
+          {asset !== 'favorites' && (
+            <div className="bc-dd-wrap" ref={timeDdRef}>
+              <button className="bc-dd-btn"
+                onClick={() => { setTimeOpen(v => !v); setCapOpen(false); }}>
+                {activeTabLbl} <span className="bc-dd-arrow">{timeOpen ? '▴' : '▾'}</span>
+              </button>
+              {timeOpen && (
+                <div className="bc-dd-menu">
+                  {currentTabs.map(t => (
+                    <button key={t.id}
+                      className={`bc-dd-item${activeTab === t.id ? ' bc-dd-item--on' : ''}`}
+                      onClick={() => { handleTab(t.id); setTimeOpen(false); }}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* 3. Market Cap dropdown */}
+          {/* Market Cap dropdown */}
           <div className="bc-dd-wrap" ref={capDdRef}>
-            <button
-              className="bc-dd-btn"
+            <button className="bc-dd-btn"
               onClick={() => { setCapOpen(v => !v); setTimeOpen(false); }}>
               MARKET CAP{capFilter !== 'all' ? `: ${capLabel}` : ''}
               <span className="bc-dd-arrow">{capOpen ? '▴' : '▾'}</span>
@@ -624,11 +716,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
                 {CAP_OPTS.map(c => (
                   <button key={c.id}
                     className={`bc-dd-item${capFilter === c.id ? ' bc-dd-item--on' : ''}`}
-                    onClick={() => {
-                      if (asset === 'stocks') handleCap(c.id);
-                      else setCapFilter(c.id);   /* saved for when user switches to stocks */
-                      setCapOpen(false);
-                    }}>
+                    onClick={() => { handleCap(c.id); setCapOpen(false); }}>
                     {c.label}
                   </button>
                 ))}
@@ -638,48 +726,60 @@ export default function BubbleChart({ onManualSearch, onClose }) {
 
         </div>
 
-        {/* RIGHT: asset toggle + close */}
+        {/* Asset toggle + close */}
         <div className="bc-controls-right">
           <div className="bc-asset-toggle">
-            <button
-              className={`bc-asset-btn${asset === 'crypto' ? ' bc-asset-btn--on' : ''}`}
-              onClick={() => asset !== 'crypto' && handleAsset('crypto')}>
-              🪙 קריפטו
-            </button>
-            <button
-              className={`bc-asset-btn${asset === 'stocks' ? ' bc-asset-btn--on' : ''}`}
-              onClick={() => asset !== 'stocks' && handleAsset('stocks')}>
-              📈 מניות
-            </button>
+            <button className={`bc-asset-btn${asset === 'crypto'    ? ' bc-asset-btn--on' : ''}`}
+              onClick={() => asset !== 'crypto'    && handleAsset('crypto')}>CRYPTO</button>
+            <button className={`bc-asset-btn${asset === 'stocks'    ? ' bc-asset-btn--on' : ''}`}
+              onClick={() => asset !== 'stocks'    && handleAsset('stocks')}>STOCKS</button>
+            <button className={`bc-asset-btn${asset === 'favorites' ? ' bc-asset-btn--on' : ''}`}
+              onClick={() => asset !== 'favorites' && handleAsset('favorites')}>⭐</button>
           </div>
-          <button className="bc-close-btn" onClick={onClose} aria-label="סגור">✕</button>
+          <button className="bc-close-btn" onClick={onClose}>✕</button>
         </div>
-
       </div>
 
-      {/* ── Canvas / loading states (position: relative for overlay) ── */}
+      {/* ── Row 2: signal buttons (crypto + stocks only) ── */}
+      {asset !== 'favorites' && (
+        <div className="bc-signal-row">
+          {SIGNALS.map(s => (
+            <button key={s.id}
+              className={`bc-sig-btn${signal === s.id ? ' bc-sig-btn--on' : ''}`}
+              title={s.desc}
+              onClick={() => handleSignal(s.id)}>
+              {s.emoji} {s.label}
+            </button>
+          ))}
+          {signal && (
+            <span className="bc-sig-active-label">
+              {SIGNALS.find(s => s.id === signal)?.desc}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* ── Canvas area ── */}
       <div style={{ position: 'relative' }}>
+
         {curStatus === 'idle' && (
           <div className="bc-state"><span>בחר סוג נכס</span></div>
         )}
-        {curStatus === 'loading' && (
+        {(curStatus === 'loading' || curStatus === 'error') && (
           <div className="bc-state">
             <div className="bc-spinner" />
-            <span>{asset === 'crypto' ? 'טוען קריפטו...' : 'טוען מניות...'}</span>
+            <span className="bc-loading-text">
+              טוען<span className="bc-dots"><span>.</span><span>.</span><span>.</span></span>
+            </span>
           </div>
         )}
-        {curStatus === 'error' && (
-          <div className="bc-state bc-state--err">
-            <span>⚠ שגיאה בטעינה</span>
-            <button onClick={() => {
-              if (asset === 'crypto') {
-                cryptoCoinsRef.current = [];
-                setCryptoStatus('idle');
-                setCryptoRetryTrigger(n => n + 1);
-              } else {
-                fetchStocks(capRef.current, tabRef.current);
-              }
-            }}>נסה שוב</button>
+        {curStatus === 'empty' && (
+          <div className="bc-state">
+            <span style={{ fontSize: 28 }}>⭐</span>
+            <span>אין מועדפים עדיין</span>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', textAlign: 'center', padding: '0 24px' }}>
+              לחץ ⭐ על כל בועה כדי להוסיף למעקב
+            </span>
           </div>
         )}
 
@@ -692,14 +792,13 @@ export default function BubbleChart({ onManualSearch, onClose }) {
           onMouseLeave={() => { hoveredIdRef.current = null; }}
         />
 
-        {/* ── Bubble detail overlay ── */}
         {selectedBubble && (
           <BubbleDetail
             bubble={selectedBubble}
             asset={asset}
             coinsData={cryptoCoinsRef.current}
-            defaultPeriod={asset === 'stocks' ? activeTab : undefined}
-            onClose={() => setSelectedBubble(null)}
+            onClose={() => { setSelectedBubble(null); selectedIdRef.current = null; }}
+            onFavChanged={handleFavChanged}
           />
         )}
       </div>
@@ -708,7 +807,9 @@ export default function BubbleChart({ onManualSearch, onClose }) {
       <div className="bc-footer">
         <span className="bc-live-dot">● LIVE</span>
         <span className="bc-credit">
-          {asset === 'crypto' ? 'CoinGecko' : 'TradingView · זמן אמת'}
+          {asset === 'crypto'    ? 'CoinGecko'
+           : asset === 'stocks'  ? 'TradingView · זמן אמת'
+           : 'מועדפים אישיים'}
         </span>
         <button className="bc-manual-btn" onClick={onManualSearch}>
           🔍 סריקה ידנית

@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import './BubbleDetail.css';
+import { isFavorite, toggleFavorite } from '../utils/favorites.js';
 
 const PERIODS = [
   { id: '1h', label: '1H' },
@@ -100,12 +101,23 @@ function fmtPrice(n) {
 }
 
 /* ── Component ─────────────────────────────────────────────── */
-export default function BubbleDetail({ bubble, asset, coinsData, onClose }) {
+export default function BubbleDetail({ bubble, asset, coinsData, onClose, onFavChanged }) {
   const chartRef = useRef(null);
   const [period,    setPeriod]    = useState('1d');
   const [chartPrices, setChartPrices] = useState(null);
   const [periodPcts,  setPeriodPcts]  = useState({});  // {1h, 1d, 1w, 1m}
   const [loading,   setLoading]   = useState(true);
+
+  // Favorites state
+  const assetType = bubble._type || (asset === 'stocks' ? 'stocks' : 'crypto');
+  const favId     = assetType === 'crypto' ? bubble.id : bubble.symbol;
+  const [fav, setFav] = useState(() => isFavorite(assetType, favId));
+
+  const handleToggleFav = () => {
+    const added = toggleFavorite(assetType, favId);
+    setFav(added);
+    if (onFavChanged) onFavChanged();
+  };
 
   /* Get static % changes from already-loaded data */
   const staticChanges = useCallback(() => {
@@ -194,7 +206,7 @@ export default function BubbleDetail({ bubble, asset, coinsData, onClose }) {
     <div className="bd-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="bd-panel">
 
-        {/* Header: symbol + close */}
+        {/* Header: symbol + fav + close */}
         <div className="bd-hdr">
           <div className="bd-hdr-left">
             {bubble.name && bubble.name !== bubble.symbol && (
@@ -202,7 +214,15 @@ export default function BubbleDetail({ bubble, asset, coinsData, onClose }) {
             )}
             <span className="bd-sym">{bubble.symbol}</span>
           </div>
-          <button className="bd-close" onClick={onClose}>✕</button>
+          <div className="bd-hdr-right">
+            <button
+              className={`bd-fav-btn${fav ? ' bd-fav-btn--on' : ''}`}
+              title={fav ? 'הסר ממועדפים' : 'הוסף למועדפים'}
+              onClick={handleToggleFav}>
+              {fav ? '⭐' : '☆'}
+            </button>
+            <button className="bd-close" onClick={onClose}>✕</button>
+          </div>
         </div>
 
         {/* Price + live % badge */}
