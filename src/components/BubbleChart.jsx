@@ -34,9 +34,10 @@ const CAP_OPTS = [
   { id: '5b',   label: '5B'   },
   { id: '10b',  label: '10B+' },
 ];
+// מביאים 100 מטבעות כדי שלכל פריוד יהיה pool רחב לבחור ממנו
 const CRYPTO_URL =
   'https://api.coingecko.com/api/v3/coins/markets' +
-  '?vs_currency=usd&order=market_cap_desc&per_page=50&page=1' +
+  '?vs_currency=usd&order=market_cap_desc&per_page=100&page=1' +
   '&sparkline=false&price_change_percentage=1h,24h,7d,30d,1y';
 
 // טווחי market cap לסינון קריפטו (זהה ל-stocks)
@@ -369,24 +370,16 @@ export default function BubbleChart({ onManualSearch, onClose }) {
     tabRef.current = id;
     setActiveTab(id);
     if (assetRef.current === 'crypto') {
-      // קריפטו: עדכון מקומי מהנתונים שכבר בזיכרון
-      const coins = cryptoCoinsRef.current;
-      const updated = bubblesRef.current.map(b => {
-        const coin = coins.find(c => c.id === b.id);
-        return { ...b, pct: coin ? getTabPct(coin, id) : b.pct };
-      });
-      const maxAbsPct = Math.max(...updated.map(b => Math.abs(b.pct)), 0.1);
-      bubblesRef.current = updated.map(b => ({
-        ...b,
-        colorN: Math.max(0.2, Math.min(1.0, Math.abs(b.pct) / maxAbsPct)),
-      }));
+      // קריפטו: בנה מחדש — top gainers שונים לכל פריוד
+      // rebuildBubbles ישתמש ב-tabRef.current החדש ויבחר top 15 אחרים
+      rebuildBubbles();
       kickBubbles();
     } else {
-      // מניות: טעינה מחדש עם ה-period החדש
+      // מניות: שלוף מ-TradingView עם ה-period החדש
       stocksRef.current = [];
       fetchStocks(capRef.current, id);
     }
-  }, [kickBubbles, fetchStocks]);
+  }, [rebuildBubbles, kickBubbles, fetchStocks]);
 
   /* ── cap filter (stocks + crypto) ────────────────────────── */
   const handleCap = useCallback((id) => {
