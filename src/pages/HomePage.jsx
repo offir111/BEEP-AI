@@ -35,22 +35,75 @@ function MarketPill({ sym, label, prefix = '$' }) {
   );
 }
 
-// ── Fear & Greed mini ─────────────────────────────────────────
-function FearGreedMini() {
+// ── Fear & Greed — Crypto (alternative.me) ────────────────────
+function FearGreedCrypto() {
   const [val, setVal] = useState(null);
   const [lbl, setLbl] = useState('');
   useEffect(() => {
     fetch('https://api.alternative.me/fng/?limit=1')
-      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(r => r.json())
       .then(d => { setVal(parseInt(d?.data?.[0]?.value)); setLbl(d?.data?.[0]?.value_classification || ''); })
       .catch(() => {});
   }, []);
   const color = !val ? '#888' : val <= 25 ? '#ef4444' : val <= 45 ? '#f97316' : val <= 55 ? '#eab308' : val <= 75 ? '#84cc16' : '#22c55e';
   return (
     <div className="hp-pill">
-      <span className="hp-pill-label">F&amp;G</span>
+      <span className="hp-pill-label">F&amp;G ₿</span>
       {val
         ? <><span className="hp-pill-price" style={{ color }}>{val}</span><span className="hp-pill-change" style={{ color, fontSize: '0.62rem' }}>{lbl}</span></>
+        : <span className="hp-pill-loading">…</span>
+      }
+    </div>
+  );
+}
+
+// ── Fear & Greed — Stocks (CNN) ───────────────────────────────
+function FearGreedStocks() {
+  const [val, setVal] = useState(null);
+  const [lbl, setLbl] = useState('');
+  useEffect(() => {
+    fetch('https://production.dataviz.cnn.io/index/fearandgreed/graphdata')
+      .then(r => r.json())
+      .then(d => {
+        const score = Math.round(d?.fear_and_greed?.score ?? d?.score ?? NaN);
+        const rating = d?.fear_and_greed?.rating ?? d?.rating ?? '';
+        if (!isNaN(score)) { setVal(score); setLbl(rating); }
+      })
+      .catch(() => {});
+  }, []);
+  const color = !val ? '#888' : val <= 25 ? '#ef4444' : val <= 45 ? '#f97316' : val <= 55 ? '#eab308' : val <= 75 ? '#84cc16' : '#22c55e';
+  return (
+    <div className="hp-pill">
+      <span className="hp-pill-label">F&amp;G 📈</span>
+      {val
+        ? <><span className="hp-pill-price" style={{ color }}>{val}</span><span className="hp-pill-change" style={{ color, fontSize: '0.62rem' }}>{lbl}</span></>
+        : <span className="hp-pill-loading">…</span>
+      }
+    </div>
+  );
+}
+
+// ── BTC Signal pill ───────────────────────────────────────────
+function BtcSignalPill() {
+  const ctx = useContext(LiveQuoteContext);
+  const { change, flash } = useQuote('BTC');
+  useEffect(() => {
+    ctx?.subscribe(['BTC']);
+    return () => ctx?.unsubscribe(['BTC']);
+  }, [ctx]);
+  const up = change == null ? null : change >= 0;
+  const signal = up === null ? null : up ? 'קנה' : 'מכור';
+  const color  = up === null ? '#888' : up ? '#4ade80' : '#ef4444';
+  const arrow  = up === null ? '' : up ? '▲' : '▼';
+  return (
+    <div className="hp-pill">
+      <span className="hp-pill-label">BTC</span>
+      {signal
+        ? <>
+            <span className={`hp-pill-price${flash === 'up' ? ' lp-flash-up' : flash === 'down' ? ' lp-flash-down' : ''}`}
+              style={{ color }}>{arrow} {signal}</span>
+            {change != null && <span className="hp-pill-change" style={{ color }}>{Math.abs(change).toFixed(1)}%</span>}
+          </>
         : <span className="hp-pill-loading">…</span>
       }
     </div>
@@ -248,25 +301,29 @@ export default function HomePage({ navigate }) {
   return (
     <div className="hp-wrap" dir="rtl">
 
-      {/* ── Mini chart panel — symbol changes on button click ── */}
-      <MiniChartPanel navigate={navigate} symbol={chartSymbol} />
-
-      {/* ── Market strip ── */}
+      {/* ── Market strip — ABOVE the chart ── */}
+      {/* Order (RTL: first=visual-right → last=visual-left):
+          גרפים | S&P | GOLD | ETH | SOL | [empty] | BTC-Signal | F&G-Crypto | F&G-Stocks */}
       <div className="hp-market-strip">
-        <MarketPill sym="S&P"   label="S&P 500" />
-        <MarketPill sym="GOLD"  label="זהב" />
-        <MarketPill sym="ETH"   label="ETH" />
-        <MarketPill sym="SOL"   label="SOL" />
-        <FearGreedMini />
-        {/* גרפים button — opens full chart page */}
         <button className="hp-charts-pill" onClick={() => navigate('charts')}>
           <span className="hp-pill-label">גרפים</span>
           <span className="hp-charts-pill-icon">📈</span>
         </button>
+        <MarketPill sym="S&P"  label="S&P 500" />
+        <MarketPill sym="GOLD" label="זהב" />
+        <MarketPill sym="ETH"  label="ETH" />
+        <MarketPill sym="SOL"  label="SOL" />
+        <MarketPill sym="SPCX" label="SPCX" />
+        <BtcSignalPill />
+        <FearGreedCrypto />
+        <FearGreedStocks />
       </div>
 
-      {/* ── SOT Scanner Widget (replaces BTC hero) ── */}
+      {/* ── SOT Scanner Widget ── */}
       <ScannerWidget onSearch={handleSearch} />
+
+      {/* ── Mini chart panel ── */}
+      <MiniChartPanel navigate={navigate} symbol={chartSymbol} />
 
       {/* ── 12 Stock buttons ── */}
       <StockButtons selected={chartSymbol} onSelect={handleSymbolSelect} />

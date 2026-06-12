@@ -1,15 +1,17 @@
 /**
- * ScannerWidget — SOT-style AI scanning animation
- * • Loops forever, stuck at 89% (never reaches 100%)
- * • "לחץ כאן" text centered on glowing ball
- * • Click → inline search form (input + button)
- * • onSearch(symbol) callback when user submits
+ * ScannerWidget — AI scanning animation
+ * mode: 'anim' | 'bubbles' | 'search'
+ *
+ *  Click animation card → bubbles (CryptoBubbles)
+ *  Click "סריקה ידנית" in bubbles → search form
+ *  Click "ביטול" in search → back to anim
  */
 import { useState, useEffect, useRef } from 'react';
 import './ScannerWidget.css';
+import BubbleChart from './BubbleChart';
 
-const BAR_GRAD = 'linear-gradient(90deg,#22d3ee 0%,#818cf8 60%,#6366f1 100%)';
-const CLIMB_MS = 9750; // ~10s to climb 0→89, then STOP at 89
+const BAR_GRAD = 'linear-gradient(90deg,#1e90ff 0%,#1565c0 55%,#071e45 100%)';
+const CLIMB_MS = 9750;
 
 const LABELS = [
   'מתחבר למקורות נתונים',
@@ -29,7 +31,6 @@ function useLoopProgress() {
       const p = Math.max(5, Math.round(t * 89));
       setProg(p);
       if (t < 1) raf = requestAnimationFrame(tick);
-      // t === 1 → stays at 89, no more frames; rings keep spinning via CSS
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -42,20 +43,20 @@ export default function ScannerWidget({ onSearch }) {
   const labelIdx = Math.floor((prog / 89) * (LABELS.length - 1));
   const label    = LABELS[Math.min(labelIdx, LABELS.length - 1)];
 
-  const [showSearch, setShowSearch] = useState(false);
-  const [input,      setInput]      = useState('');
+  // mode: 'anim' | 'bubbles' | 'search'
+  const [mode,  setMode]  = useState('anim');
+  const [input, setInput] = useState('');
   const inputRef = useRef(null);
 
-  /* auto-focus when search panel opens */
   useEffect(() => {
-    if (showSearch) setTimeout(() => inputRef.current?.focus(), 80);
-  }, [showSearch]);
+    if (mode === 'search') setTimeout(() => inputRef.current?.focus(), 80);
+  }, [mode]);
 
   const handleSearch = () => {
     const sym = input.trim().toUpperCase();
     if (!sym) return;
     onSearch(sym);
-    setShowSearch(false);
+    setMode('anim');
     setInput('');
   };
 
@@ -68,50 +69,52 @@ export default function ScannerWidget({ onSearch }) {
         @keyframes sw-fadein  { from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)} }
       `}</style>
 
-      {!showSearch ? (
+      {mode === 'anim' && (
         /* ══ ANIMATION MODE ══════════════════════════════════════ */
-        <button className="sw-anim-btn" onClick={() => setShowSearch(true)} aria-label="פתח חיפוש מניה">
+        <button className="sw-anim-btn" onClick={() => setMode('bubbles')} aria-label="פתח מפת בועות קריפטו">
 
           <div className="sw-top">
             <span className="sw-title">סריקת AI מתבצעת</span>
           </div>
 
-          {/* Spinning rings + orb */}
+          {/* Spinning rings + orb — 210×210 container */}
           <div className="sw-rings-area">
             <div className="sw-rings-container">
-              <svg className="sw-svg" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+              <svg className="sw-svg" viewBox="0 0 210 210" xmlns="http://www.w3.org/2000/svg">
                 <defs>
                   <linearGradient id="swGA" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#6366f1"/>
-                    <stop offset="100%" stopColor="#a855f7"/>
+                    <stop offset="0%"   stopColor="#071e45"/>
+                    <stop offset="100%" stopColor="#1e90ff"/>
                   </linearGradient>
                   <linearGradient id="swGB" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#c084fc"/>
-                    <stop offset="100%" stopColor="#7c3aed"/>
+                    <stop offset="0%"   stopColor="#1e90ff"/>
+                    <stop offset="100%" stopColor="#0d47a1"/>
                   </linearGradient>
                 </defs>
-                {/* outer ring CW — 50% slower */}
-                <g style={{transformOrigin:'80px 80px', animation:'sw-spinCW 4.8s linear infinite'}}>
-                  <circle cx="80" cy="80" r="70" fill="none" stroke="url(#swGA)"
-                    strokeWidth="3" strokeLinecap="round" strokeDasharray="128 316"/>
+
+                {/* outer ring CW — 6.24s */}
+                <g style={{transformOrigin:'105px 105px', animation:'sw-spinCW 6.24s linear infinite'}}>
+                  <circle cx="105" cy="105" r="91" fill="none" stroke="url(#swGA)"
+                    strokeWidth="3" strokeLinecap="round" strokeDasharray="160 412"/>
                 </g>
-                {/* mid ring CCW — 50% slower */}
-                <g style={{transformOrigin:'80px 80px', animation:'sw-spinCCW 3.6s linear infinite'}}>
-                  <circle cx="80" cy="80" r="54" fill="none" stroke="url(#swGB)"
-                    strokeWidth="3" strokeLinecap="round" strokeDasharray="88 252"/>
+
+                {/* mid ring CCW — 4.68s */}
+                <g style={{transformOrigin:'105px 105px', animation:'sw-spinCCW 4.68s linear infinite'}}>
+                  <circle cx="105" cy="105" r="70" fill="none" stroke="url(#swGB)"
+                    strokeWidth="3" strokeLinecap="round" strokeDasharray="114 326"/>
                 </g>
-                {/* inner ring CW — 50% slower */}
-                <g style={{transformOrigin:'80px 80px', animation:'sw-spinCW 2.7s linear infinite'}}>
-                  <circle cx="80" cy="80" r="38" fill="none"
-                    stroke="rgba(192,132,252,.5)" strokeWidth="2"
-                    strokeLinecap="round" strokeDasharray="44 200"/>
+
+                {/* inner ring CW — 3.51s */}
+                <g style={{transformOrigin:'105px 105px', animation:'sw-spinCW 3.51s linear infinite'}}>
+                  <circle cx="105" cy="105" r="49" fill="none"
+                    stroke="rgba(30,144,255,.5)" strokeWidth="2"
+                    strokeLinecap="round" strokeDasharray="55 253"/>
                 </g>
               </svg>
 
-              {/* Glowing ball + text */}
+              {/* Glowing orb — perfectly centered */}
               <div className="sw-orb-wrap">
                 <div className="sw-orb" style={{animation:'sw-orb 3s ease-in-out infinite'}}/>
-                <span className="sw-orb-text">לחץ כאן</span>
               </div>
             </div>
           </div>
@@ -127,8 +130,17 @@ export default function ScannerWidget({ onSearch }) {
             </div>
           </div>
         </button>
+      )}
 
-      ) : (
+      {mode === 'bubbles' && (
+        /* ══ BUBBLES MODE ════════════════════════════════════════ */
+        <BubbleChart
+          onManualSearch={() => setMode('search')}
+          onClose={() => setMode('anim')}
+        />
+      )}
+
+      {mode === 'search' && (
         /* ══ SEARCH MODE ══════════════════════════════════════════ */
         <div className="sw-search" style={{animation:'sw-fadein .25s ease'}}>
           <div className="sw-search-title">סריקת מניות חכמה</div>
@@ -147,8 +159,8 @@ export default function ScannerWidget({ onSearch }) {
             ⚡ סריקה חדשה
           </button>
 
-          <button className="sw-search-cancel" onClick={() => setShowSearch(false)}>
-            ← ביטול
+          <button className="sw-search-cancel" onClick={() => setMode('bubbles')}>
+            ← חזרה לסריקה
           </button>
         </div>
       )}

@@ -159,6 +159,8 @@
 .hp-pill-change { font-size: 0.65rem; font-weight: 700; }
 .hp-pill-loading{ font-size: 0.75rem; color: rgba(255,255,255,0.2); }
 .hp-pill-failed { font-size: 0.82rem; color: rgba(255,255,255,0.2); font-weight: 600; }
+/* empty placeholder pill — maintains grid spacing */
+.hp-pill--empty { visibility: hidden; pointer-events: none; }
 
 /* ── Feature cards ── */
 .hp-features {

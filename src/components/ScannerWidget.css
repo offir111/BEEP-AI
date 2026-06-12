@@ -1,13 +1,13 @@
 /* ScannerWidget.css ───────────────────────────────────────────
-   AI scanner animation card — replaces BTC hero
+   AI scanner animation — deep midnight ocean blue (מצולות)
    ──────────────────────────────────────────────────────────── */
 
 .sw-wrap {
   width: 100%;
   border-radius: 20px;
-  border: 1px solid rgba(168, 85, 247, 0.3);
-  background: rgba(20, 10, 38, 0.72);
-  box-shadow: 0 0 40px rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(21, 101, 192, 0.4);
+  background: rgba(2, 6, 23, 0.85);
+  box-shadow: 0 0 40px rgba(13, 71, 161, 0.22);
   overflow: hidden;
   position: relative;
 }
@@ -27,7 +27,7 @@
 }
 
 .sw-anim-btn:hover .sw-orb {
-  box-shadow: 0 0 55px 18px rgba(168, 85, 247, 0.8);
+  box-shadow: 0 0 55px 18px rgba(30, 136, 229, 0.85);
 }
 
 /* ── Title ──────────────────────────────────────────────────── */
@@ -41,10 +41,7 @@
   text-align: center;
   font-size: 18px;
   font-weight: 800;
-  background: linear-gradient(135deg, #818cf8 0%, #6366f1 45%, #4f46e5 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #ffffff;
 }
 
 /* ── Rings area ─────────────────────────────────────────────── */
@@ -55,10 +52,11 @@
   margin: 4px 0 8px;
 }
 
+/* Container is 210×210 — 30% larger than original 160×160 */
 .sw-rings-container {
   position: relative;
-  width: 160px;
-  height: 160px;
+  width: 210px;
+  height: 210px;
 }
 
 .sw-svg {
@@ -68,15 +66,13 @@
   height: 100%;
 }
 
-/* Glowing orb + label overlay */
+/* ── Orb — perfectly centered, text positioned absolute below ── */
 .sw-orb-wrap {
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   pointer-events: none;
 }
 
@@ -84,17 +80,26 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: radial-gradient(circle at 38% 32%, #e9d5ff, #c084fc 38%, #a855f7 70%);
-  box-shadow: 0 0 40px 10px rgba(168, 85, 247, 0.65);
+  /* Deep midnight ocean gradient */
+  background: radial-gradient(circle at 38% 32%, #e3f2fd, #1e90ff 38%, #0d47a1 70%);
+  box-shadow: 0 0 40px 10px rgba(30, 144, 255, 0.7);
 }
 
+/* Text floats below center with dark backdrop pill */
 .sw-orb-text {
+  position: absolute;
+  top: calc(50% + 42px);
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 13px;
   font-weight: 800;
-  color: #e9d5ff;
-  text-shadow: 0 0 12px rgba(168, 85, 247, 0.9);
+  color: #90caf9;
+  text-shadow: 0 0 12px rgba(30, 144, 255, 0.9);
   letter-spacing: 0.03em;
   white-space: nowrap;
+  background: rgba(2, 6, 23, 0.78);
+  padding: 3px 12px;
+  border-radius: 99px;
 }
 
 /* ── Progress bar ───────────────────────────────────────────── */
@@ -113,7 +118,7 @@
 .sw-bar-fill {
   height: 100%;
   border-radius: 999px;
-  box-shadow: 0 0 10px rgba(168, 85, 247, 0.55);
+  box-shadow: 0 0 10px rgba(30, 144, 255, 0.55);
   transition: width 0.5s ease;
 }
 
@@ -126,13 +131,16 @@
 
 .sw-bar-label {
   font-size: 13px;
-  color: #a78bbf;
+  color: #ffffff;
+  background: rgba(2, 6, 23, 0.72);
+  padding: 2px 10px;
+  border-radius: 99px;
 }
 
 .sw-bar-pct {
   font-size: 16px;
   font-weight: 800;
-  color: #22d3ee;
+  color: #ffffff;
 }
 
 /* ── Search mode ────────────────────────────────────────────── */
@@ -148,7 +156,7 @@
   text-align: center;
   font-size: 22px;
   font-weight: 900;
-  background: linear-gradient(135deg, #818cf8 0%, #6366f1 45%, #4f46e5 100%);
+  background: linear-gradient(135deg, #90caf9 0%, #1565c0 45%, #071e45 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -157,7 +165,7 @@
 
 .sw-search-sub {
   text-align: center;
-  color: #67e8f9;
+  color: #64b5f6;
   font-size: 13px;
   font-weight: 700;
   margin: 0 0 4px;
@@ -169,7 +177,7 @@
   padding: 14px 16px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(168, 85, 247, 0.35);
+  border: 1px solid rgba(21, 101, 192, 0.45);
   color: #fff;
   font-size: 15px;
   text-align: right;
@@ -182,8 +190,8 @@
 }
 
 .sw-search-input:focus {
-  border-color: rgba(168, 85, 247, 0.7);
-  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.12);
+  border-color: rgba(30, 144, 255, 0.75);
+  box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.16);
 }
 
 .sw-search-btn {
@@ -192,7 +200,7 @@
   border-radius: 14px;
   border: none;
   cursor: pointer;
-  background: linear-gradient(135deg, #818cf8 0%, #6366f1 45%, #4f46e5 100%);
+  background: linear-gradient(135deg, #90caf9 0%, #1565c0 50%, #071e45 100%);
   color: #fff;
   font-size: 17px;
   font-weight: 800;

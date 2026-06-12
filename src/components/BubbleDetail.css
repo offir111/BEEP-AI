@@ -1,0 +1,230 @@
+/* BubbleDetail.css — popup detail panel (cryptobubbles.net style) */
+
+/* Full overlay behind the panel */
+.bd-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  animation: bd-in 0.18s ease;
+  border-radius: inherit;
+}
+
+@keyframes bd-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Panel card */
+.bd-panel {
+  width: calc(100% - 24px);
+  max-width: 420px;
+  background: #0d1628;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+/* ── Header ─────────────────────────────────────────────────── */
+.bd-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.bd-hdr-left {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.bd-sym {
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+
+.bd-name {
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  font-weight: 500;
+}
+
+.bd-close {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.5);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.bd-close:hover {
+  background: rgba(255,70,70,0.18);
+  color: #ff8080;
+  border-color: rgba(255,70,70,0.4);
+}
+
+/* ── Price row ───────────────────────────────────────────────── */
+.bd-price-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px 6px;
+}
+
+.bd-price {
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.bd-pct-badge {
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ── Period tabs ─────────────────────────────────────────────── */
+.bd-periods {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  padding: 8px 16px;
+}
+
+.bd-period {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(255,255,255,0.04);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.14s, border-color 0.14s;
+}
+
+.bd-period:hover { background: rgba(255,255,255,0.08); }
+
+.bd-period--on {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.28);
+}
+
+.bd-period-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.04em;
+}
+
+.bd-period--on .bd-period-label { color: #fff; }
+
+.bd-period-pct {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── Chart ───────────────────────────────────────────────────── */
+.bd-chart-wrap {
+  position: relative;
+  margin: 0 12px 4px;
+  height: 150px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.02);
+}
+
+.bd-chart {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.bd-chart-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13,22,40,0.7);
+  z-index: 2;
+}
+
+.bd-spin {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255,255,255,0.1);
+  border-top-color: #1e90ff;
+  animation: bd-spin-anim 0.7s linear infinite;
+}
+
+@keyframes bd-spin-anim { to { transform: rotate(360deg); } }
+
+/* ── Stats grid ──────────────────────────────────────────────── */
+.bd-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255,255,255,0.07);
+  border-radius: 0 0 18px 18px;
+  overflow: hidden;
+}
+
+.bd-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  background: #0d1628;
+}
+
+.bd-stat-lbl {
+  font-size: 10px;
+  color: rgba(255,255,255,0.38);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bd-stat-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* ── Color helpers ───────────────────────────────────────────── */
+.bd-up {
+  color: #00e64d;
+}
+.bd-dn {
+  color: #ff5555;
+}
+.bd-pct-badge.bd-up {
+  background: rgba(0,230,77,0.14);
+  border: 1px solid rgba(0,230,77,0.3);
+  color: #00e64d;
+}
+.bd-pct-badge.bd-dn {
+  background: rgba(255,85,85,0.14);
+  border: 1px solid rgba(255,85,85,0.3);
+  color: #ff5555;
+}

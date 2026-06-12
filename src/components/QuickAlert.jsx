@@ -6,9 +6,8 @@
  * Source: C:\Users\Admin\Downloads\S.T.B\live\index-BrRuZL4L-v104.js
  * READ ONLY (no source modifications)
  */
-import { useState, useEffect, useRef, useCallback, useContext } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAlerts } from '../context/AlertsContext';
-import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import './QuickAlert.css';
 
 /* ── Step-size logic (1:1 from S.T.B) ─────────────────────── */
@@ -44,34 +43,25 @@ export default function QuickAlert({
   /* ── Symbol / live price ─────────────────────────────────── */
   const [symbol,       setSymbol]       = useState(initSymbol);
 
-  // ── Live price from centralized WebSocket/polling context ──────
-  const lqCtx = useContext(LiveQuoteContext);
-  const { price: ctxPrice, flash: ctxFlash } = useQuote(symbol);
-
-  // Keep livePrice as state — populated from context (live) or prop (initial)
+  // ── Live price — simple fetch once on mount ──────────────────
   const [livePrice,    setLivePrice]    = useState(initPrice);
-  const [loadingPrice, setLoadingPrice] = useState(true);
+  const [loadingPrice, setLoadingPrice] = useState(false);
   const livePriceRef = useRef(initPrice);
   useEffect(() => { livePriceRef.current = livePrice; }, [livePrice]);
 
-  // Subscribe/unsubscribe when symbol changes
   useEffect(() => {
-    if (!lqCtx || !symbol) return;
+    if (initPrice) { setLivePrice(initPrice); return; }
+    if (!symbol) return;
+    let cancelled = false;
     setLoadingPrice(true);
-    lqCtx.subscribe([symbol]);
-    return () => lqCtx.unsubscribe([symbol]);
-  }, [symbol, lqCtx]);
-
-  // Sync live context price → local state (updates continuously from WS)
-  useEffect(() => {
-    if (ctxPrice != null) {
-      setLivePrice(ctxPrice);
-      setLoadingPrice(false);
-    }
-  }, [ctxPrice]);
-
-  // Also accept initial price prop from parent
-  useEffect(() => { if (initPrice && livePrice == null) setLivePrice(initPrice); }, [initPrice]);
+    const isCrypto = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','DOT','AVAX','MATIC'].includes(symbol.toUpperCase());
+    (isCrypto
+      ? fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol.toUpperCase()}USDT`).then(r=>r.json()).then(d=>parseFloat(d.price))
+      : fetch(`/api/market?symbol=${encodeURIComponent(symbol)}`).then(r=>r.json()).then(d=>d.price ? parseFloat(d.price) : null)
+    ).then(p => { if (!cancelled && p) { setLivePrice(p); setLoadingPrice(false); } })
+     .catch(() => { if (!cancelled) setLoadingPrice(false); });
+    return () => { cancelled = true; };
+  }, [symbol, initPrice]);
 
   /* ── Form state ──────────────────────────────────────────── */
   const [inputVal,  setInputVal]  = useState('');
@@ -396,7 +386,7 @@ export default function QuickAlert({
               ) : livePrice ? (
                 <>
                   <span className="sa-alert-current-label">מחיר נוכחי ↙ לחץ למלא</span>
-                  <span className={`sa-alert-current-price${ctxFlash === 'up' ? ' lp-flash-up' : ctxFlash === 'down' ? ' lp-flash-down' : ''}`}>
+                  <span className="sa-alert-current-price">
                     {fmtP(livePrice)}
                   </span>
                   <span className="sa-alert-current-sym-tag">{symbol}</span>

@@ -1,0 +1,367 @@
+/* BubbleChart.css ─────────────────────────────────────────────
+   Crypto + Stocks bubble panel
+   ──────────────────────────────────────────────────────────── */
+
+.bc-wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  animation: bc-fadein 0.2s ease;
+}
+
+@keyframes bc-fadein {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Single control row ─────────────────────────────────────── */
+.bc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px 0;
+  gap: 6px;
+  direction: ltr;
+}
+
+/* Left group: 15/הכל · time · market cap */
+.bc-controls-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
+}
+
+/* Right group: asset toggle · X */
+.bc-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ✕ Close button */
+.bc-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.55);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.bc-close-btn:hover {
+  background: rgba(255,80,80,0.18);
+  border-color: rgba(255,80,80,0.4);
+  color: #ff8080;
+}
+
+/* Asset toggle (קריפטו | מניות) */
+.bc-asset-toggle {
+  display: flex;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.14);
+}
+
+.bc-asset-btn {
+  padding: 5px 12px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.bc-asset-btn + .bc-asset-btn {
+  border-right: 1px solid rgba(255,255,255,0.14);
+}
+
+.bc-asset-btn--on {
+  background: rgba(255,255,255,0.13);
+  color: #fff;
+  cursor: default;
+}
+
+/* Count toggle (15 מובילים | הכל) */
+.bc-mode-toggle {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.bc-mode-btn {
+  padding: 5px 10px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.bc-mode-btn + .bc-mode-btn {
+  border-right: 1px solid rgba(255,255,255,0.12);
+}
+
+.bc-mode-btn--on {
+  background: rgba(255,255,255,0.13);
+  color: #fff;
+  cursor: default;
+}
+
+/* ── Dropdown (MC + Time) ───────────────────────────────────── */
+.bc-dd-wrap {
+  position: relative;
+}
+
+.bc-dd-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.75);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.14s, border-color 0.14s;
+}
+.bc-dd-btn:hover {
+  background: rgba(255,255,255,0.11);
+  border-color: rgba(255,255,255,0.28);
+}
+.bc-dd-btn--dim {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.bc-dd-arrow {
+  font-size: 9px;
+  opacity: 0.6;
+}
+
+/* Dropdown popup */
+.bc-dd-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+  min-width: 80px;
+  animation: bc-dd-in 0.12s ease;
+}
+
+@keyframes bc-dd-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.bc-dd-item {
+  display: block;
+  width: 100%;
+  padding: 7px 14px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.6);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+.bc-dd-item:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+.bc-dd-item--on {
+  background: rgba(30,144,255,0.18);
+  color: #90caf9;
+}
+
+/* ── Row 2: crypto tabs / stocks cap filter ─────────────────── */
+.bc-subrow {
+  padding: 7px 12px 4px;
+}
+
+/* Crypto tabs */
+.bc-tabs {
+  display: flex;
+  gap: 5px;
+}
+
+.bc-tab {
+  padding: 4px 11px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.5);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.05em;
+  transition: all 0.15s;
+}
+
+.bc-tab:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+
+.bc-tab--on {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.4);
+  color: #fff;
+}
+
+/* Market cap filter — 6 options in one row */
+.bc-cap-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.bc-cap-label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.bc-cap-btn {
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.11);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.42);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.13s;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.bc-cap-btn:hover { color: #fff; border-color: rgba(255,255,255,0.28); }
+
+.bc-cap-btn--on {
+  background: rgba(30,144,255,0.22);
+  border-color: rgba(30,144,255,0.5);
+  color: #90caf9;
+  cursor: default;
+}
+
+/* ── Canvas ─────────────────────────────────────────────────── */
+.bc-canvas {
+  width: 100%;
+  height: clamp(270px, 50vw, 350px);
+  display: block;
+  background: #111;   /* matches cryptobubbles.net body bg */
+  border-radius: 4px;
+}
+
+/* ── States ─────────────────────────────────────────────────── */
+.bc-state {
+  width: 100%;
+  height: clamp(270px, 50vw, 350px);
+  background: #111;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: rgba(255,255,255,0.42);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bc-state--err { color: #f87171; }
+.bc-state--err button {
+  padding: 7px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(248,113,113,0.35);
+  background: rgba(248,113,113,0.08);
+  color: #f87171;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.bc-spinner {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255,255,255,0.08);
+  border-top-color: #1e90ff;
+  animation: bc-spin 0.7s linear infinite;
+}
+
+@keyframes bc-spin { to { transform: rotate(360deg); } }
+
+/* ── Footer ─────────────────────────────────────────────────── */
+.bc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px 11px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.bc-live-dot {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4ade80;
+  letter-spacing: 0.04em;
+  animation: bc-blink 1.8s ease-in-out infinite;
+}
+
+@keyframes bc-blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+.bc-credit {
+  font-size: 10px;
+  color: rgba(255,255,255,0.22);
+}
+
+.bc-manual-btn {
+  padding: 6px 13px;
+  border-radius: 99px;
+  border: 1px solid rgba(30,144,255,0.4);
+  background: rgba(13,71,161,0.18);
+  color: #90caf9;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.bc-manual-btn:hover {
+  background: rgba(30,144,255,0.2);
+  color: #fff;
+}
