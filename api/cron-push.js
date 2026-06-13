@@ -62,13 +62,26 @@ async function redis(cmd) {
 }
 
 // ── Price fetchers ────────────────────────────────────────────
+// NOTE: api.binance.com is geo-blocked (HTTP 451) from US datacenter IPs
+// where Vercel functions run. Use sources that work from US servers.
 async function getCryptoPrice(symbol) {
   const pair = CRYPTO_MAP[symbol.toUpperCase()];
   if (!pair) return null;
-  const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${pair}`);
-  if (!r.ok) return null;
-  const d = await r.json();
-  return parseFloat(d.price) || null;
+
+  // 1. Binance public market-data endpoint — same format, NOT geo-blocked
+  try {
+    const r = await fetch(`https://data-api.binance.vision/api/v3/ticker/price?symbol=${pair}`);
+    if (r.ok) { const d = await r.json(); const p = parseFloat(d.price); if (p) return p; }
+  } catch {}
+
+  // 2. Coinbase fallback (BTC-USD format)
+  try {
+    const base = pair.replace(/USDT$/, '').replace(/BTC$/, '');
+    const r = await fetch(`https://api.coinbase.com/v2/prices/${base}-USD/spot`);
+    if (r.ok) { const d = await r.json(); const p = parseFloat(d?.data?.amount); if (p) return p; }
+  } catch {}
+
+  return null;
 }
 
 async function getStockPrice(symbol) {
@@ -129,6 +142,8 @@ export default async function handler(req, res) {
   // Init Firebase Admin for FCM (Android APK)
   const firebaseAdmin = await getFCMApp();
 
+  const debug   = req.query?.debug === '1';
+  const dbg     = { firebaseReady: !!firebaseAdmin, devices: [] };
   const now     = Date.now();
   let sent      = 0;
   let errors    = 0;
@@ -153,6 +168,7 @@ export default async function handler(req, res) {
     const { deviceId, subscription, fcmToken, alerts } = device;
     let changed = false;
     let deviceDead = false;
+    const ddbg = { deviceId, hasFcm: !!fcmToken, hasSub: !!subscription, hits: [] };
 
     for (const alert of alerts) {
       if (alert.triggered) continue;
@@ -165,6 +181,7 @@ export default async function handler(req, res) {
       if (!price) continue;
 
       const hit = alert.direction === 'above' ? price >= alert.target : price <= alert.target;
+      if (debug && hit) ddbg.hits.push({ symbol: alert.symbol, direction: alert.direction, target: alert.target, price });
       if (!hit) continue;
 
       const title = `⚡ BEEP AI — ${alert.symbol}`;
@@ -201,6 +218,8 @@ export default async function handler(req, res) {
       }
     }
 
+    if (debug) dbg.devices.push(ddbg);
+
     if (deviceDead) {
       console.log(`[cron-push] 🗑 removing dead device ${deviceId}`);
       toUpdate.push(['HDEL', 'beepai:subscriptions', deviceId]);
@@ -216,5 +235,5 @@ export default async function handler(req, res) {
   }
 
   console.log(`[cron-push] ✅ done — sent=${sent} errors=${errors} devices=${devices.length}`);
-  res.json({ ok: true, sent, errors, devices: devices.length, symbols: [...allSymbols] });
+  res.json({ ok: true, sent, errors, devices: devices.length, symbols: [...allSymbols], ...(debug ? { debug: dbg, prices } : {}) });
 }
