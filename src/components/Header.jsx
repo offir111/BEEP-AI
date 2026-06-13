@@ -20,12 +20,16 @@ export default function Header({ username, onLogout, navigate, page }) {
 
   return (
     <header className="hdr">
-      {/* Brand */}
-      <div className="hdr-brand" onClick={() => navigate('home')}>
-        <span className="hdr-icon">⚡</span>
-        <div>
-          <span className="hdr-title">BEEP AI</span>
-          <span className="hdr-sub">Stock Scanner</span>
+      {/* Brand — same logo as BEEP BEEP; click = home from anywhere */}
+      <div className="hdr-brand" onClick={() => navigate('home')} role="button" tabIndex={0}
+           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('home'); }}
+           title="דף הבית">
+        <div className="hdr-logo-circle">
+          <div className="hdr-logo-head" />
+          <div className="hdr-logo-beep-wrap">
+            <span className="hdr-logo-beep hdr-logo-beep-top">BEEP</span>
+            <span className="hdr-logo-beep">BEEP</span>
+          </div>
         </div>
       </div>
 

@@ -18,11 +18,52 @@
   cursor: pointer;
   user-select: none;
   flex-shrink: 0;
+  border-radius: 50%;
+  transition: transform 0.15s, filter 0.15s;
 }
+.hdr-brand:hover { transform: scale(1.05); filter: brightness(1.05); }
+.hdr-brand:active { transform: scale(0.97); }
+.hdr-brand:focus-visible { outline: 2px solid var(--accent-gold); outline-offset: 2px; }
 
-.hdr-icon  { font-size: 1.4rem; }
-.hdr-title { display: block; font-size: 1rem; font-weight: 700; color: var(--accent-gold); letter-spacing: 1px; line-height: 1.1; }
-.hdr-sub   { display: block; font-size: 0.6rem; color: var(--text-muted); line-height: 1; }
+/* ── Logo (same as BEEP BEEP): white circle + roadrunner head + BEEP/BEEP ── */
+.hdr-logo-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(212,175,55,0.4);
+}
+.hdr-logo-head {
+  width: 100%;
+  height: 31px;
+  background-image: url('/roadrunner-head.png');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  flex-shrink: 0;
+}
+.hdr-logo-beep-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1;
+  margin-top: -9px;
+  flex-shrink: 0;
+}
+.hdr-logo-beep {
+  font-size: 0.45rem;
+  font-weight: 900;
+  color: #111;
+  letter-spacing: 1.2px;
+  line-height: 1.25;
+}
+.hdr-logo-beep-top { margin-left: 3px; }
 
 .hdr-center { flex: 1; }
 
