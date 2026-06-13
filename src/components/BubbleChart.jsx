@@ -48,6 +48,26 @@ const CRYPTO_URL =
   '?vs_currency=usd&order=market_cap_desc&per_page=100&page=1' +
   '&sparkline=false&price_change_percentage=1h,24h,7d,30d,1y';
 
+// Demo bubbles — shown instantly on first open, replaced by Binance real-time data
+const DEMO_COINS = [
+  { id:'bitcoin',   symbol:'BTC',  name:'Bitcoin',   pct: 2.4,  market_cap:1_200_000_000_000, total_volume:35_000_000_000, price_change_percentage_24h:2.4  },
+  { id:'ethereum',  symbol:'ETH',  name:'Ethereum',  pct: 3.1,  market_cap:380_000_000_000,   total_volume:18_000_000_000, price_change_percentage_24h:3.1  },
+  { id:'bnb',       symbol:'BNB',  name:'BNB',       pct: 1.8,  market_cap:95_000_000_000,    total_volume:2_000_000_000,  price_change_percentage_24h:1.8  },
+  { id:'solana',    symbol:'SOL',  name:'Solana',    pct: 5.2,  market_cap:85_000_000_000,    total_volume:4_500_000_000,  price_change_percentage_24h:5.2  },
+  { id:'xrp',       symbol:'XRP',  name:'XRP',       pct:-1.2,  market_cap:60_000_000_000,    total_volume:3_000_000_000,  price_change_percentage_24h:-1.2 },
+  { id:'dogecoin',  symbol:'DOGE', name:'Dogecoin',  pct: 4.7,  market_cap:25_000_000_000,    total_volume:1_800_000_000,  price_change_percentage_24h:4.7  },
+  { id:'cardano',   symbol:'ADA',  name:'Cardano',   pct:-0.8,  market_cap:18_000_000_000,    total_volume:700_000_000,    price_change_percentage_24h:-0.8 },
+  { id:'avalanche', symbol:'AVAX', name:'Avalanche', pct: 6.3,  market_cap:14_000_000_000,    total_volume:600_000_000,    price_change_percentage_24h:6.3  },
+  { id:'shiba-inu', symbol:'SHIB', name:'SHIB',      pct: 8.1,  market_cap:12_000_000_000,    total_volume:900_000_000,    price_change_percentage_24h:8.1  },
+  { id:'sui',       symbol:'SUI',  name:'Sui',       pct: 9.4,  market_cap:8_000_000_000,     total_volume:500_000_000,    price_change_percentage_24h:9.4  },
+  { id:'polkadot',  symbol:'DOT',  name:'Polkadot',  pct:-2.1,  market_cap:10_000_000_000,    total_volume:400_000_000,    price_change_percentage_24h:-2.1 },
+  { id:'chainlink', symbol:'LINK', name:'Chainlink', pct: 3.9,  market_cap:9_000_000_000,     total_volume:800_000_000,    price_change_percentage_24h:3.9  },
+  { id:'near',      symbol:'NEAR', name:'NEAR',      pct: 7.2,  market_cap:7_000_000_000,     total_volume:350_000_000,    price_change_percentage_24h:7.2  },
+  { id:'pepe',      symbol:'PEPE', name:'Pepe',      pct:12.5,  market_cap:6_000_000_000,     total_volume:1_200_000_000,  price_change_percentage_24h:12.5 },
+  { id:'stellar',   symbol:'XLM',  name:'Stellar',   pct: 1.3,  market_cap:4_000_000_000,     total_volume:300_000_000,    price_change_percentage_24h:1.3  },
+].map(c => ({ ...c, current_price: 0, image: null,
+  price_change_percentage_7d_in_currency: 0 }));
+
 // CoinGecko enrichment (market cap, name, logo, long timeframes) — top 250
 const CG_MARKETS =
   'https://api.coingecko.com/api/v3/coins/markets' +
@@ -96,22 +116,24 @@ function bubbleRGB(pct, colorN) {
 }
 
 /* ── Build bubbles — pure GAINERS: top movers by %, size by cap ──
-   "15" = top 15 by % (gainers first); "all" = the whole set. */
+   "15" = top 15 by % (gainers first); "all" = the whole set.
+   Draw order: large bubbles first (z-bottom), small on top. */
 function makeBubbles(items, W, H, showAll, favSet) {
   if (!items.length) return [];
   const ranked = [...items].sort((a, b) => (b.pct || 0) - (a.pct || 0)); // gainers first
-  const pool   = showAll ? ranked.slice(0, 100) : ranked.slice(0, 15); // "all" caps at 100 (canvas-viewable)
+  const pool   = showAll ? ranked.slice(0, 100) : ranked.slice(0, 15);
   if (!pool.length) return [];
 
-  const maxAbsPct  = Math.max(...pool.map(c => Math.abs(c.pct)), 0.1);
-  const norm       = cap => Math.pow(Math.max(cap, 1), 0.8);
-  const totalNorm  = pool.reduce((s, c) => s + norm(c.market_cap || 1), 0) || 1;
-  // total bubble area ≈ 42% of canvas → room to pack without forced overlap
-  const scaleFactor= (W * H * 0.42) / (totalNorm * Math.PI);
+  const maxAbsPct   = Math.max(...pool.map(c => Math.abs(c.pct)), 0.1);
+  // ^0.55 gives much more balanced sizing — BTC is large but not crushing
+  const norm        = cap => Math.pow(Math.max(cap, 1), 0.55);
+  const totalNorm   = pool.reduce((s, c) => s + norm(c.market_cap || 1), 0) || 1;
+  const maxR        = Math.min(W, H) * 0.18;  // was 0.30 — prevents BTC/ETH from dominating
+  const scaleFactor = (W * H * 0.40) / (totalNorm * Math.PI);
 
-  return pool.map((c) => {
+  const bubbles = pool.map((c) => {
     const rawR   = Math.sqrt(norm(c.market_cap || 1) * scaleFactor);
-    const r      = Math.max(13, Math.min(rawR, Math.min(W, H) * 0.30));
+    const r      = Math.max(14, Math.min(rawR, maxR));
     const colorN = Math.max(0.2, Math.min(1.0, Math.abs(c.pct) / maxAbsPct));
     const x = r + Math.random() * (W - 2 * r);
     const y = r + Math.random() * (H - 2 * r);
@@ -133,6 +155,8 @@ function makeBubbles(items, W, H, showAll, favSet) {
       isFav,
     };
   });
+  // Sort largest radius first → drawn first (z-bottom), small bubbles on top
+  return bubbles.sort((a, b) => b.r - a.r);
 }
 
 function symFontSize(diameter, symLen) {
@@ -366,24 +390,54 @@ export default function BubbleChart({ onManualSearch, onClose }) {
     }
   }, [syncCanvas]);
 
-  /* ── fetch crypto — Binance (real-time, all USDT) + CoinGecko (cap/logo/long tf) ── */
+  /* ── CoinGecko enrichment — fire-and-forget, never blocks Binance ── */
+  const triggerCgEnrich = useCallback(() => {
+    if (cgMapRef.current) return; // already loaded
+    fetch(CG_MARKETS, { signal: AbortSignal.timeout(10000) })
+      .then(r => r.ok ? r.json() : [])
+      .then(cg => {
+        const arr = Array.isArray(cg) ? cg : [];
+        cgArrRef.current = arr;
+        const m = {};
+        for (const c of arr) { const s = c.symbol.toUpperCase(); if (!m[s]) m[s] = c; }
+        cgMapRef.current = m;
+        // Re-enrich already-loaded bubbles with logos + market caps
+        if (cryptoCoinsRef.current.length) {
+          cryptoCoinsRef.current = cryptoCoinsRef.current.map(c => {
+            const cgi = m[c.symbol];
+            if (!cgi) return c;
+            return { ...c, id: cgi.id, name: cgi.name, image: cgi.image,
+              market_cap: cgi.market_cap || c.market_cap };
+          });
+          cryptoCoinsRef.current.forEach(c => {
+            if (!c.image || imgCache.current[c.id]) return;
+            const img = new Image(); img.crossOrigin = 'anonymous'; img.src = c.image;
+            img.onload = () => { imgCache.current[c.id] = img; };
+          });
+          requestAnimationFrame(() => rebuildBubbles());
+        }
+      })
+      .catch(() => {});
+  }, [rebuildBubbles]);
+
+  /* ── fetch crypto — Binance first (immediate), CoinGecko enriches in bg ── */
   const fetchCrypto = useCallback(async (period) => {
     const cold = cryptoCoinsRef.current.length === 0;
     if (cold) setCryptoStatus('loading'); else setRefreshing(true);
-    try {
-      // CoinGecko map — once (market cap, name, logo, 7d for signal filters)
-      if (!cgMapRef.current) {
-        const cg = await (await fetch(CG_MARKETS, { signal: AbortSignal.timeout(10000) })).json();
-        cgArrRef.current = Array.isArray(cg) ? cg : [];
-        const m = {};
-        for (const c of cgArrRef.current) { const s = c.symbol.toUpperCase(); if (!m[s]) m[s] = c; }
-        cgMapRef.current = m;
-      }
-      const cgMap = cgMapRef.current;
 
+    // Always kick off CoinGecko enrichment in parallel (non-blocking)
+    triggerCgEnrich();
+
+    try {
       let items;
       if (period === '30d' || period === '1y') {
-        // Long timeframes → CoinGecko (Binance ticker can't provide them)
+        // Long timeframes need CoinGecko data — wait up to 10s for it
+        let waited = 0;
+        while (!cgMapRef.current && waited < 10000) {
+          await new Promise(r => setTimeout(r, 300));
+          waited += 300;
+        }
+        if (!cgArrRef.current.length) throw new Error('no cg data for long tf');
         const f = period === '30d' ? 'price_change_percentage_30d_in_currency'
                                    : 'price_change_percentage_1y_in_currency';
         items = cgArrRef.current.map(c => ({
@@ -394,8 +448,9 @@ export default function BubbleChart({ onManualSearch, onClose }) {
           pct: c[f] || 0,
         }));
       } else {
-        // Short timeframes → Binance real-time universe (all USDT pairs)
+        // Short timeframes → Binance only (instant); cgMap used if already ready
         const bn = await (await fetch(BINANCE_24H, { signal: AbortSignal.timeout(12000) })).json();
+        const cgMap = cgMapRef.current || {};
         let usdt = (Array.isArray(bn) ? bn : []).filter(t =>
           t.symbol.endsWith('USDT') && !/(UP|DOWN|BULL|BEAR)USDT$/.test(t.symbol));
         const mk = (sym, pct, price, vol) => {
@@ -403,7 +458,9 @@ export default function BubbleChart({ onManualSearch, onClose }) {
           return {
             id: cgi ? cgi.id : sym.toLowerCase(), symbol: sym, name: cgi ? cgi.name : sym,
             image: cgi ? cgi.image : null,
-            current_price: price, market_cap: cgi ? cgi.market_cap : 0, total_volume: vol,
+            current_price: price,
+            market_cap: cgi ? (cgi.market_cap || vol) : vol, // fall back to volume if no CG
+            total_volume: vol,
             price_change_percentage_24h: pct,
             price_change_percentage_7d_in_currency: cgi ? (cgi.price_change_percentage_7d_in_currency || 0) : 0,
             pct,
@@ -446,13 +503,19 @@ export default function BubbleChart({ onManualSearch, onClose }) {
       setRefreshing(false);
       if (cryptoCoinsRef.current.length === 0) setCryptoStatus('error');
     }
-  }, [rebuildBubbles]);
+  }, [rebuildBubbles, triggerCgEnrich]);
 
-  /* ── initial crypto load + retry ── */
+  /* ── initial crypto load: demo instantly → real data in background ── */
   useEffect(() => {
-    if (cryptoCoinsRef.current.length > 0) return;
+    // Show demo bubbles immediately (0ms) — real data replaces them when ready
+    if (cryptoCoinsRef.current.length === 0) {
+      cryptoCoinsRef.current = DEMO_COINS;
+      setCryptoStatus('ok');
+      requestAnimationFrame(() => rebuildBubbles());
+    }
+    // Fetch real Binance data in background (replaces demo on arrival)
     fetchCrypto(tabRef.current);
-  }, [fetchCrypto, cryptoRetryTrigger]);
+  }, [fetchCrypto, rebuildBubbles, cryptoRetryTrigger]);
 
   /* ── fetch stocks ─────────────────────────────────────────────
      Always keep a display: seed from local cache instantly, then
@@ -564,8 +627,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
   useEffect(() => {
     if (cryptoStatus !== 'error') return;
     const t = setTimeout(() => {
-      cryptoCoinsRef.current = [];
-      setCryptoStatus('loading');
+      // Keep demo/existing data visible — don't clear to loading state
       setCryptoRetryTrigger(n => n + 1);
     }, 4000);
     return () => clearTimeout(t);

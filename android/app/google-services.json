@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "489774499874",
+    "project_id": "beep-beep-c9e52",
+    "storage_bucket": "beep-beep-c9e52.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:489774499874:android:339ea0ddf5af555475a27b",
+        "android_client_info": {
+          "package_name": "com.beepai.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEThMqONZ2XPjHH1xg6qcW9d36LSj7vtE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:489774499874:android:3f28ecc55bebc73275a27b",
+        "android_client_info": {
+          "package_name": "com.beepbeep.scanner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEThMqONZ2XPjHH1xg6qcW9d36LSj7vtE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

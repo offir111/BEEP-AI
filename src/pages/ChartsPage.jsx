@@ -120,6 +120,24 @@ export default function ChartsPage() {
   // Unified live price: context (WebSocket/polling) or local fallback
   const livePrice = ctxSym ? (ctxPrice ?? null) : localPrice;
 
+  // ── Fetch real chart range (high/low of visible candles) ──────
+  const [chartRange, setChartRange] = useState(null);
+  useEffect(() => {
+    setChartRange(null);
+    if (!active?.binance) return; // only for crypto (Binance)
+    const BINANCE_INTERVAL = { '1':'1m','5':'5m','15':'15m','60':'1h','240':'4h','D':'1d','W':'1w' };
+    const bInterval = BINANCE_INTERVAL[interval] || '1d';
+    fetch(`https://api.binance.com/api/v3/klines?symbol=${active.binance}&interval=${bInterval}&limit=200`)
+      .then(r => r.json())
+      .then(data => {
+        if (!Array.isArray(data) || !data.length) return;
+        let hi = -Infinity, lo = Infinity;
+        for (const k of data) { hi = Math.max(hi, parseFloat(k[2])); lo = Math.min(lo, parseFloat(k[3])); }
+        setChartRange({ high: hi, low: lo });
+      })
+      .catch(() => {});
+  }, [active, interval]);
+
   // Measure container height for alert lines
   useEffect(() => {
     if (!containerRef.current) return;
@@ -281,6 +299,7 @@ export default function ChartsPage() {
                 alert={a}
                 containerH={containerH}
                 currentPrice={livePrice}
+                chartRange={chartRange}
                 onPriceChange={editAlert}
                 onRemove={removeAlert}
               />

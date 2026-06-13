@@ -1,28 +1,6 @@
 import { useState } from 'react';
 import './TwitterPage.css';
 
-// ── TradingView Live News Widget (iframe — most reliable) ──────
-function TvNewsWidget() {
-  const config = encodeURIComponent(JSON.stringify({
-    feedMode: 'all_symbols',
-    isTransparent: true,
-    displayMode: 'adaptive',
-    colorTheme: 'dark',
-    locale: 'he_IL',
-  }));
-  return (
-    <iframe
-      className="tw-tv-news"
-      src={`https://s.tradingview.com/embed-widget/timeline/?locale=he_IL#${config}`}
-      title="TradingView Market News"
-      frameBorder="0"
-      allowTransparency="true"
-      scrolling="no"
-      allowFullScreen
-    />
-  );
-}
-
 const WHALE_ALERTS = [
   {
     id: 1,
@@ -172,18 +150,7 @@ export default function TwitterPage() {
         </div>
       </div>
 
-      {/* Live TradingView News */}
-      <div className="tw-live-section">
-        <div className="tw-live-title">📡 חדשות שוק חיות — TradingView</div>
-        <TvNewsWidget />
-      </div>
-
-      {/* Demo disclaimer */}
-      <div className="tw-demo-disclaimer">
-        ⚠️ <strong>Demo</strong> — הטוויטים ונתוני ה-Whale Alerts הם דוגמאות בלבד ואינם בזמן אמת
-      </div>
-
-      {/* Whale alerts */}
+      {/* Whale alerts — first below header */}
       <div className="tw-whale-section">
         <div className="tw-whale-title">🐋 Whale Alerts</div>
         <div className="tw-whale-scroll">

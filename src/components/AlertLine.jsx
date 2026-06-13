@@ -11,12 +11,13 @@ function priceToYPct(price, rangeLow, rangeSpan) {
   return Math.min(Math.max(raw, TV_TOP), TV_BOT) * 100; // clamp + %
 }
 
-export default function AlertLine({ alert, containerH, currentPrice, onPriceChange, onRemove }) {
+export default function AlertLine({ alert, containerH, currentPrice, chartRange, onPriceChange, onRemove }) {
   const lineRef   = useRef(null);
   const dragState = useRef(null);
 
-  const rangeHigh = currentPrice * 1.30;
-  const rangeLow  = currentPrice * 0.70;
+  // Use real kline high/low if available, else fallback to ±40% estimate
+  const rangeHigh = chartRange?.high ?? currentPrice * 1.40;
+  const rangeLow  = chartRange?.low  ?? currentPrice * 0.60;
   const rangeSpan = rangeHigh - rangeLow;
 
   const yPct = priceToYPct(alert.target, rangeLow, rangeSpan);
