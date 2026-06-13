@@ -17,8 +17,7 @@ const CRYPTO_TABS = [
   { id: '1y',  label: '1Y' },
 ];
 const STOCK_TABS = [
-  { id: '1h', label: '1H' },
-  { id: '1d', label: '1D' },
+  { id: '1d', label: '1D' },   // no real 1H from TradingView scanner
   { id: '1w', label: '1W' },
   { id: '1m', label: '1M' },
   { id: '1y', label: '1Y' },
@@ -48,6 +47,17 @@ const CRYPTO_URL =
   'https://api.coingecko.com/api/v3/coins/markets' +
   '?vs_currency=usd&order=market_cap_desc&per_page=100&page=1' +
   '&sparkline=false&price_change_percentage=1h,24h,7d,30d,1y';
+
+// CoinGecko enrichment (market cap, name, logo, long timeframes) — top 250
+const CG_MARKETS =
+  'https://api.coingecko.com/api/v3/coins/markets' +
+  '?vs_currency=usd&order=market_cap_desc&per_page=250&page=1' +
+  '&sparkline=false&price_change_percentage=1h,24h,7d,30d,1y';
+// Binance — real-time universe (all USDT pairs) for short timeframes
+const BINANCE_24H = 'https://api.binance.com/api/v3/ticker/24hr';
+// Tab id normalization across assets (crypto uses 24h/7d/30d; stocks 1d/1w/1m)
+const STOCK_FROM_CRYPTO  = { '1h': '1d', '24h': '1d', '7d': '1w', '30d': '1m', '1y': '1y' };
+const CRYPTO_FROM_STOCK  = { '1h': '1h', '1d': '24h', '1w': '7d', '1m': '30d', '1y': '1y' };
 
 /* ── Stocks local cache (so a display always exists) ──────────── */
 const STOCKS_CACHE_KEY = 'beepai_stocks_cache';
@@ -85,38 +95,12 @@ function bubbleRGB(pct, colorN) {
   return pct >= 0 ? [i, o, i] : [o, i, i];
 }
 
-/* ── Compose a ~2:1 gainers:losers pool by % move ──────────────
-   For every ~2 movers up, ~1 down (strongest fallers). If the market
-   is one-sided (all up / all down), just show the top movers by size. */
-function pickRatioPool(items, limit) {
-  const gainers = items.filter(c => c.pct > 0).sort((a, b) => b.pct - a.pct);
-  const losers  = items.filter(c => c.pct < 0).sort((a, b) => a.pct - b.pct); // strongest fallers first
-  if (!gainers.length || !losers.length) {
-    const all = [...items].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
-    return limit ? all.slice(0, limit) : all;
-  }
-  if (limit) {
-    const nG = Math.round(limit * 2 / 3);          // 15 → 10 gainers, 5 losers
-    let pool = [...gainers.slice(0, nG), ...losers.slice(0, limit - nG)];
-    if (pool.length < limit) {                     // fill shortfall from the deeper side
-      const used = new Set(pool);
-      const extra = [...gainers, ...losers]
-        .filter(c => !used.has(c))
-        .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))
-        .slice(0, limit - pool.length);
-      pool = [...pool, ...extra];
-    }
-    return pool;
-  }
-  // "All" view → keep 2:1 (losers capped at half the gainers)
-  return [...gainers, ...losers.slice(0, Math.floor(gainers.length / 2))];
-}
-
-/* ── Build bubbles — cap^0.8, total area = 60% canvas ─────── */
-function makeBubbles(items, W, H, showAll, favSet, ratio = true) {
-  const pool = ratio
-    ? pickRatioPool(items, showAll ? null : 15)
-    : (showAll ? items : [...items].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 15));
+/* ── Build bubbles — pure GAINERS: top movers by %, size by cap ──
+   "15" = top 15 by % (gainers first); "all" = the whole set. */
+function makeBubbles(items, W, H, showAll, favSet) {
+  if (!items.length) return [];
+  const ranked = [...items].sort((a, b) => (b.pct || 0) - (a.pct || 0)); // gainers first
+  const pool   = showAll ? ranked.slice(0, 100) : ranked.slice(0, 15); // "all" caps at 100 (canvas-viewable)
   if (!pool.length) return [];
 
   const maxAbsPct  = Math.max(...pool.map(c => Math.abs(c.pct)), 0.1);
@@ -260,6 +244,8 @@ export default function BubbleChart({ onManualSearch, onClose }) {
   const cryptoCoinsRef = useRef([]);
   const stocksRef      = useRef([]);
   const favItemsRef    = useRef([]);
+  const cgMapRef       = useRef(null);  // symbol → CoinGecko info (cap/name/logo/7d)
+  const cgArrRef       = useRef([]);    // full CoinGecko array (for 30d/1y universe)
 
   const assetRef   = useRef('crypto');
   const tabRef     = useRef('1h');
@@ -341,7 +327,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
       const pool = filtered.length > 0 ? filtered : coins;
       const items = pool.map(c => ({
         id: c.id, symbol: c.symbol.toUpperCase(), name: c.name,
-        pct: getTabPct(c, tabRef.current),
+        pct: c.pct ?? 0,   // already the selected-period % (Binance/CoinGecko)
         market_cap: c.market_cap || 1,
         price: c.current_price, volume: c.total_volume,
         _type: 'crypto',
@@ -375,31 +361,97 @@ export default function BubbleChart({ onManualSearch, onClose }) {
         price: s.price, volume: s.volume,
         _type: s._type || 'stocks',
       }));
-      bubblesRef.current = makeBubbles(items, w, h, true, favSet, false); // favorites: all, no ratio
+      bubblesRef.current = makeBubbles(items, w, h, true, favSet); // favorites: all
     }
   }, [syncCanvas]);
 
-  /* ── fetch crypto ─────────────────────────────────────────── */
+  /* ── fetch crypto — Binance (real-time, all USDT) + CoinGecko (cap/logo/long tf) ── */
+  const fetchCrypto = useCallback(async (period) => {
+    const cold = cryptoCoinsRef.current.length === 0;
+    if (cold) setCryptoStatus('loading'); else setRefreshing(true);
+    try {
+      // CoinGecko map — once (market cap, name, logo, 7d for signal filters)
+      if (!cgMapRef.current) {
+        const cg = await (await fetch(CG_MARKETS, { signal: AbortSignal.timeout(10000) })).json();
+        cgArrRef.current = Array.isArray(cg) ? cg : [];
+        const m = {};
+        for (const c of cgArrRef.current) { const s = c.symbol.toUpperCase(); if (!m[s]) m[s] = c; }
+        cgMapRef.current = m;
+      }
+      const cgMap = cgMapRef.current;
+
+      let items;
+      if (period === '30d' || period === '1y') {
+        // Long timeframes → CoinGecko (Binance ticker can't provide them)
+        const f = period === '30d' ? 'price_change_percentage_30d_in_currency'
+                                   : 'price_change_percentage_1y_in_currency';
+        items = cgArrRef.current.map(c => ({
+          id: c.id, symbol: c.symbol.toUpperCase(), name: c.name, image: c.image,
+          current_price: c.current_price, market_cap: c.market_cap || 0, total_volume: c.total_volume || 0,
+          price_change_percentage_24h: c.price_change_percentage_24h || 0,
+          price_change_percentage_7d_in_currency: c.price_change_percentage_7d_in_currency || 0,
+          pct: c[f] || 0,
+        }));
+      } else {
+        // Short timeframes → Binance real-time universe (all USDT pairs)
+        const bn = await (await fetch(BINANCE_24H, { signal: AbortSignal.timeout(12000) })).json();
+        let usdt = (Array.isArray(bn) ? bn : []).filter(t =>
+          t.symbol.endsWith('USDT') && !/(UP|DOWN|BULL|BEAR)USDT$/.test(t.symbol));
+        const mk = (sym, pct, price, vol) => {
+          const cgi = cgMap[sym];
+          return {
+            id: cgi ? cgi.id : sym.toLowerCase(), symbol: sym, name: cgi ? cgi.name : sym,
+            image: cgi ? cgi.image : null,
+            current_price: price, market_cap: cgi ? cgi.market_cap : 0, total_volume: vol,
+            price_change_percentage_24h: pct,
+            price_change_percentage_7d_in_currency: cgi ? (cgi.price_change_percentage_7d_in_currency || 0) : 0,
+            pct,
+          };
+        };
+        if (period === '24h') {
+          items = usdt.map(t => mk(t.symbol.slice(0, -4),
+            parseFloat(t.priceChangePercent), parseFloat(t.lastPrice), parseFloat(t.quoteVolume || 0)));
+        } else {
+          // 1h / 7d → Binance rolling window for the top ~120 by volume (batched)
+          usdt.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume));
+          const top = usdt.slice(0, 120);
+          const bySym = {}; top.forEach(t => { bySym[t.symbol] = t; });
+          const ws = period === '7d' ? '7d' : '1h';
+          const syms = top.map(t => t.symbol);
+          const chunks = [];
+          for (let i = 0; i < syms.length; i += 50) chunks.push(syms.slice(i, i + 50));
+          const res = await Promise.all(chunks.map(ch =>
+            fetch(`https://api.binance.com/api/v3/ticker?symbols=${encodeURIComponent(JSON.stringify(ch))}&windowSize=${ws}`,
+              { signal: AbortSignal.timeout(12000) }).then(r => r.json()).catch(() => [])));
+          items = res.flat()
+            .filter(t => t && isFinite(parseFloat(t.priceChangePercent)))
+            .map(t => {
+              const base = bySym[t.symbol] || t;
+              return mk(t.symbol.slice(0, -4), parseFloat(t.priceChangePercent),
+                parseFloat(base.lastPrice || t.lastPrice), parseFloat(base.quoteVolume || 0));
+            });
+        }
+      }
+
+      cryptoCoinsRef.current = items;
+      items.forEach(c => {
+        if (!c.image || imgCache.current[c.id]) return;
+        const img = new Image(); img.crossOrigin = 'anonymous'; img.src = c.image;
+        img.onload = () => { imgCache.current[c.id] = img; }; img.onerror = () => {};
+      });
+      setCryptoStatus('ok'); setRefreshing(false);
+      requestAnimationFrame(() => rebuildBubbles());
+    } catch {
+      setRefreshing(false);
+      if (cryptoCoinsRef.current.length === 0) setCryptoStatus('error');
+    }
+  }, [rebuildBubbles]);
+
+  /* ── initial crypto load + retry ── */
   useEffect(() => {
     if (cryptoCoinsRef.current.length > 0) return;
-    setCryptoStatus('loading');
-    fetch(CRYPTO_URL)
-      .then(r => { if (!r.ok) throw r.status; return r.json(); })
-      .then(data => {
-        cryptoCoinsRef.current = data;
-        data.forEach(c => {
-          if (!c.image || imgCache.current[c.id]) return;
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.src = c.image;
-          img.onload  = () => { imgCache.current[c.id] = img; };
-          img.onerror = () => {};
-        });
-        setCryptoStatus('ok');
-        requestAnimationFrame(() => rebuildBubbles());
-      })
-      .catch(() => setCryptoStatus('error'));
-  }, [rebuildBubbles, cryptoRetryTrigger]);
+    fetchCrypto(tabRef.current);
+  }, [fetchCrypto, cryptoRetryTrigger]);
 
   /* ── fetch stocks ─────────────────────────────────────────────
      Always keep a display: seed from local cache instantly, then
@@ -541,18 +593,25 @@ export default function BubbleChart({ onManualSearch, onClose }) {
     return () => clearInterval(iv);
   }, [asset, fetchStocks]);
 
+  /* ── auto-refresh crypto while the crypto tab is open (real-time) ── */
+  useEffect(() => {
+    if (asset !== 'crypto') return;
+    const iv = setInterval(() => {
+      fetchCrypto(tabRef.current);
+    }, STOCKS_REFRESH_MS);
+    return () => clearInterval(iv);
+  }, [asset, fetchCrypto]);
+
   /* ── manual refresh (current asset) ──────────────────────────── */
   const handleRefresh = useCallback(() => {
     if (assetRef.current === 'crypto') {
-      cryptoCoinsRef.current = [];
-      setCryptoStatus('loading');
-      setCryptoRetryTrigger(n => n + 1);
+      fetchCrypto(tabRef.current);
     } else if (assetRef.current === 'stocks') {
       fetchStocks(capRef.current, tabRef.current, signalRef.current);
     } else {
       fetchFavorites();
     }
-  }, [fetchStocks, fetchFavorites]);
+  }, [fetchCrypto, fetchStocks, fetchFavorites]);
 
   /* ── kick bubbles ─────────────────────────────────────────── */
   const kickBubbles = useCallback(() => {
@@ -583,24 +642,28 @@ export default function BubbleChart({ onManualSearch, onClose }) {
     setSignal(null);
     if (a === 'favorites') {
       fetchFavorites();
-    } else if (a === 'stocks' && !stocksRef.current.length) {
+    } else if (a === 'stocks') {
+      // normalize tab to a valid stock timeframe (stocks have no real 1H)
+      const st = STOCK_FROM_CRYPTO[tabRef.current] || tabRef.current;
+      if (st !== tabRef.current) { tabRef.current = st; setActiveTab(st); }
       fetchStocks(capRef.current, tabRef.current, null);
-    } else {
-      requestAnimationFrame(() => { rebuildBubbles(); kickBubbles(); });
+    } else { // crypto
+      const ct = CRYPTO_FROM_STOCK[tabRef.current] || tabRef.current;
+      if (ct !== tabRef.current) { tabRef.current = ct; setActiveTab(ct); }
+      fetchCrypto(tabRef.current);
     }
-  }, [fetchStocks, fetchFavorites, rebuildBubbles, kickBubbles]);
+  }, [fetchStocks, fetchFavorites, fetchCrypto]);
 
   /* ── tab ──────────────────────────────────────────────────── */
   const handleTab = useCallback((id) => {
     tabRef.current = id;
     setActiveTab(id);
     if (assetRef.current === 'crypto') {
-      rebuildBubbles();
-      kickBubbles();
+      fetchCrypto(id);   // refetch real-time data for the selected timeframe
     } else if (assetRef.current === 'stocks') {
       fetchStocks(capRef.current, id, signalRef.current); // keep current display while refreshing
     }
-  }, [rebuildBubbles, kickBubbles, fetchStocks]);
+  }, [fetchCrypto, fetchStocks]);
 
   /* ── cap filter ───────────────────────────────────────────── */
   const handleCap = useCallback((id) => {
