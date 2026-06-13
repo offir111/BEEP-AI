@@ -14,56 +14,66 @@
 .hdr-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   cursor: pointer;
   user-select: none;
   flex-shrink: 0;
-  border-radius: 50%;
-  transition: transform 0.15s, filter 0.15s;
+  background: #000;
+  border-radius: 8px;
+  padding: 2px 8px;
+  transition: filter 0.15s;
 }
-.hdr-brand:hover { transform: scale(1.05); filter: brightness(1.05); }
-.hdr-brand:active { transform: scale(0.97); }
+.hdr-brand:hover .hdr-brand-title { color: #f0d060; }
+.hdr-brand:active { filter: brightness(0.92); }
 .hdr-brand:focus-visible { outline: 2px solid var(--accent-gold); outline-offset: 2px; }
 
-/* ── Logo (same as BEEP BEEP): white circle + roadrunner head + BEEP/BEEP ── */
-.hdr-logo-circle {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #ffffff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+/* ── Logo — exact BEEP BEEP: blue roadrunner recolored gold via filter + fire shimmer ── */
+.hdr-logo-wrap { position: relative; height: 40px; flex-shrink: 0; }
+.hdr-logo-img {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
   flex-shrink: 0;
-  box-shadow: 0 0 0 2px rgba(212,175,55,0.4);
+  filter: invert() sepia(0.68) saturate(1.44) hue-rotate(5deg);  /* blue → gold */
 }
-.hdr-logo-head {
-  width: 100%;
-  height: 31px;
-  background-image: url('/roadrunner-head.png');
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  flex-shrink: 0;
+.hdr-logo-fire {
+  position: absolute;
+  top: 0;
+  left: 0;
+  clip-path: polygon(30% 0%, 70% 0%, 65% 38%, 35% 38%);
+  animation: hdr-fire 7s cubic-bezier(.45,.05,.55,.95) infinite;
 }
-.hdr-logo-beep-wrap {
+@keyframes hdr-fire {
+  0%   { filter: invert() sepia() saturate(4)  hue-rotate(10deg)  brightness(1.2); }
+  20%  { filter: invert() sepia() saturate(7)  hue-rotate(-15deg) brightness(1.4); }
+  38%  { filter: invert() sepia() saturate(10) hue-rotate(-45deg) brightness(1.7); }
+  55%  { filter: invert() sepia() saturate(8)  hue-rotate(-30deg) brightness(1.5); }
+  72%  { filter: invert() sepia() saturate(11) hue-rotate(-50deg) brightness(1.8); }
+  88%  { filter: invert() sepia() saturate(6)  hue-rotate(-20deg) brightness(1.3); }
+  to   { filter: invert() sepia() saturate(4)  hue-rotate(10deg)  brightness(1.2); }
+}
+.hdr-title-wrap {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   line-height: 1;
-  margin-top: -9px;
-  flex-shrink: 0;
 }
-.hdr-logo-beep {
-  font-size: 0.45rem;
-  font-weight: 900;
-  color: #111;
+.hdr-brand-title {
+  color: #d4af37;
   letter-spacing: 1.2px;
-  line-height: 1.25;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.15;
 }
-.hdr-logo-beep-top { margin-left: 3px; }
+.hdr-brand-sub {
+  color: #d4af37eb;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  font-size: 0.48rem;
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) { .hdr-logo-fire { animation: none; } }
 
 .hdr-center { flex: 1; }
 
