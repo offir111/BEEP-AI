@@ -747,9 +747,8 @@ export default function BubbleChart({ onManualSearch, onClose }) {
 
       ctx.clearRect(0, 0, W, H);
 
-      const driftMag = 0.0006 * Math.min(W, H) * dt;  // gentle float
+      const driftMag = 0.001 * Math.min(W, H) * dt;
       const decay    = Math.pow(0.5, dt);
-      const maxSpd   = 1.6;
 
       for (let i = 0; i < bs.length; i++) {
         const b = bs[i];
@@ -757,34 +756,26 @@ export default function BubbleChart({ onManualSearch, onClose }) {
         b.vy += (Math.random() * 2 - 1) * driftMag;
         b.vx *= decay; b.vy *= decay;
         const spd = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
-        if (spd > maxSpd) { b.vx = (b.vx/spd)*maxSpd; b.vy = (b.vy/spd)*maxSpd; }
+        if (spd > 2.5) { b.vx = (b.vx/spd)*2.5; b.vy = (b.vy/spd)*2.5; }
         b.x += b.vx; b.y += b.vy;
-        // collision: hard positional separation so bubbles never overlap
+        if (b.x < b.r)     { b.x = b.r;     b.vx *= -0.7; }
+        if (b.x > W - b.r) { b.x = W - b.r; b.vx *= -0.7; }
+        if (b.y < b.r)     { b.y = b.r;     b.vy *= -0.7; }
+        if (b.y > H - b.r) { b.y = H - b.r; b.vy *= -0.7; }
         for (let j = i + 1; j < bs.length; j++) {
-          const b2   = bs[j];
-          const dx   = b.x - b2.x, dy = b.y - b2.y;
-          const dist = Math.sqrt(dx*dx + dy*dy) || 0.01;
-          const sumR = b.r + b2.r;
+          const b2  = bs[j];
+          const dx  = b.x - b2.x, dy = b.y - b2.y;
+          const dist= Math.max(1, Math.sqrt(dx*dx + dy*dy));
+          const sumR= b.r + b2.r;
           if (dist < sumR) {
-            const nx = dx / dist, ny = dy / dist;
-            const overlap = sumR - dist;
-            const total   = b.r + b2.r;
-            const pushA = overlap * (b2.r / total);  // smaller bubble yields more
-            const pushB = overlap * (b.r  / total);
-            b.x  += nx * pushA; b.y  += ny * pushA;
-            b2.x -= nx * pushB; b2.y -= ny * pushB;
-            b.vx  += nx * 0.02; b.vy  += ny * 0.02;
-            b2.vx -= nx * 0.02; b2.vy -= ny * 0.02;
+            const sc = 6 * dt / dist;
+            const nx = dx * sc, ny = dy * sc;
+            const cA = 1 - b.r  / sumR;
+            const cB = b2.r / sumR - 1;
+            b.vx  += nx*cA; b.vy  += ny*cA;
+            b2.vx += nx*cB; b2.vy += ny*cB;
           }
         }
-      }
-
-      // final wall clamp (after positional separation)
-      for (const b of bs) {
-        if (b.x < b.r)     { b.x = b.r;     if (b.vx < 0) b.vx *= -0.6; }
-        if (b.x > W - b.r) { b.x = W - b.r; if (b.vx > 0) b.vx *= -0.6; }
-        if (b.y < b.r)     { b.y = b.r;     if (b.vy < 0) b.vy *= -0.6; }
-        if (b.y > H - b.r) { b.y = H - b.r; if (b.vy > 0) b.vy *= -0.6; }
       }
 
       const selId = selectedIdRef.current, hovId = hoveredIdRef.current;
