@@ -399,6 +399,43 @@
   color: #fff;
 }
 
+/* Refresh button (footer) */
+.bc-refresh-btn {
+  padding: 6px 12px;
+  border-radius: 99px;
+  border: 1px solid rgba(52,211,153,0.4);
+  background: rgba(52,211,153,0.12);
+  color: #34d399;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  transition: background 0.15s, color 0.15s;
+}
+.bc-refresh-btn:hover { background: rgba(52,211,153,0.2); color: #fff; }
+.bc-refresh-ico { display: inline-block; }
+.bc-refresh-btn--spinning .bc-refresh-ico { animation: bc-spin 0.8s linear infinite; }
+
+/* "Speed up loading" button on the cold-start spinner */
+.bc-speedup-btn {
+  margin-top: 4px;
+  padding: 8px 16px;
+  border-radius: 99px;
+  border: 1px solid rgba(30,144,255,0.45);
+  background: rgba(30,144,255,0.16);
+  color: #90caf9;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.bc-speedup-btn:hover { background: rgba(30,144,255,0.28); color: #fff; }
+.bc-speedup-btn:active { transform: scale(0.97); }
+
 /* ── Signal filter row ──────────────────────────────────────── */
 .bc-signal-row {
   display: flex;
@@ -440,6 +477,15 @@
   box-shadow: 0 0 8px rgba(255,200,0,0.14);
 }
 
+/* GAINERS — default "no filter" button, green accent */
+.bc-sig-btn--gainers { flex-shrink: 0; }
+.bc-sig-btn--gainers.bc-sig-btn--on {
+  background: rgba(52,211,153,0.14);
+  border-color: rgba(52,211,153,0.45);
+  color: #34d399;
+  box-shadow: 0 0 8px rgba(52,211,153,0.18);
+}
+
 .bc-sig-active-label {
   font-size: 10px;
   color: rgba(255,200,0,0.65);
@@ -456,23 +502,29 @@
 
 /* ── Mobile responsive ──────────────────────────────────────── */
 @media (max-width: 480px) {
-  .bc-header      { padding: 7px 7px 0; gap: 4px; }
-  .bc-signal-row  { padding: 5px 7px 3px; gap: 4px; }
+  .bc-header      { padding: 7px 7px 0; gap: 6px; }
+  .bc-signal-row  { padding: 6px 7px 4px; gap: 6px; }
   .bc-footer      { padding: 5px 8px 9px; }
 
-  /* Smaller buttons on phone */
-  .bc-mode-btn    { padding: 4px 8px; font-size: 10px; }
-  .bc-dd-btn      { padding: 4px 7px; font-size: 10px; }
-  .bc-asset-btn   { padding: 5px 9px;  font-size: 13px; }
-  .bc-sig-btn     { padding: 4px 8px;  font-size: 10px; }
-  .bc-manual-btn  { padding: 5px 10px; font-size: 11px; }
+  /* Wrap every control to multiple rows so nothing is clipped/hidden.
+     The extra rows take space from the top of the bubble canvas. */
+  .bc-controls-left  { flex-wrap: wrap; gap: 6px; flex: 1 1 auto; }
+  .bc-controls-right { flex-wrap: wrap; gap: 6px; }
+  .bc-signal-row     { flex-wrap: wrap; overflow-x: visible; }
+
+  /* Comfortable, clearly-tappable button sizes (room from wrapping) */
+  .bc-mode-btn    { padding: 6px 11px; font-size: 12px; }
+  .bc-dd-btn      { padding: 6px 10px; font-size: 12px; }
+  .bc-asset-btn   { padding: 6px 12px; font-size: 13px; }
+  .bc-sig-btn     { padding: 6px 11px; font-size: 11px; }
+  .bc-manual-btn  { padding: 6px 11px; font-size: 11px; }
   .bc-live-dot    { font-size: 9px; }
   .bc-credit      { font-size: 9px; }
 
-  /* Canvas fills more vertical space on phone */
+  /* Canvas height — leaves room for the wrapped control rows above */
   .bc-canvas,
   .bc-state {
-    height: clamp(280px, calc(100vw - 14px), 480px);
+    height: clamp(260px, calc(100vw - 40px), 460px);
   }
 }
 

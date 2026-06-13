@@ -49,6 +49,23 @@ const CRYPTO_URL =
   '?vs_currency=usd&order=market_cap_desc&per_page=100&page=1' +
   '&sparkline=false&price_change_percentage=1h,24h,7d,30d,1y';
 
+/* ── Stocks local cache (so a display always exists) ──────────── */
+const STOCKS_CACHE_KEY = 'beepai_stocks_cache';
+const STOCKS_REFRESH_MS = 60_000;  // auto-refresh cadence for stocks
+function loadStocksCache(key) {
+  try {
+    const all = JSON.parse(localStorage.getItem(STOCKS_CACHE_KEY)) || {};
+    return all[key] || null; // { quotes, ts }
+  } catch { return null; }
+}
+function saveStocksCache(key, quotes) {
+  try {
+    const all = JSON.parse(localStorage.getItem(STOCKS_CACHE_KEY)) || {};
+    all[key] = { quotes, ts: Date.now() };
+    localStorage.setItem(STOCKS_CACHE_KEY, JSON.stringify(all));
+  } catch { /* quota / disabled storage — ignore */ }
+}
+
 /* ── Data helpers ──────────────────────────────────────────── */
 function getTabPct(coin, tabId) {
   switch (tabId) {
@@ -68,11 +85,38 @@ function bubbleRGB(pct, colorN) {
   return pct >= 0 ? [i, o, i] : [o, i, i];
 }
 
+/* ── Compose a ~2:1 gainers:losers pool by % move ──────────────
+   For every ~2 movers up, ~1 down (strongest fallers). If the market
+   is one-sided (all up / all down), just show the top movers by size. */
+function pickRatioPool(items, limit) {
+  const gainers = items.filter(c => c.pct > 0).sort((a, b) => b.pct - a.pct);
+  const losers  = items.filter(c => c.pct < 0).sort((a, b) => a.pct - b.pct); // strongest fallers first
+  if (!gainers.length || !losers.length) {
+    const all = [...items].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+    return limit ? all.slice(0, limit) : all;
+  }
+  if (limit) {
+    const nG = Math.round(limit * 2 / 3);          // 15 → 10 gainers, 5 losers
+    let pool = [...gainers.slice(0, nG), ...losers.slice(0, limit - nG)];
+    if (pool.length < limit) {                     // fill shortfall from the deeper side
+      const used = new Set(pool);
+      const extra = [...gainers, ...losers]
+        .filter(c => !used.has(c))
+        .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))
+        .slice(0, limit - pool.length);
+      pool = [...pool, ...extra];
+    }
+    return pool;
+  }
+  // "All" view → keep 2:1 (losers capped at half the gainers)
+  return [...gainers, ...losers.slice(0, Math.floor(gainers.length / 2))];
+}
+
 /* ── Build bubbles — cap^0.8, total area = 60% canvas ─────── */
-function makeBubbles(items, W, H, showAll, favSet) {
-  const pool = showAll
-    ? items
-    : [...items].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 15);
+function makeBubbles(items, W, H, showAll, favSet, ratio = true) {
+  const pool = ratio
+    ? pickRatioPool(items, showAll ? null : 15)
+    : (showAll ? items : [...items].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 15));
   if (!pool.length) return [];
 
   const maxAbsPct  = Math.max(...pool.map(c => Math.abs(c.pct)), 0.1);
@@ -241,6 +285,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
   const [stocksStatus, setStocksStatus] = useState('idle');
   const [favStatus,    setFavStatus]    = useState('idle');
   const [cryptoRetryTrigger, setCryptoRetryTrigger] = useState(0);
+  const [refreshing,   setRefreshing]   = useState(false); // background refresh in flight
 
   /* ── canvas sync ─────────────────────────────────────────── */
   const syncCanvas = useCallback(() => {
@@ -330,7 +375,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
         price: s.price, volume: s.volume,
         _type: s._type || 'stocks',
       }));
-      bubblesRef.current = makeBubbles(items, w, h, true, favSet); // always show all
+      bubblesRef.current = makeBubbles(items, w, h, true, favSet, false); // favorites: all, no ratio
     }
   }, [syncCanvas]);
 
@@ -356,20 +401,45 @@ export default function BubbleChart({ onManualSearch, onClose }) {
       .catch(() => setCryptoStatus('error'));
   }, [rebuildBubbles, cryptoRetryTrigger]);
 
-  /* ── fetch stocks ─────────────────────────────────────────── */
+  /* ── fetch stocks ─────────────────────────────────────────────
+     Always keep a display: seed from local cache instantly, then
+     refresh in the background (auto every 60s, or manual). The full
+     spinner only shows on a true cold start with no cached data. */
   const fetchStocks = useCallback((cap, period = '1d', sig = null) => {
-    setStocksStatus('loading');
+    const key = `${cap}:${period}:${sig || ''}`;
+
+    if (stocksRef.current.length > 0) {
+      setRefreshing(true);                       // we already show data → background refresh
+    } else {
+      const cached = loadStocksCache(key);
+      if (cached?.quotes?.length) {              // instant display from cache
+        stocksRef.current = cached.quotes;
+        setStocksStatus('ok');
+        setRefreshing(true);
+        requestAnimationFrame(() => rebuildBubbles());
+      } else {
+        setStocksStatus('loading');              // genuine cold start
+      }
+    }
+
     const params = new URLSearchParams({ cap, period });
     if (sig) params.set('signal', sig);
-    fetch(`/api/tv-screener?${params}`)
+
+    fetch(`/api/tv-screener?${params}`, { signal: AbortSignal.timeout(10_000) })
       .then(r => { if (!r.ok) throw r.status; return r.json(); })
       .then(data => {
         if (!data.quotes?.length) throw new Error('empty');
         stocksRef.current = data.quotes;
+        saveStocksCache(key, data.quotes);
         setStocksStatus('ok');
+        setRefreshing(false);
         requestAnimationFrame(() => rebuildBubbles());
       })
-      .catch(() => setStocksStatus('error'));
+      .catch(() => {
+        setRefreshing(false);
+        // Keep whatever is on screen; only surface an error if we have nothing at all
+        if (stocksRef.current.length === 0) setStocksStatus('error');
+      });
   }, [rebuildBubbles]);
 
   /* ── fetch favorites ─────────────────────────────────────── */
@@ -462,6 +532,28 @@ export default function BubbleChart({ onManualSearch, onClose }) {
     return () => clearTimeout(t);
   }, [favStatus, fetchFavorites]);
 
+  /* ── auto-refresh stocks while the stocks tab is open ────────── */
+  useEffect(() => {
+    if (asset !== 'stocks') return;
+    const iv = setInterval(() => {
+      fetchStocks(capRef.current, tabRef.current, signalRef.current);
+    }, STOCKS_REFRESH_MS);
+    return () => clearInterval(iv);
+  }, [asset, fetchStocks]);
+
+  /* ── manual refresh (current asset) ──────────────────────────── */
+  const handleRefresh = useCallback(() => {
+    if (assetRef.current === 'crypto') {
+      cryptoCoinsRef.current = [];
+      setCryptoStatus('loading');
+      setCryptoRetryTrigger(n => n + 1);
+    } else if (assetRef.current === 'stocks') {
+      fetchStocks(capRef.current, tabRef.current, signalRef.current);
+    } else {
+      fetchFavorites();
+    }
+  }, [fetchStocks, fetchFavorites]);
+
   /* ── kick bubbles ─────────────────────────────────────────── */
   const kickBubbles = useCallback(() => {
     bubblesRef.current.forEach(b => {
@@ -479,8 +571,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
       rebuildBubbles();
       kickBubbles();
     } else if (assetRef.current === 'stocks') {
-      stocksRef.current = [];
-      fetchStocks(capRef.current, tabRef.current, next);
+      fetchStocks(capRef.current, tabRef.current, next); // keep current display while refreshing
     }
   }, [rebuildBubbles, kickBubbles, fetchStocks]);
 
@@ -507,8 +598,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
       rebuildBubbles();
       kickBubbles();
     } else if (assetRef.current === 'stocks') {
-      stocksRef.current = [];
-      fetchStocks(capRef.current, id, signalRef.current);
+      fetchStocks(capRef.current, id, signalRef.current); // keep current display while refreshing
     }
   }, [rebuildBubbles, kickBubbles, fetchStocks]);
 
@@ -743,6 +833,13 @@ export default function BubbleChart({ onManualSearch, onClose }) {
       {/* ── Row 2: signal buttons (crypto + stocks only) ── */}
       {asset !== 'favorites' && (
         <div className="bc-signal-row">
+          {/* Default: GAINERS — no filter, just top movers by time + market cap */}
+          <button
+            className={`bc-sig-btn bc-sig-btn--gainers${signal === null ? ' bc-sig-btn--on' : ''}`}
+            title="המובילים לפי זמן ומרקט-קאפ — ללא מסננים"
+            onClick={() => { if (signal !== null) handleSignal(signal); }}>
+            📈 GAINERS
+          </button>
           {SIGNALS.map(s => (
             <button key={s.id}
               className={`bc-sig-btn${signal === s.id ? ' bc-sig-btn--on' : ''}`}
@@ -771,6 +868,9 @@ export default function BubbleChart({ onManualSearch, onClose }) {
             <span className="bc-loading-text">
               טוען<span className="bc-dots"><span>.</span><span>.</span><span>.</span></span>
             </span>
+            <button className="bc-speedup-btn" onClick={handleRefresh}>
+              ⟳ לחץ לזירוז טעינה
+            </button>
           </div>
         )}
         {curStatus === 'empty' && (
@@ -811,6 +911,14 @@ export default function BubbleChart({ onManualSearch, onClose }) {
            : asset === 'stocks'  ? 'TradingView · זמן אמת'
            : 'מועדפים אישיים'}
         </span>
+        <button
+          className={`bc-refresh-btn${refreshing ? ' bc-refresh-btn--spinning' : ''}`}
+          onClick={handleRefresh}
+          title="רענן נתונים"
+          aria-label="רענן נתונים">
+          <span className="bc-refresh-ico">⟳</span>
+          {refreshing ? ' מתעדכן' : ' רענן'}
+        </button>
         <button className="bc-manual-btn" onClick={onManualSearch}>
           🔍 סריקה ידנית
         </button>
