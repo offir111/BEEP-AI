@@ -105,12 +105,13 @@ function makeBubbles(items, W, H, showAll, favSet) {
 
   const maxAbsPct  = Math.max(...pool.map(c => Math.abs(c.pct)), 0.1);
   const norm       = cap => Math.pow(Math.max(cap, 1), 0.8);
-  const totalNorm  = pool.reduce((s, c) => s + norm(c.market_cap || 1), 0);
-  const scaleFactor= (W * H * 0.60) / (totalNorm * Math.PI);
+  const totalNorm  = pool.reduce((s, c) => s + norm(c.market_cap || 1), 0) || 1;
+  // total bubble area ≈ 42% of canvas → room to pack without forced overlap
+  const scaleFactor= (W * H * 0.42) / (totalNorm * Math.PI);
 
   return pool.map((c) => {
     const rawR   = Math.sqrt(norm(c.market_cap || 1) * scaleFactor);
-    const r      = Math.max(14, Math.min(rawR, Math.min(W, H) * 0.38));
+    const r      = Math.max(13, Math.min(rawR, Math.min(W, H) * 0.30));
     const colorN = Math.max(0.2, Math.min(1.0, Math.abs(c.pct) / maxAbsPct));
     const x = r + Math.random() * (W - 2 * r);
     const y = r + Math.random() * (H - 2 * r);
@@ -746,8 +747,9 @@ export default function BubbleChart({ onManualSearch, onClose }) {
 
       ctx.clearRect(0, 0, W, H);
 
-      const driftMag = 0.001 * Math.min(W, H) * dt;
+      const driftMag = 0.0006 * Math.min(W, H) * dt;  // gentle float
       const decay    = Math.pow(0.5, dt);
+      const maxSpd   = 1.6;
 
       for (let i = 0; i < bs.length; i++) {
         const b = bs[i];
@@ -755,26 +757,34 @@ export default function BubbleChart({ onManualSearch, onClose }) {
         b.vy += (Math.random() * 2 - 1) * driftMag;
         b.vx *= decay; b.vy *= decay;
         const spd = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
-        if (spd > 2.5) { b.vx = (b.vx/spd)*2.5; b.vy = (b.vy/spd)*2.5; }
+        if (spd > maxSpd) { b.vx = (b.vx/spd)*maxSpd; b.vy = (b.vy/spd)*maxSpd; }
         b.x += b.vx; b.y += b.vy;
-        if (b.x < b.r)     { b.x = b.r;     b.vx *= -0.7; }
-        if (b.x > W - b.r) { b.x = W - b.r; b.vx *= -0.7; }
-        if (b.y < b.r)     { b.y = b.r;     b.vy *= -0.7; }
-        if (b.y > H - b.r) { b.y = H - b.r; b.vy *= -0.7; }
+        // collision: hard positional separation so bubbles never overlap
         for (let j = i + 1; j < bs.length; j++) {
-          const b2  = bs[j];
-          const dx  = b.x - b2.x, dy = b.y - b2.y;
-          const dist= Math.max(1, Math.sqrt(dx*dx + dy*dy));
-          const sumR= b.r + b2.r;
+          const b2   = bs[j];
+          const dx   = b.x - b2.x, dy = b.y - b2.y;
+          const dist = Math.sqrt(dx*dx + dy*dy) || 0.01;
+          const sumR = b.r + b2.r;
           if (dist < sumR) {
-            const sc = 6 * dt / dist;
-            const nx = dx * sc, ny = dy * sc;
-            const cA = 1 - b.r  / sumR;
-            const cB = b2.r / sumR - 1;
-            b.vx  += nx*cA; b.vy  += ny*cA;
-            b2.vx += nx*cB; b2.vy += ny*cB;
+            const nx = dx / dist, ny = dy / dist;
+            const overlap = sumR - dist;
+            const total   = b.r + b2.r;
+            const pushA = overlap * (b2.r / total);  // smaller bubble yields more
+            const pushB = overlap * (b.r  / total);
+            b.x  += nx * pushA; b.y  += ny * pushA;
+            b2.x -= nx * pushB; b2.y -= ny * pushB;
+            b.vx  += nx * 0.02; b.vy  += ny * 0.02;
+            b2.vx -= nx * 0.02; b2.vy -= ny * 0.02;
           }
         }
+      }
+
+      // final wall clamp (after positional separation)
+      for (const b of bs) {
+        if (b.x < b.r)     { b.x = b.r;     if (b.vx < 0) b.vx *= -0.6; }
+        if (b.x > W - b.r) { b.x = W - b.r; if (b.vx > 0) b.vx *= -0.6; }
+        if (b.y < b.r)     { b.y = b.r;     if (b.vy < 0) b.vy *= -0.6; }
+        if (b.y > H - b.r) { b.y = H - b.r; if (b.vy > 0) b.vy *= -0.6; }
       }
 
       const selId = selectedIdRef.current, hovId = hoveredIdRef.current;
@@ -916,6 +926,15 @@ export default function BubbleChart({ onManualSearch, onClose }) {
               {SIGNALS.find(s => s.id === signal)?.desc}
             </span>
           )}
+          {/* Refresh — pinned to the left of the filter row */}
+          <button
+            className={`bc-refresh-btn bc-refresh-btn--inline${refreshing ? ' bc-refresh-btn--spinning' : ''}`}
+            onClick={handleRefresh}
+            title="רענן נתונים"
+            aria-label="רענן נתונים">
+            <span className="bc-refresh-ico">⟳</span>
+            {refreshing ? ' מתעדכן' : ' רענן'}
+          </button>
         </div>
       )}
 
@@ -970,18 +989,10 @@ export default function BubbleChart({ onManualSearch, onClose }) {
       <div className="bc-footer">
         <span className="bc-live-dot">● LIVE</span>
         <span className="bc-credit">
-          {asset === 'crypto'    ? 'CoinGecko'
+          {asset === 'crypto'    ? 'Binance · זמן אמת'
            : asset === 'stocks'  ? 'TradingView · זמן אמת'
            : 'מועדפים אישיים'}
         </span>
-        <button
-          className={`bc-refresh-btn${refreshing ? ' bc-refresh-btn--spinning' : ''}`}
-          onClick={handleRefresh}
-          title="רענן נתונים"
-          aria-label="רענן נתונים">
-          <span className="bc-refresh-ico">⟳</span>
-          {refreshing ? ' מתעדכן' : ' רענן'}
-        </button>
         <button className="bc-manual-btn" onClick={onManualSearch}>
           🔍 סריקה ידנית
         </button>

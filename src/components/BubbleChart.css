@@ -418,6 +418,8 @@
 .bc-refresh-btn:hover { background: rgba(52,211,153,0.2); color: #fff; }
 .bc-refresh-ico { display: inline-block; }
 .bc-refresh-btn--spinning .bc-refresh-ico { animation: bc-spin 0.8s linear infinite; }
+/* Inline refresh inside the filter row — pinned to the visual left (RTL) */
+.bc-refresh-btn--inline { margin-inline-start: auto; padding: 5px 10px; font-size: 11px; }
 
 /* "Speed up loading" button on the cold-start spinner */
 .bc-speedup-btn {

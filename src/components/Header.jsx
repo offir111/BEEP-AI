@@ -25,12 +25,8 @@ export default function Header({ username, onLogout, navigate, page }) {
            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('home'); }}
            title="דף הבית">
         <div className="hdr-logo-wrap">
-          <img src="/roadrunner-logo.png" className="hdr-logo-img" alt="roadrunner" />
+          <img src="/roadrunner-logo.png" className="hdr-logo-img" alt="BEEP BEEP" />
           <img src="/roadrunner-logo.png" className="hdr-logo-img hdr-logo-fire" aria-hidden="true" alt="" />
-        </div>
-        <div className="hdr-title-wrap">
-          <span className="hdr-brand-title">BEEP BEEP</span>
-          <span className="hdr-brand-sub">Winning Stock Alert</span>
         </div>
       </div>
 
