@@ -63,6 +63,15 @@ export default function QuickAlert({
     return () => { cancelled = true; };
   }, [symbol, initPrice]);
 
+  /* ── Symbol search / scan ────────────────────────────────── */
+  const [searchVal, setSearchVal] = useState('');
+  const doScan = () => {
+    const s = searchVal.trim().toUpperCase();
+    if (!s) return;
+    selectSymbol(s);      // loads price + updates chart via onSymbolChange
+    setSearchVal('');
+  };
+
   /* ── Form state ──────────────────────────────────────────── */
   const [inputVal,  setInputVal]  = useState('');
   const [direction, setDirection] = useState('above');
@@ -267,6 +276,21 @@ export default function QuickAlert({
               <span className="sa-alert-sym-big">{symbol}</span>
               <span className="sa-alert-hdr-sub">התראות מחיר</span>
             </div>
+
+            {/* Symbol search + scan */}
+            <div className="sa-alert-search">
+              <input
+                className="sa-alert-search-input"
+                type="text"
+                value={searchVal}
+                onChange={e => setSearchVal(e.target.value.toUpperCase())}
+                onKeyDown={e => { if (e.key === 'Enter') doScan(); }}
+                placeholder="AAPL · NVDA · TSLA"
+                dir="ltr"
+              />
+              <button className="sa-alert-scan-btn" onClick={doScan}>🔍 סרוק</button>
+            </div>
+
             <div className="sa-alert-hdr-actions">
               <button className="sa-alert-close" onClick={onClose} aria-label="סגור">✕</button>
             </div>

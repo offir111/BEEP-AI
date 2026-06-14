@@ -47,7 +47,7 @@ function FearGreedCrypto() {
   }, []);
   const color = !val ? '#888' : val <= 25 ? '#ef4444' : val <= 45 ? '#f97316' : val <= 55 ? '#eab308' : val <= 75 ? '#84cc16' : '#22c55e';
   return (
-    <div className="hp-pill">
+    <div className="hp-pill hp-pill--fng">
       <span className="hp-pill-label">F&amp;G ₿</span>
       {val
         ? <><span className="hp-pill-price" style={{ color }}>{val}</span><span className="hp-pill-change" style={{ color, fontSize: '0.62rem' }}>{lbl}</span></>
@@ -73,7 +73,7 @@ function FearGreedStocks() {
   }, []);
   const color = !val ? '#888' : val <= 25 ? '#ef4444' : val <= 45 ? '#f97316' : val <= 55 ? '#eab308' : val <= 75 ? '#84cc16' : '#22c55e';
   return (
-    <div className="hp-pill">
+    <div className="hp-pill hp-pill--fng">
       <span className="hp-pill-label">F&amp;G 📈</span>
       {val
         ? <><span className="hp-pill-price" style={{ color }}>{val}</span><span className="hp-pill-change" style={{ color, fontSize: '0.62rem' }}>{lbl}</span></>
@@ -167,10 +167,11 @@ function loadEditable() {
 
 function StockButtons({ selected, onSelect }) {
   const [slots,      setSlots]      = useState(loadEditable);
-  const [editMode,   setEditMode]   = useState(false);
   const [editingIdx, setEditingIdx] = useState(null);
   const [editVal,    setEditVal]    = useState('');
   const editInputRef = useRef(null);
+  const pressTimer    = useRef(null);
+  const longPressed   = useRef(false);
 
   const lastSearched = localStorage.getItem(LS_LAST_KEY) || '';
 
@@ -185,7 +186,12 @@ function StockButtons({ selected, onSelect }) {
     if (sym && editingIdx !== null) { const n=[...slots]; n[editingIdx]=sym; saveSlots(n); }
     setEditingIdx(null); setEditVal('');
   };
-  const exitEditMode = () => { setEditMode(false); setEditingIdx(null); setEditVal(''); };
+  const startPress = (i) => {
+    longPressed.current = false;
+    clearTimeout(pressTimer.current);
+    pressTimer.current = setTimeout(() => { longPressed.current = true; openEdit(i); }, 500);
+  };
+  const endPress = () => clearTimeout(pressTimer.current);
 
   // RTL grid — first = visual right
   // Row1: [BTC] [edit0] [edit1] [edit2]
@@ -203,16 +209,6 @@ function StockButtons({ selected, onSelect }) {
 
   return (
     <div className="hp-stock-section">
-      <div className="hp-stock-header">
-        <span className="hp-stock-title">מניות מהירות</span>
-        <button
-          className={`hp-stock-edit-toggle${editMode ? ' --active' : ''}`}
-          onClick={() => editMode ? exitEditMode() : setEditMode(true)}
-        >
-          {editMode ? '✓ סיום' : '✏ עריכה'}
-        </button>
-      </div>
-
       <div className="hp-stock-grid">
         {cells.map((cell, pos) => {
           /* ── BTC fixed ── */
@@ -245,7 +241,7 @@ function StockButtons({ selected, onSelect }) {
           /* ── Editable slot ── */
           const i   = cell.idx;
           const sym = slots[i];
-          const isEditing = editMode && editingIdx === i;
+          const isEditing = editingIdx === i;
 
           if (isEditing) return (
             <div key={i} className="hp-stock-edit-wrap">
@@ -264,16 +260,19 @@ function StockButtons({ selected, onSelect }) {
 
           return (
             <button key={i}
-              className={`hp-stock-btn${sym === selected ? ' --active' : ''}${editMode ? ' --edit-mode' : ''}`}
-              onClick={() => editMode ? openEdit(i) : onSelect(sym)}
+              className={`hp-stock-btn${sym === selected ? ' --active' : ''}`}
+              onPointerDown={() => startPress(i)}
+              onPointerUp={endPress}
+              onPointerLeave={endPress}
+              onClick={() => { if (longPressed.current) { longPressed.current = false; return; } onSelect(sym); }}
             >
               <span className="hp-stock-sym">{sym}</span>
-              {!editMode && <Pct sym={sym} />}
-              {editMode && <span className="hp-stock-pencil">✏</span>}
+              <Pct sym={sym} />
             </button>
           );
         })}
       </div>
+      <div className="hp-stock-hint">לעריכה — לחיצה רצופה על כפתור</div>
     </div>
   );
 }
@@ -305,10 +304,6 @@ export default function HomePage({ navigate }) {
       {/* Order (RTL: first=visual-right → last=visual-left):
           גרפים | S&P | GOLD | ETH | SOL | [empty] | BTC-Signal | F&G-Crypto | F&G-Stocks */}
       <div className="hp-market-strip">
-        <button className="hp-charts-pill" onClick={() => navigate('charts')}>
-          <span className="hp-pill-label">גרפים</span>
-          <span className="hp-charts-pill-icon">📈</span>
-        </button>
         <MarketPill sym="S&P"  label="S&P 500" />
         <MarketPill sym="GOLD" label="זהב" />
         <MarketPill sym="ETH"  label="ETH" />
@@ -316,7 +311,6 @@ export default function HomePage({ navigate }) {
         <MarketPill sym="SPCX" label="SPCX" />
         <BtcSignalPill />
         <FearGreedCrypto />
-        <FearGreedStocks />
       </div>
 
       {/* ── SOT Scanner Widget ── */}
@@ -327,36 +321,6 @@ export default function HomePage({ navigate }) {
 
       {/* ── 12 Stock buttons ── */}
       <StockButtons selected={chartSymbol} onSelect={handleSymbolSelect} />
-
-      {/* ── 2 Feature cards ── */}
-      <div className="hp-features">
-
-        {/* Alert feature */}
-        <button className="hp-feature-card hp-feature-alert" onClick={() => navigate('alerts')}>
-          <div className="hp-feature-glow hp-feature-glow--alert" />
-          <div className="hp-feature-icon">🔔</div>
-          <div className="hp-feature-text">
-            <div className="hp-feature-title">Push Alerts</div>
-            <div className="hp-feature-sub">קבל התראה כשהמחיר מגיע ליעד — גם כשהאפליקציה סגורה</div>
-          </div>
-          {activeAlerts > 0
-            ? <span className="hp-feature-badge hp-feature-badge--active">{activeAlerts} פעיל</span>
-            : <span className="hp-feature-badge">+ הגדר</span>
-          }
-        </button>
-
-        {/* SOT / BEEP AI feature */}
-        <button className="hp-feature-card hp-feature-ai" onClick={() => navigate('sot')}>
-          <div className="hp-feature-glow hp-feature-glow--ai" />
-          <div className="hp-feature-icon">🤖</div>
-          <div className="hp-feature-text">
-            <div className="hp-feature-title">BEEP AI Scan</div>
-            <div className="hp-feature-sub">סריקת AI מיידית — מגלה את המניות הכי חמות עכשיו</div>
-          </div>
-          <span className="hp-feature-badge hp-feature-badge--ai">הפעל</span>
-        </button>
-
-      </div>
 
       {/* ── Robots section ── */}
       <div className="hp-section-title">🤖 סקנרים &amp; רובוטים</div>
@@ -369,17 +333,6 @@ export default function HomePage({ navigate }) {
         <RobotCard icon="📋" name="eToro"      desc="קופי טריידינג"            tag="Demo"  tagColor="#94a3b8" onClick={() => navigate('etoro')} />
         <RobotCard icon="📐" name="Model Grid"  desc="גריד BTC — רמות קנייה"   tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('model-grid')} />
         <RobotCard icon="🗞️" name="Daily AI"   desc="חדשות מדורגות AI"         tag="אצור"  tagColor="#94a3b8" onClick={() => navigate('daily')} />
-      </div>
-
-      {/* ── Quick nav ── */}
-      <div className="hp-section-title">⚡ גישה מהירה</div>
-      <div className="hp-quick">
-        <button className="hp-quick-btn" onClick={() => navigate('charts')}>📈<br/><small>גרפים</small></button>
-        <button className="hp-quick-btn" onClick={() => navigate('crypto')}>₿<br/><small>קריפטו</small></button>
-        <button className="hp-quick-btn" onClick={() => navigate('news')}>📰<br/><small>חדשות</small></button>
-        <button className="hp-quick-btn" onClick={() => navigate('daily')}>📅<br/><small>יומי</small></button>
-        <button className="hp-quick-btn" onClick={() => navigate('etoro')}>📋<br/><small>eToro</small></button>
-        <button className="hp-quick-btn" onClick={() => navigate('model-grid')}>📐<br/><small>Model Grid</small></button>
       </div>
 
     </div>

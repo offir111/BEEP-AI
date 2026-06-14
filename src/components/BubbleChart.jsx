@@ -889,9 +889,19 @@ export default function BubbleChart({ onManualSearch, onClose }) {
 
       {/* ── Row 1: main controls ── */}
       <div className="bc-header">
-        <div className="bc-controls-left">
 
-          {/* Count toggle */}
+        {/* LEFT: X (+ refresh on mobile) */}
+        <div className="bc-hdr-left">
+          <button className="bc-close-btn" onClick={onClose}>✕</button>
+          <button
+            className={`bc-refresh-btn bc-refresh-m${refreshing ? ' bc-refresh-btn--spinning' : ''}`}
+            onClick={handleRefresh} title="רענן נתונים" aria-label="רענן נתונים">
+            <span className="bc-refresh-ico">⟳</span>{refreshing ? ' מתעדכן' : ' רענן'}
+          </button>
+        </div>
+
+        {/* FILTERS: 15/הכל · time · market cap */}
+        <div className="bc-filters">
           <div className="bc-mode-toggle">
             <button className={`bc-mode-btn${!showAll ? ' bc-mode-btn--on' : ''}`}
               onClick={() => showAll && handleToggle()}>15</button>
@@ -899,7 +909,6 @@ export default function BubbleChart({ onManualSearch, onClose }) {
               onClick={() => !showAll && handleToggle()}>הכל</button>
           </div>
 
-          {/* Time dropdown — hidden for favorites */}
           {asset !== 'favorites' && (
             <div className="bc-dd-wrap" ref={timeDdRef}>
               <button className="bc-dd-btn"
@@ -920,7 +929,6 @@ export default function BubbleChart({ onManualSearch, onClose }) {
             </div>
           )}
 
-          {/* Market Cap dropdown */}
           <div className="bc-dd-wrap" ref={capDdRef}>
             <button className="bc-dd-btn"
               onClick={() => { setCapOpen(v => !v); setTimeOpen(false); }}>
@@ -939,39 +947,38 @@ export default function BubbleChart({ onManualSearch, onClose }) {
               </div>
             )}
           </div>
-
         </div>
 
-        {/* Asset toggle + close */}
-        <div className="bc-controls-right">
-          <div className="bc-asset-toggle">
-            <button className={`bc-asset-btn${asset === 'crypto'    ? ' bc-asset-btn--on' : ''}`}
-              onClick={() => asset !== 'crypto'    && handleAsset('crypto')}>CRYPTO</button>
-            <button className={`bc-asset-btn${asset === 'stocks'    ? ' bc-asset-btn--on' : ''}`}
-              onClick={() => asset !== 'stocks'    && handleAsset('stocks')}>STOCKS</button>
+        {/* RIGHT: ⭐ favorites + CRYPTO/STOCKS */}
+        <div className="bc-asset">
+          <div className="bc-asset-toggle bc-fav-toggle">
             <button className={`bc-asset-btn${asset === 'favorites' ? ' bc-asset-btn--on' : ''}`}
               onClick={() => asset !== 'favorites' && handleAsset('favorites')}>⭐</button>
           </div>
-          <button className="bc-close-btn" onClick={onClose}>✕</button>
+          <div className="bc-asset-toggle">
+            <button className={`bc-asset-btn${asset === 'crypto' ? ' bc-asset-btn--on' : ''}`}
+              onClick={() => asset !== 'crypto' && handleAsset('crypto')}>CRYPTO</button>
+            <button className={`bc-asset-btn${asset === 'stocks' ? ' bc-asset-btn--on' : ''}`}
+              onClick={() => asset !== 'stocks' && handleAsset('stocks')}>STOCKS</button>
+          </div>
         </div>
       </div>
 
-      {/* ── Row 2: signal buttons (crypto + stocks only) ── */}
+      {/* ── Signal buttons — words only (desktop row 2 / mobile row 3) ── */}
       {asset !== 'favorites' && (
         <div className="bc-signal-row">
-          {/* Default: GAINERS — no filter, just top movers by time + market cap */}
           <button
             className={`bc-sig-btn bc-sig-btn--gainers${signal === null ? ' bc-sig-btn--on' : ''}`}
             title="המובילים לפי זמן ומרקט-קאפ — ללא מסננים"
             onClick={() => { if (signal !== null) handleSignal(signal); }}>
-            📈 GAINERS
+            GAINERS
           </button>
           {SIGNALS.map(s => (
             <button key={s.id}
               className={`bc-sig-btn${signal === s.id ? ' bc-sig-btn--on' : ''}`}
               title={s.desc}
               onClick={() => handleSignal(s.id)}>
-              {s.emoji} {s.label}
+              {s.label}
             </button>
           ))}
           {signal && (
@@ -979,15 +986,6 @@ export default function BubbleChart({ onManualSearch, onClose }) {
               {SIGNALS.find(s => s.id === signal)?.desc}
             </span>
           )}
-          {/* Refresh — pinned to the left of the filter row */}
-          <button
-            className={`bc-refresh-btn bc-refresh-btn--inline${refreshing ? ' bc-refresh-btn--spinning' : ''}`}
-            onClick={handleRefresh}
-            title="רענן נתונים"
-            aria-label="רענן נתונים">
-            <span className="bc-refresh-ico">⟳</span>
-            {refreshing ? ' מתעדכן' : ' רענן'}
-          </button>
         </div>
       )}
 

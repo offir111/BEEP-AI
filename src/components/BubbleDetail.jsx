@@ -209,6 +209,7 @@ export default function BubbleDetail({ bubble, asset, coinsData, onClose, onFavC
         {/* Header: symbol + fav + close */}
         <div className="bd-hdr">
           <div className="bd-hdr-left">
+            <button className="bd-close" onClick={onClose}>✕</button>
             {bubble.name && bubble.name !== bubble.symbol && (
               <span className="bd-name">{bubble.name}</span>
             )}
@@ -221,7 +222,6 @@ export default function BubbleDetail({ bubble, asset, coinsData, onClose, onFavC
               onClick={handleToggleFav}>
               {fav ? '⭐' : '☆'}
             </button>
-            <button className="bd-close" onClick={onClose}>✕</button>
           </div>
         </div>
 

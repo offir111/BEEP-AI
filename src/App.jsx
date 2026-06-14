@@ -19,13 +19,15 @@ import TwitterPage    from './pages/TwitterPage';
 import ModelGridPage  from './pages/ModelGridPage';
 import DailyPage         from './pages/DailyPage';
 import ScanOfTodayPage   from './pages/ScanOfTodayPage';
+import HeatmapPage       from './pages/HeatmapPage';
+import MyAlertsPage      from './pages/MyAlertsPage';
 import NotFoundPage      from './pages/NotFoundPage';
 import './App.css';
 
 const VALID_PAGES = [
   'home','charts','crypto','news','alerts',
   'model-w','model-bit','model-smc','model-grid',
-  'finviz','etoro','twitter','daily','sot'
+  'finviz','etoro','twitter','daily','sot','heatmap','myalerts'
 ];
 
 // UX-07: Offline detection banner
@@ -59,6 +61,8 @@ const PAGE_TITLES = {
   alerts: '🔔 התראות', 'model-w': '🤖 Model W', 'model-bit': '₿ Model BIT',
   'model-smc': '📐 Model SMC', finviz: '📊 FINVIZ', etoro: '📋 eToro',
   twitter: '🐦 טוויטר', 'model-grid': '📐 Model Grid', daily: '📅 יומי', sot: '🤖 SOT',
+  heatmap: '🗺️ מפת חום',
+  myalerts: '🔔 ההתראות שלי',
 };
 
 function PageTopBar({ page, onBack, onClose }) {
@@ -82,6 +86,7 @@ function AppInner() {
   });
   const [page, setPage] = useState('home');
   const [navHistory, setNavHistory] = useState(['home']);
+  const [homeKey, setHomeKey] = useState(0);   // bump → remount HomePage (closes scanner/bubbles)
 
   const logout = () => {
     localStorage.removeItem('beepai_session');
@@ -91,6 +96,7 @@ function AppInner() {
   // navigate: deep-link, adds to history (back button works)
   const navigate = (p) => {
     const target = VALID_PAGES.includes(p) ? p : '404';
+    if (target === 'home') setHomeKey(k => k + 1);   // logo/home → always reset home view
     setPage(target);
     setNavHistory(prev => [...prev, target]);
     window.scrollTo(0, 0);
@@ -130,7 +136,7 @@ function AppInner() {
       <AlertBanner />
       <PageTopBar page={page} onBack={goBack} onClose={() => { setPage('home'); setNavHistory(['home']); window.scrollTo(0,0); }} />
       <main className="app-main">
-        {page === 'home'      && <HomePage   navigate={navigate} />}
+        {page === 'home'      && <HomePage   key={homeKey} navigate={navigate} />}
         {page === 'charts'    && <ChartsPage />}
         {page === 'crypto'    && <CryptoPage />}
         {page === 'news'      && <NewsPage   />}
@@ -144,6 +150,8 @@ function AppInner() {
         {page === 'model-grid' && <ModelGridPage  navigate={navigate} />}
         {page === 'daily'      && <DailyPage      navigate={navigate} />}
         {page === 'sot'        && <ScanOfTodayPage navigate={navigate} />}
+        {page === 'heatmap'    && <HeatmapPage />}
+        {page === 'myalerts'   && <MyAlertsPage />}
         {page === '404'       && <NotFoundPage navigate={navigate} />}
       </main>
     </div>

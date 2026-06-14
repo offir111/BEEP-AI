@@ -116,8 +116,9 @@
 }
 
 .hdr-clock {
-  font-size: 0.72rem;
-  color: var(--text-secondary);
+  font-size: 1.037rem;
+  font-weight: 700;
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
   direction: ltr;
 }
@@ -125,22 +126,23 @@
 /* ── Bell ── */
 .hdr-bell {
   position: relative;
-  width: 34px;
-  height: 34px;
+  width: 46px;
+  height: 46px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.15s;
-  color: var(--text-secondary);
+  color: var(--accent-gold);
 }
-.hdr-bell:hover { background: var(--bg-hover); color: var(--accent-gold); }
-.hdr-bell--on   { background: rgba(212,175,55,0.12); color: var(--accent-gold); }
+.hdr-bell:hover { background: var(--bg-hover); }
+.hdr-bell--on   { background: rgba(212,175,55,0.12); }
 
 .hdr-bell-icon {
-  width: 20px;
-  height: 20px;
-  fill: currentColor;
+  width: 32px;
+  height: 32px;
+  fill: #f5c518;
+  filter: drop-shadow(0 1px 3px rgba(245,197,24,0.45));
 }
 
 .hdr-bell-badge {
@@ -187,13 +189,18 @@
 .hdr-user { display: flex; align-items: center; gap: 6px; }
 
 .hdr-avatar {
-  width: 28px; height: 28px;
+  width: 30px; height: 30px;
   border-radius: 50%;
-  background: var(--accent-gold);
-  color: #000;
-  font-size: 0.75rem; font-weight: 700;
+  background: #3a3a44;
+  border: 2px solid var(--accent-gold);
+  color: #e5e5ea;
+  font-size: 0.78rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: filter 0.15s;
 }
+.hdr-avatar:hover { filter: brightness(1.2); }
 
 .hdr-username {
   font-size: 0.78rem;
@@ -205,9 +212,10 @@
 }
 
 .hdr-logout {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  padding: 4px 7px;
+  color: #ffffff;
+  font-size: 1.6rem;
+  line-height: 1;
+  padding: 4px 9px;
   border-radius: var(--radius-sm);
   transition: color 0.15s, background 0.15s;
 }

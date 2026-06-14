@@ -28,24 +28,35 @@
   overflow: visible;
 }
 
-/* Left group: 15/הכל · time · market cap */
-.bc-controls-left {
+/* LEFT group: X (+ refresh on mobile) — pinned to the left */
+.bc-hdr-left {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex-wrap: nowrap;
-  flex: 1;
-  min-width: 0;
-  overflow: visible;   /* must be visible — dropdowns escape upward */
+  gap: 6px;
+  flex-shrink: 0;
+  margin-right: auto;   /* push everything else to the right */
 }
 
-/* Right group: asset toggle · X */
-.bc-controls-right {
+/* FILTERS group: 15/הכל · time · market cap */
+.bc-filters {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
+  overflow: visible;   /* dropdowns escape */
+}
+
+/* RIGHT group: ⭐ favorites + CRYPTO/STOCKS */
+.bc-asset {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
 }
+.bc-fav-toggle { flex-shrink: 0; }
+
+/* Refresh — always next to the X */
+.bc-refresh-m { padding: 5px 10px; font-size: 11px; }
 
 /* ✕ Close button */
 .bc-close-btn {
@@ -502,19 +513,24 @@
   color: #ffd600;
 }
 
-/* ── Mobile responsive ──────────────────────────────────────── */
+/* ── Phone layout: 3 rows ─────────────────────────────────────
+   Row 1: [X + רענן]  ………  [⭐ + CRYPTO/STOCKS]
+   Row 2: 15/הכל · 1H · MARKET CAP
+   Row 3: signal buttons (no refresh — it moved up to row 1)         */
+@media (max-width: 600px) {
+  .bc-header   { padding: 7px 7px 0; gap: 6px; }
+  .bc-hdr-left { order: 1; }
+  .bc-asset    { order: 2; }
+  .bc-filters  { order: 3; flex-basis: 100%; flex-wrap: wrap; gap: 6px; }
+  .bc-signal-row { flex-wrap: wrap; overflow-x: visible; }
+}
+
+/* ── Mobile button sizing ───────────────────────────────────── */
 @media (max-width: 480px) {
-  .bc-header      { padding: 7px 7px 0; gap: 6px; }
   .bc-signal-row  { padding: 6px 7px 4px; gap: 6px; }
   .bc-footer      { padding: 5px 8px 9px; }
 
-  /* Wrap every control to multiple rows so nothing is clipped/hidden.
-     The extra rows take space from the top of the bubble canvas. */
-  .bc-controls-left  { flex-wrap: wrap; gap: 6px; flex: 1 1 auto; }
-  .bc-controls-right { flex-wrap: wrap; gap: 6px; }
-  .bc-signal-row     { flex-wrap: wrap; overflow-x: visible; }
-
-  /* Comfortable, clearly-tappable button sizes (room from wrapping) */
+  /* Comfortable, clearly-tappable button sizes */
   .bc-mode-btn    { padding: 6px 11px; font-size: 12px; }
   .bc-dd-btn      { padding: 6px 10px; font-size: 12px; }
   .bc-asset-btn   { padding: 6px 12px; font-size: 13px; }

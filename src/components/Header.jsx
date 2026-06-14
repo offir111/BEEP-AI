@@ -5,9 +5,9 @@ import './Header.css';
 function IsraelClock() {
   const [time, setTime] = useState('');
   useEffect(() => {
-    const tick = () => setTime(new Date().toLocaleTimeString('he-IL', {
-      timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-    }) + ' IST');
+    const tick = () => setTime(new Date().toLocaleTimeString('en-GB', {
+      timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    }));
     tick();
     const iv = setInterval(tick, 1000);
     return () => clearInterval(iv);
@@ -59,11 +59,10 @@ export default function Header({ username, onLogout, navigate, page }) {
           )}
         </button>
 
-        {/* User */}
-        <div className="hdr-user" title={username}>
-          <span className="hdr-avatar">{username?.[0]?.toUpperCase()}</span>
-          <span className="hdr-username">{username}</span>
-        </div>
+        {/* User avatar — opens alerts/charts page */}
+        <button className="hdr-avatar" onClick={() => navigate('myalerts')} title="ההתראות שלי" aria-label="ההתראות שלי">
+          {username?.[0]?.toUpperCase()}
+        </button>
 
         <button className="hdr-logout" onClick={onLogout} title="התנתק" aria-label="התנתק מהמערכת">✕</button>
       </div>

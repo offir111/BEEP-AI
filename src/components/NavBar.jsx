@@ -5,9 +5,9 @@ import './NavBar.css';
 // BUG-01: Mobile "More" drawer added for all secondary tools
 const MAIN_PAGES = [
   { id: 'home',   icon: '🏠', label: 'בית'    },
-  { id: 'charts', icon: '📈', label: 'גרפים'  },
   { id: 'crypto', icon: '₿',  label: 'קריפטו' },
   { id: 'news',   icon: '📰', label: 'חדשות'  },
+  { id: 'heatmap', icon: '🗺️', label: 'מפת חום' },
   { id: 'alerts', icon: '🔔', label: 'התראות' },
 ];
 

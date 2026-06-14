@@ -1,0 +1,87 @@
+/* Edit controls for the saved-symbol buttons (user page only) */
+.ma-edit-toggle {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(212,175,55,0.4);
+  background: rgba(212,175,55,0.1);
+  color: #ffcf00;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.ma-edit-toggle.--active {
+  background: rgba(212,175,55,0.25);
+  border-color: rgba(212,175,55,0.7);
+}
+
+.ma-sym-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.ma-sym-del {
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(239,68,68,0.5);
+  background: #2a0d0d;
+  color: #ff6b6b;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+.ma-sym-del:hover { background: #ef4444; color: #fff; }
+
+.ma-edit-hint {
+  font-size: 0.66rem;
+  color: rgba(255,207,0,0.7);
+  align-self: center;
+  white-space: nowrap;
+}
+
+/* ── Symbol row: edit button pinned LEFT, symbols wrap to more rows ── */
+.ma-page .charts-symbols {
+  position: relative;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding-left: 84px;        /* reserve space for the fixed edit button */
+  min-height: 34px;
+}
+.ma-page .ma-edit-toggle {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+/* ── Alert bell button: top-center of the chart (not bottom-right) ── */
+.ma-page .charts-float-bell {
+  top: 76px;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translateX(-50%);
+}
+
+/* inline rename input inside a symbol button */
+.ma-sym-input {
+  width: 90px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(212,175,55,0.6);
+  background: #14141c;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: inherit;
+  text-align: center;
+  outline: none;
+}
