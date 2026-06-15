@@ -41,6 +41,14 @@
   white-space: nowrap;
 }
 
+.tgm-badge--live {
+  animation: tgm-pulse 1.2s ease-in-out infinite;
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.4);
+  color: var(--accent-green);
+}
+@keyframes tgm-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
 .tgm-status {
   font-size: 0.78rem;
   color: var(--text-primary);
@@ -48,6 +56,85 @@
   border: 1px solid rgba(74, 158, 255, 0.25);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
+}
+
+/* ── Auto-scan control bar ── */
+.tgm-auto-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+.tgm-live-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  user-select: none;
+}
+.tgm-live-toggle input { accent-color: var(--accent-red); width: 16px; height: 16px; cursor: pointer; }
+.tgm-live-toggle--on {
+  color: var(--accent-green);
+  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(74, 222, 128, 0.08);
+}
+.tgm-auto-bar .tgm-btn--clear { margin-inline-start: auto; }
+
+/* ── Progress ── */
+.tgm-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tgm-progress-bar {
+  flex: 1;
+  height: 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.tgm-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-gold), #f0d878);
+  transition: width 0.25s ease;
+}
+.tgm-progress-label {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Manual toggle ── */
+.tgm-manual-toggle {
+  align-self: flex-start;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.tgm-manual-toggle:hover { color: var(--accent-gold); border-color: var(--accent-gold); }
+
+.tgm-more-note {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding: 4px;
 }
 
 /* Section titles */

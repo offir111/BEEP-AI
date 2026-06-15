@@ -1,12 +1,18 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import RobotNavTabs from '../components/RobotNavTabs';
 import { TGM_PROVIDERS, MIN_TRADES_FOR_RANK } from '../engine/tgmProviders';
 import { getAllLeads, saveLead, deleteLead, clearAllLeads, newLeadId } from '../engine/tgmDb';
-import { checkLead, getOpenPriceAt } from '../engine/tgmEngine';
+import { checkLead } from '../engine/tgmEngine';
+import { runAutoScan } from '../engine/tgmAuto';
 import { buildRanking } from '../engine/tgmStats';
 import './TgmPage.css';
 
 const COMMON_ASSETS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 'DOGE/USDT'];
+
+const SCAN_PER_PROVIDER = 26;   // לידים לכל ספק בסריקה אוטומטית מלאה (>20 → דירוג רשמי)
+const LIVE_PER_PROVIDER = 1;    // תוספת לידים בכל סבב "מצב חי"
+const LIVE_INTERVAL_MS = 30000; // תדירות מצב חי
+const LIVE_MAX_LEADS = 600;     // תקרת לידים במצב חי (מונע צבירה אינסופית)
 
 const EMPTY_FORM = {
   provider: TGM_PROVIDERS[0],
@@ -31,7 +37,6 @@ function fmtDate(ms) {
 }
 
 function defaultDateLocal() {
-  // ברירת מחדל: לפני 7 ימים (כדי שלרוב הלידים כבר תהיה תוצאה).
   const d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const pad = (x) => String(x).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -41,85 +46,123 @@ export default function TgmPage({ navigate }) {
   const [leads, setLeads] = useState([]);
   const [form, setForm] = useState({ ...EMPTY_FORM, date: defaultDateLocal() });
   const [formError, setFormError] = useState('');
+  const [showManual, setShowManual] = useState(false);
   const [busy, setBusy] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
 
+  // מצב הסריקה האוטומטית
+  const [scanning, setScanning] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [liveMode, setLiveMode] = useState(false);
+
+  const stopRef = useRef(false);       // איתות עצירה למאסף
+  const scanningRef = useRef(false);    // מונע ריצות חופפות
+  const autoStartedRef = useRef(false); // הפעלה אוטומטית פעם אחת בטעינה
+
   const reload = useCallback(async () => {
-    try {
-      const all = await getAllLeads();
-      setLeads(all);
-    } catch (e) {
-      setStatusMsg('שגיאה בטעינת הנתונים: ' + e.message);
-    }
+    const all = await getAllLeads();
+    setLeads(all);
+    return all;
   }, []);
 
-  useEffect(() => { reload(); }, [reload]);
+  // שמירת ליד שהושלם + הוספה מצטברת ל-state.
+  const ingestLead = useCallback(async (lead) => {
+    await saveLead(lead);
+    setLeads((prev) => [lead, ...prev]);
+  }, []);
+
+  // ── סריקה אוטומטית מלאה ──
+  const runScan = useCallback(async (perProvider) => {
+    if (scanningRef.current) return;
+    scanningRef.current = true;
+    stopRef.current = false;
+    setScanning(true);
+    setProgress({ done: 0, total: perProvider * TGM_PROVIDERS.length });
+    setStatusMsg('🛰️ אוסף ובודק לידים אוטומטית מ-Binance…');
+    try {
+      const done = await runAutoScan({
+        perProvider,
+        onLead: ingestLead,
+        onProgress: (done, total) => setProgress({ done, total }),
+        shouldStop: () => stopRef.current,
+        concurrency: 5,
+      });
+      setStatusMsg(stopRef.current ? `⏸️ הסריקה נעצרה — נאספו ${done} לידים` : `✓ הסריקה הושלמה — נאספו ${done} לידים`);
+    } catch (e) {
+      setStatusMsg('שגיאה בסריקה האוטומטית: ' + e.message);
+    } finally {
+      scanningRef.current = false;
+      setScanning(false);
+    }
+  }, [ingestLead]);
+
+  const stopScan = () => { stopRef.current = true; };
+
+  // טעינה ראשונית + הפעלה אוטומטית כשאין נתונים.
+  useEffect(() => {
+    (async () => {
+      try {
+        const all = await reload();
+        if (all.length === 0 && !autoStartedRef.current) {
+          autoStartedRef.current = true;
+          runScan(SCAN_PER_PROVIDER);
+        }
+      } catch (e) {
+        setStatusMsg('שגיאה בטעינת הנתונים: ' + e.message);
+      }
+    })();
+  }, [reload, runScan]);
+
+  // ── מצב חי: תוספת לידים תקופתית, ללא התערבות ──
+  const liveModeRef = useRef(liveMode);
+  liveModeRef.current = liveMode;
+  useEffect(() => {
+    if (!liveMode) return;
+    const tick = async () => {
+      if (scanningRef.current) return;
+      if (leads.length >= LIVE_MAX_LEADS) { setStatusMsg('🔴 מצב חי — הגעת לתקרת הלידים'); return; }
+      await runScan(LIVE_PER_PROVIDER);
+    };
+    const id = setInterval(tick, LIVE_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [liveMode, leads.length, runScan]);
 
   const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  // בדיקת ליד בודד והעדכון ב-DB.
+  // ── בדיקה חוזרת של ליד בודד (אזור ידני) ──
   const runCheck = useCallback(async (lead) => {
-    await saveLead({ ...lead, status: 'checking', error: null });
     setLeads((prev) => prev.map((l) => (l.id === lead.id ? { ...l, status: 'checking', error: null } : l)));
     try {
       const r = await checkLead(lead);
-      const updated = {
-        ...lead,
-        status: r.result, // 'win' | 'loss'
-        reason: r.reason,
-        exitPrice: r.exitPrice,
-        closedAtMs: r.closedAtMs,
-        checkedAt: Date.now(),
-        error: null,
-      };
+      const updated = { ...lead, status: r.result, reason: r.reason, exitPrice: r.exitPrice, closedAtMs: r.closedAtMs, checkedAt: Date.now(), error: null };
       await saveLead(updated);
       setLeads((prev) => prev.map((l) => (l.id === lead.id ? updated : l)));
-      return updated;
     } catch (e) {
       const errored = { ...lead, status: 'error', error: e.message, checkedAt: Date.now() };
       await saveLead(errored);
       setLeads((prev) => prev.map((l) => (l.id === lead.id ? errored : l)));
-      return errored;
     }
   }, []);
 
   const handleAdd = async (e) => {
     e.preventDefault();
     setFormError('');
-
     const entry = parseFloat(form.entry);
     const tp = parseFloat(form.tp);
     const sl = parseFloat(form.sl);
     const dateMs = form.date ? new Date(form.date).getTime() : NaN;
 
     if (!form.asset.trim()) return setFormError('יש להזין נכס (לדוגמה BTC/USDT)');
-    if (!Number.isFinite(entry) || !Number.isFinite(tp) || !Number.isFinite(sl)) {
-      return setFormError('יש להזין מחירי כניסה, יעד וסטופ תקינים');
-    }
+    if (!Number.isFinite(entry) || !Number.isFinite(tp) || !Number.isFinite(sl)) return setFormError('יש להזין מחירי כניסה, יעד וסטופ תקינים');
     if (!Number.isFinite(dateMs)) return setFormError('יש לבחור תאריך');
     if (dateMs > Date.now()) return setFormError('תאריך הליד לא יכול להיות בעתיד');
-
-    // ולידציה לוגית של כיוון מול TP/SL.
-    if (form.direction === 'LONG' && !(tp > entry && sl < entry)) {
-      return setFormError('ב-LONG: היעד (TP) חייב להיות מעל הכניסה והסטופ (SL) מתחתיה');
-    }
-    if (form.direction === 'SHORT' && !(tp < entry && sl > entry)) {
-      return setFormError('ב-SHORT: היעד (TP) חייב להיות מתחת לכניסה והסטופ (SL) מעליה');
-    }
+    if (form.direction === 'LONG' && !(tp > entry && sl < entry)) return setFormError('ב-LONG: היעד (TP) חייב להיות מעל הכניסה והסטופ (SL) מתחתיה');
+    if (form.direction === 'SHORT' && !(tp < entry && sl > entry)) return setFormError('ב-SHORT: היעד (TP) חייב להיות מתחת לכניסה והסטופ (SL) מעליה');
 
     const lead = {
-      id: newLeadId(),
-      provider: form.provider,
-      asset: form.asset.trim().toUpperCase(),
-      direction: form.direction,
-      entry,
-      tp,
-      sl,
-      dateMs,
-      status: 'pending',
-      createdAt: Date.now(),
+      id: newLeadId(), provider: form.provider, asset: form.asset.trim().toUpperCase(),
+      direction: form.direction, entry, tp, sl, dateMs, status: 'pending', createdAt: Date.now(),
     };
-
     setBusy(true);
     setStatusMsg('מוסיף ליד ובודק מול Binance…');
     try {
@@ -135,20 +178,6 @@ export default function TgmPage({ navigate }) {
     }
   };
 
-  // בדיקה מחדש של כל הלידים שטרם נבדקו (או שנכשלו).
-  const checkAllPending = async () => {
-    const pending = leads.filter((l) => l.status === 'pending' || l.status === 'error' || l.status === 'checking');
-    if (!pending.length) { setStatusMsg('אין לידים הממתינים לבדיקה'); return; }
-    setBusy(true);
-    let done = 0;
-    for (const l of pending) {
-      setStatusMsg(`בודק ${++done}/${pending.length}…`);
-      await runCheck(l);
-    }
-    setBusy(false);
-    setStatusMsg(`הבדיקה הושלמה — נבדקו ${pending.length} לידים`);
-  };
-
   const handleDelete = async (id) => {
     await deleteLead(id);
     setLeads((prev) => prev.filter((l) => l.id !== id));
@@ -156,79 +185,17 @@ export default function TgmPage({ navigate }) {
 
   const handleClearAll = async () => {
     if (!window.confirm('למחוק את כל הלידים? פעולה זו אינה הפיכה.')) return;
+    stopRef.current = true;
+    setLiveMode(false);
     await clearAllLeads();
     setLeads([]);
+    autoStartedRef.current = true; // לא להפעיל סריקה אוטומטית מחדש לאחר ניקוי יזום
     setStatusMsg('כל הלידים נמחקו');
-  };
-
-  // זריעת נתוני דמו ריאליסטיים — מחיר כניסה היסטורי אמיתי מ-Binance.
-  const seedDemo = async () => {
-    setBusy(true);
-    setStatusMsg('יוצר נתוני דמו (מושך מחירים היסטוריים)…');
-    const plan = [
-      { provider: 'Learn2Trade', count: 24 },
-      { provider: 'Wolf of Trading', count: 22 },
-      { provider: 'Binance Killers', count: 21 },
-      { provider: 'Token Metrics', count: 12 },
-      { provider: 'altFINS', count: 8 },
-    ];
-    const assets = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT'];
-    let created = 0;
-    let total = plan.reduce((s, p) => s + p.count, 0);
-
-    try {
-      for (const p of plan) {
-        for (let i = 0; i < p.count; i++) {
-          // תאריך אקראי בין 90 ל-16 יום אחורה (כדי שחלון 14 הימים יסתיים בעבר).
-          const daysAgo = 16 + Math.floor(Math.random() * 74);
-          const dateMs = Date.now() - daysAgo * 24 * 60 * 60 * 1000;
-          const asset = assets[Math.floor(Math.random() * assets.length)];
-          const direction = Math.random() < 0.5 ? 'LONG' : 'SHORT';
-          let entry;
-          try {
-            entry = await getOpenPriceAt(asset, dateMs);
-          } catch {
-            continue; // מדלג אם אין נתון מחיר
-          }
-          const tpPct = 0.015 + Math.random() * 0.04; // 1.5%–5.5%
-          const slPct = 0.015 + Math.random() * 0.03; // 1.5%–4.5%
-          const tp = direction === 'LONG' ? entry * (1 + tpPct) : entry * (1 - tpPct);
-          const sl = direction === 'LONG' ? entry * (1 - slPct) : entry * (1 + slPct);
-          const lead = {
-            id: newLeadId(),
-            provider: p.provider,
-            asset,
-            direction,
-            entry: +entry.toFixed(2),
-            tp: +tp.toFixed(2),
-            sl: +sl.toFixed(2),
-            dateMs,
-            status: 'pending',
-            createdAt: Date.now(),
-            demo: true,
-          };
-          await saveLead(lead);
-          const checked = await checkLead(lead).then(
-            (r) => ({ ...lead, status: r.result, reason: r.reason, exitPrice: r.exitPrice, closedAtMs: r.closedAtMs, checkedAt: Date.now() }),
-            () => ({ ...lead, status: 'error', error: 'check failed' })
-          );
-          await saveLead(checked);
-          created++;
-          setStatusMsg(`נוצרו ${created}/${total} לידי דמו…`);
-        }
-      }
-      await reload();
-      setStatusMsg(`נתוני דמו נוצרו ונבדקו — ${created} לידים`);
-    } catch (e) {
-      setStatusMsg('שגיאה ביצירת נתוני דמו: ' + e.message);
-    } finally {
-      setBusy(false);
-    }
   };
 
   const ranking = useMemo(() => buildRanking(leads), [leads]);
   const checkedCount = leads.filter((l) => l.status === 'win' || l.status === 'loss').length;
-  const pendingCount = leads.filter((l) => l.status === 'pending' || l.status === 'checking' || l.status === 'error').length;
+  const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
     <div className="tgm-wrap" dir="rtl">
@@ -238,10 +205,31 @@ export default function TgmPage({ navigate }) {
       <div className="tgm-header">
         <div>
           <h2 className="tgm-title">🛰️ TGM — סורק לידים</h2>
-          <p className="tgm-sub">מעקב אחר ספקי לידים ודירוגם לפי אחוז הצלחה אמיתי (Binance API)</p>
+          <p className="tgm-sub">איסוף ובדיקה אוטומטיים של לידים מ-10 ספקים — דירוג לפי אחוז הצלחה אמיתי (Binance API)</p>
         </div>
-        <div className="tgm-badge">{busy ? '⏳ עובד…' : '🟢 מוכן'}</div>
+        <div className={`tgm-badge ${scanning ? 'tgm-badge--live' : ''}`}>{scanning ? '🛰️ סורק…' : '🟢 מוכן'}</div>
       </div>
+
+      {/* בקרת אוטומציה */}
+      <div className="tgm-auto-bar">
+        {!scanning ? (
+          <button className="tgm-btn tgm-btn--add" onClick={() => runScan(SCAN_PER_PROVIDER)} disabled={busy}>🛰️ הפעל סריקה אוטומטית</button>
+        ) : (
+          <button className="tgm-btn tgm-btn--clear" onClick={stopScan}>⏸️ עצור סריקה</button>
+        )}
+        <label className={`tgm-live-toggle ${liveMode ? 'tgm-live-toggle--on' : ''}`}>
+          <input type="checkbox" checked={liveMode} onChange={(e) => setLiveMode(e.target.checked)} />
+          <span>🔴 מצב חי — עדכון אוטומטי כל 30ש׳</span>
+        </label>
+        <button className="tgm-btn tgm-btn--clear" onClick={handleClearAll} disabled={scanning}>🗑️ נקה הכל</button>
+      </div>
+
+      {scanning && (
+        <div className="tgm-progress">
+          <div className="tgm-progress-bar"><div className="tgm-progress-fill" style={{ width: `${pct}%` }} /></div>
+          <span className="tgm-progress-label">{progress.done}/{progress.total} ({pct}%)</span>
+        </div>
+      )}
 
       {statusMsg && <div className="tgm-status">{statusMsg}</div>}
 
@@ -250,17 +238,12 @@ export default function TgmPage({ navigate }) {
       <div className="tgm-table-card">
         <table className="tgm-table">
           <thead>
-            <tr>
-              <th>דירוג</th>
-              <th>שם ספק</th>
-              <th>מספר טריידים</th>
-              <th>אחוז הצלחה</th>
-            </tr>
+            <tr><th>דירוג</th><th>שם ספק</th><th>מספר טריידים</th><th>אחוז הצלחה</th></tr>
           </thead>
           <tbody>
             {ranking.map((row) => {
-              const pct = row.trades > 0 ? row.successRate : 0;
-              const pctColor = pct >= 60 ? '#4ade80' : pct >= 45 ? '#D4AF37' : '#ef4444';
+              const sr = row.trades > 0 ? row.successRate : 0;
+              const pctColor = sr >= 60 ? '#4ade80' : sr >= 45 ? '#D4AF37' : '#ef4444';
               return (
                 <tr key={row.provider} className={row.eligible ? '' : 'tgm-row--insufficient'}>
                   <td className="tgm-rank-cell">
@@ -270,17 +253,11 @@ export default function TgmPage({ navigate }) {
                   <td>
                     {row.trades}
                     {!row.eligible && (
-                      <span className="tgm-insufficient-tag" title={`נדרשים לפחות ${MIN_TRADES_FOR_RANK} טריידים לדירוג רשמי`}>
-                        מדגם לא מספיק
-                      </span>
+                      <span className="tgm-insufficient-tag" title={`נדרשים לפחות ${MIN_TRADES_FOR_RANK} טריידים לדירוג רשמי`}>מדגם לא מספיק</span>
                     )}
                   </td>
                   <td>
-                    {row.trades > 0 ? (
-                      <span style={{ color: pctColor, fontWeight: 800 }}>{pct.toFixed(1)}%</span>
-                    ) : (
-                      <span className="tgm-rank-dash">—</span>
-                    )}
+                    {row.trades > 0 ? <span style={{ color: pctColor, fontWeight: 800 }}>{sr.toFixed(1)}%</span> : <span className="tgm-rank-dash">—</span>}
                   </td>
                 </tr>
               );
@@ -288,75 +265,59 @@ export default function TgmPage({ navigate }) {
           </tbody>
         </table>
         <div className="tgm-table-foot">
-          סה״כ {checkedCount} טריידים שנבדקו · {pendingCount} ממתינים · דירוג רשמי מ-{MIN_TRADES_FOR_RANK} טריידים ומעלה
+          סה״כ {checkedCount} טריידים שנבדקו · דירוג רשמי מ-{MIN_TRADES_FOR_RANK} טריידים ומעלה
         </div>
       </div>
 
-      {/* ── הזנת ליד ── */}
-      <div className="tgm-section-title">➕ הזנת ליד חדש</div>
-      <form className="tgm-form" onSubmit={handleAdd}>
-        <div className="tgm-form-grid">
-          <label className="tgm-field">
-            <span>ספק</span>
-            <select value={form.provider} onChange={(e) => setField('provider', e.target.value)}>
-              {TGM_PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </label>
-
-          <label className="tgm-field">
-            <span>נכס</span>
-            <input list="tgm-assets" value={form.asset} onChange={(e) => setField('asset', e.target.value)} placeholder="BTC/USDT" />
-            <datalist id="tgm-assets">
-              {COMMON_ASSETS.map((a) => <option key={a} value={a} />)}
-            </datalist>
-          </label>
-
-          <label className="tgm-field">
-            <span>כיוון</span>
-            <div className="tgm-dir-toggle">
-              <button type="button" className={`tgm-dir-btn ${form.direction === 'LONG' ? 'tgm-dir-btn--long' : ''}`} onClick={() => setField('direction', 'LONG')}>LONG ▲</button>
-              <button type="button" className={`tgm-dir-btn ${form.direction === 'SHORT' ? 'tgm-dir-btn--short' : ''}`} onClick={() => setField('direction', 'SHORT')}>SHORT ▼</button>
-            </div>
-          </label>
-
-          <label className="tgm-field">
-            <span>מחיר כניסה (Entry)</span>
-            <input type="number" step="any" value={form.entry} onChange={(e) => setField('entry', e.target.value)} placeholder="0.00" />
-          </label>
-
-          <label className="tgm-field">
-            <span>יעד (TP)</span>
-            <input type="number" step="any" value={form.tp} onChange={(e) => setField('tp', e.target.value)} placeholder="0.00" />
-          </label>
-
-          <label className="tgm-field">
-            <span>סטופ (SL)</span>
-            <input type="number" step="any" value={form.sl} onChange={(e) => setField('sl', e.target.value)} placeholder="0.00" />
-          </label>
-
-          <label className="tgm-field">
-            <span>תאריך הליד</span>
-            <input type="datetime-local" value={form.date} onChange={(e) => setField('date', e.target.value)} max={defaultDateLocal()} />
-          </label>
-        </div>
-
-        {formError && <div className="tgm-form-error">⚠️ {formError}</div>}
-
-        <div className="tgm-form-actions">
-          <button type="submit" className="tgm-btn tgm-btn--add" disabled={busy}>➕ הוסף ובדוק ליד</button>
-          <button type="button" className="tgm-btn tgm-btn--check" onClick={checkAllPending} disabled={busy}>🔄 בדוק את כל הממתינים</button>
-          <button type="button" className="tgm-btn tgm-btn--demo" onClick={seedDemo} disabled={busy}>🎲 טען נתוני דמו</button>
-          <button type="button" className="tgm-btn tgm-btn--clear" onClick={handleClearAll} disabled={busy}>🗑️ נקה הכל</button>
-        </div>
-      </form>
+      {/* ── הזנה ידנית (אופציונלי) ── */}
+      <button className="tgm-manual-toggle" onClick={() => setShowManual((v) => !v)}>
+        {showManual ? '▾' : '▸'} הזנת ליד ידנית (אופציונלי)
+      </button>
+      {showManual && (
+        <form className="tgm-form" onSubmit={handleAdd}>
+          <div className="tgm-form-grid">
+            <label className="tgm-field"><span>ספק</span>
+              <select value={form.provider} onChange={(e) => setField('provider', e.target.value)}>
+                {TGM_PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </label>
+            <label className="tgm-field"><span>נכס</span>
+              <input list="tgm-assets" value={form.asset} onChange={(e) => setField('asset', e.target.value)} placeholder="BTC/USDT" />
+              <datalist id="tgm-assets">{COMMON_ASSETS.map((a) => <option key={a} value={a} />)}</datalist>
+            </label>
+            <label className="tgm-field"><span>כיוון</span>
+              <div className="tgm-dir-toggle">
+                <button type="button" className={`tgm-dir-btn ${form.direction === 'LONG' ? 'tgm-dir-btn--long' : ''}`} onClick={() => setField('direction', 'LONG')}>LONG ▲</button>
+                <button type="button" className={`tgm-dir-btn ${form.direction === 'SHORT' ? 'tgm-dir-btn--short' : ''}`} onClick={() => setField('direction', 'SHORT')}>SHORT ▼</button>
+              </div>
+            </label>
+            <label className="tgm-field"><span>מחיר כניסה (Entry)</span>
+              <input type="number" step="any" value={form.entry} onChange={(e) => setField('entry', e.target.value)} placeholder="0.00" />
+            </label>
+            <label className="tgm-field"><span>יעד (TP)</span>
+              <input type="number" step="any" value={form.tp} onChange={(e) => setField('tp', e.target.value)} placeholder="0.00" />
+            </label>
+            <label className="tgm-field"><span>סטופ (SL)</span>
+              <input type="number" step="any" value={form.sl} onChange={(e) => setField('sl', e.target.value)} placeholder="0.00" />
+            </label>
+            <label className="tgm-field"><span>תאריך הליד</span>
+              <input type="datetime-local" value={form.date} onChange={(e) => setField('date', e.target.value)} max={defaultDateLocal()} />
+            </label>
+          </div>
+          {formError && <div className="tgm-form-error">⚠️ {formError}</div>}
+          <div className="tgm-form-actions">
+            <button type="submit" className="tgm-btn tgm-btn--add" disabled={busy}>➕ הוסף ובדוק ליד</button>
+          </div>
+        </form>
+      )}
 
       {/* ── רשימת לידים ── */}
       <div className="tgm-section-title">📋 לידים ({leads.length})</div>
       <div className="tgm-leads">
-        {leads.length === 0 && (
-          <div className="tgm-empty">אין לידים עדיין — הזן ליד ידנית או לחץ "טען נתוני דמו".</div>
+        {leads.length === 0 && !scanning && (
+          <div className="tgm-empty">אין לידים עדיין — לחץ "הפעל סריקה אוטומטית".</div>
         )}
-        {leads.map((l) => (
+        {leads.slice(0, 120).map((l) => (
           <div key={l.id} className={`tgm-lead-card tgm-lead--${l.status}`}>
             <div className="tgm-lead-main">
               <span className="tgm-lead-prov">{l.provider}</span>
@@ -374,30 +335,25 @@ export default function TgmPage({ navigate }) {
             <div className="tgm-lead-foot">
               <StatusBadge lead={l} />
               <div className="tgm-lead-actions">
-                <button className="tgm-mini-btn" onClick={() => runCheck(l)} disabled={busy} title="בדוק מחדש">🔄</button>
-                <button className="tgm-mini-btn tgm-mini-btn--del" onClick={() => handleDelete(l.id)} disabled={busy} title="מחק">🗑️</button>
+                <button className="tgm-mini-btn" onClick={() => runCheck(l)} disabled={scanning} title="בדוק מחדש">🔄</button>
+                <button className="tgm-mini-btn tgm-mini-btn--del" onClick={() => handleDelete(l.id)} disabled={scanning} title="מחק">🗑️</button>
               </div>
             </div>
           </div>
         ))}
       </div>
+      {leads.length > 120 && <div className="tgm-more-note">מוצגים 120 לידים אחרונים מתוך {leads.length}. כל הלידים נכללים בטבלת הדירוג.</div>}
 
       {/* Disclaimer */}
-      <div className="tgm-disclaimer">
-        ⚠️ מידע ומחקר בלבד, לא ייעוץ השקעות.
-      </div>
+      <div className="tgm-disclaimer">⚠️ מידע ומחקר בלבד, לא ייעוץ השקעות.</div>
     </div>
   );
 }
 
 function StatusBadge({ lead }) {
-  const { status, reason, exitPrice } = lead;
-  if (status === 'win') {
-    return <span className="tgm-result tgm-result--win">✓ ניצחון{reason ? ` · ${reason === 'TIME' ? 'מחיר נוכחי' : reason}` : ''}</span>;
-  }
-  if (status === 'loss') {
-    return <span className="tgm-result tgm-result--loss">✕ הפסד{reason ? ` · ${reason === 'TIME' ? 'מחיר נוכחי' : reason}` : ''}</span>;
-  }
+  const { status, reason } = lead;
+  if (status === 'win') return <span className="tgm-result tgm-result--win">✓ ניצחון{reason ? ` · ${reason === 'TIME' ? 'מחיר נוכחי' : reason}` : ''}</span>;
+  if (status === 'loss') return <span className="tgm-result tgm-result--loss">✕ הפסד{reason ? ` · ${reason === 'TIME' ? 'מחיר נוכחי' : reason}` : ''}</span>;
   if (status === 'checking') return <span className="tgm-result tgm-result--checking">⏳ בודק…</span>;
   if (status === 'error') return <span className="tgm-result tgm-result--error" title={lead.error}>⚠️ שגיאה</span>;
   return <span className="tgm-result tgm-result--pending">• ממתין לבדיקה</span>;

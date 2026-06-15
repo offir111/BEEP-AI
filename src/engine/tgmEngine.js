@@ -19,7 +19,7 @@ export function toBinanceSymbol(asset) {
 }
 
 // משיכת נרות 1h בטווח [startMs, endMs] עם גיבוי בין נקודות הקצה.
-async function fetchKlines(symbol, startMs, endMs) {
+export async function fetchKlines(symbol, startMs, endMs) {
   const interval = '1h';
   const limit = 1000; // 14 יום * 24 = 336 נרות — מתחת לתקרה, בקשה אחת מספיקה
   const path = `/api/v3/klines?symbol=${symbol}&interval=${interval}&startTime=${startMs}&endTime=${endMs}&limit=${limit}`;
@@ -51,32 +51,12 @@ function candleHL(k) {
 }
 
 /**
- * בדיקת ליד בודד.
- * lead: { asset, direction: 'LONG'|'SHORT', entry, tp, sl, dateMs }
+ * הכרעת תוצאה מתוך נרות שכבר נמשכו (לוגיקה טהורה, ללא רשת).
+ * lead: { direction, entry, tp, sl }
  * מחזיר: { result: 'win'|'loss', reason: 'TP'|'SL'|'TIME', exitPrice, closedAtMs, candles }
  */
-export async function checkLead(lead) {
-  const symbol = toBinanceSymbol(lead.asset);
-  const entry = Number(lead.entry);
-  const tp = Number(lead.tp);
-  const sl = Number(lead.sl);
-  const startMs = Number(lead.dateMs);
-  const now = Date.now();
-  const endMs = Math.min(now, startMs + CHECK_WINDOW_MS);
-
-  if (!symbol) throw new Error('נכס לא תקין');
-  if (!Number.isFinite(entry) || !Number.isFinite(tp) || !Number.isFinite(sl)) {
-    throw new Error('ערכי מחיר לא תקינים');
-  }
-  if (!Number.isFinite(startMs)) throw new Error('תאריך לא תקין');
-
-  const klines = await fetchKlines(symbol, startMs, endMs);
-
-  if (!klines.length) {
-    throw new Error(`לא נמצאו נתוני מחיר עבור ${symbol}`);
-  }
-
-  const isLong = lead.direction === 'LONG';
+export function evaluateOutcome(klines, { direction, entry, tp, sl }) {
+  const isLong = direction === 'LONG';
 
   for (const k of klines) {
     const { high, low, openTime } = candleHL(k);
@@ -104,6 +84,35 @@ export async function checkLead(lead) {
     closedAtMs: last.openTime,
     candles: klines.length,
   };
+}
+
+/**
+ * בדיקת ליד בודד.
+ * lead: { asset, direction: 'LONG'|'SHORT', entry, tp, sl, dateMs }
+ * מחזיר: { result: 'win'|'loss', reason: 'TP'|'SL'|'TIME', exitPrice, closedAtMs, candles }
+ */
+export async function checkLead(lead) {
+  const symbol = toBinanceSymbol(lead.asset);
+  const entry = Number(lead.entry);
+  const tp = Number(lead.tp);
+  const sl = Number(lead.sl);
+  const startMs = Number(lead.dateMs);
+  const now = Date.now();
+  const endMs = Math.min(now, startMs + CHECK_WINDOW_MS);
+
+  if (!symbol) throw new Error('נכס לא תקין');
+  if (!Number.isFinite(entry) || !Number.isFinite(tp) || !Number.isFinite(sl)) {
+    throw new Error('ערכי מחיר לא תקינים');
+  }
+  if (!Number.isFinite(startMs)) throw new Error('תאריך לא תקין');
+
+  const klines = await fetchKlines(symbol, startMs, endMs);
+
+  if (!klines.length) {
+    throw new Error(`לא נמצאו נתוני מחיר עבור ${symbol}`);
+  }
+
+  return evaluateOutcome(klines, { direction: lead.direction, entry, tp, sl });
 }
 
 /**
