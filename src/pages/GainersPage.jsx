@@ -83,7 +83,7 @@ export default function GainersPage() {
         if (cancelled) return;
         setStocks((d.quotes || []).map(q => ({
           sym: q.symbol, price: q.price, mc: q.market_cap, dir: '',
-          p5m: null, p1h: null, p1d: q.chg1d, p1w: q.pct_1w, p1m: q.pct_1m, p1y: q.pct_1y,
+          p5m: q.pct_5m, p1h: q.pct_1h, p1d: q.chg1d, p1w: q.pct_1w, p1m: q.pct_1m, p1y: q.pct_1y,
         })));
         setLoading(false);
       } catch { if (!cancelled) setLoading(false); }

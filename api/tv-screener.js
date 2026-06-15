@@ -23,7 +23,12 @@ const COLS = [
   'Perf.Y',                    // 9
   'relative_volume_10d_calc',  // 10
   'Recommend.All',             // 11
+  'change|5',                  // 12 — 5m %
+  'change|60',                 // 13 — 1h %
 ];
+
+// מנקה ערכי ארטיפקט של TradingView (כמו 9900 על מניות פאמפ לא נזילות).
+const cleanPct = (v) => (v != null && Math.abs(v) < 2000 ? +Number(v).toFixed(2) : null);
 
 const PERIOD_SORT = {
   '1h': 'change', '1d': 'change',
@@ -106,6 +111,8 @@ async function tvScan(filters, sortBy, sortOrder, count) {
     pct_1y:     d[9] != null ? +Number(d[9]).toFixed(2)  : null,
     rel_volume: d[10] != null ? +Number(d[10]).toFixed(2) : null,
     recommend:  d[11] != null ? +Number(d[11]).toFixed(3) : null,
+    pct_5m:     cleanPct(d[12]),
+    pct_1h:     cleanPct(d[13]),
   }));
 }
 
