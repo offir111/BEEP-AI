@@ -120,7 +120,7 @@ export default function TgmPage({ navigate }) {
   }, [runCheck]);
 
   // טעינה ראשונית: ניקוי חד-פעמי של לידים ישנים (דמו/סינתטיים/ספקים שהוסרו),
-  // ואז משיכה ראשונה מטלגרם כשאין נתונים חיים.
+  // ואז משיכה אוטומטית מטלגרם בכל כניסה (כדי שהטבלה תתעדכן לבד עם כל הספקים).
   useEffect(() => {
     (async () => {
       try {
@@ -131,9 +131,9 @@ export default function TgmPage({ navigate }) {
           all = await reload();
           setStatusMsg(`נוקו ${stale.length} לידים ישנים (דמו/ספקים שהוסרו) — מצב חי בלבד`);
         }
-        if (all.length === 0 && !autoStartedRef.current) {
+        if (!autoStartedRef.current) {
           autoStartedRef.current = true;
-          ingestFromTelegram();
+          ingestFromTelegram(); // משיכה אוטומטית בכל כניסה; הכפילויות מסוננות לפי postId
         }
       } catch (e) {
         setStatusMsg('שגיאה בטעינת הנתונים: ' + e.message);
