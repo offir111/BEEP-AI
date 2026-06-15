@@ -137,6 +137,21 @@
   padding: 4px;
 }
 
+.tgm-source-note {
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: rgba(74, 158, 255, 0.06);
+  border: 1px solid rgba(74, 158, 255, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+}
+.tgm-source-note b { color: var(--accent-blue); }
+
+.tgm-lead-src { font-size: 0.8rem; }
+.tgm-lead--open { border-right-color: var(--accent-blue); }
+.tgm-result--open { color: var(--accent-blue); }
+
 /* Section titles */
 .tgm-section-title {
   font-size: 0.82rem;

@@ -55,7 +55,7 @@ function candleHL(k) {
  * lead: { direction, entry, tp, sl }
  * מחזיר: { result: 'win'|'loss', reason: 'TP'|'SL'|'TIME', exitPrice, closedAtMs, candles }
  */
-export function evaluateOutcome(klines, { direction, entry, tp, sl }) {
+export function evaluateOutcome(klines, { direction, entry, tp, sl }, { fullWindowElapsed = true } = {}) {
   const isLong = direction === 'LONG';
 
   for (const k of klines) {
@@ -73,9 +73,15 @@ export function evaluateOutcome(klines, { direction, entry, tp, sl }) {
     }
   }
 
-  // אף יעד לא נגע תוך החלון — סגירה לפי מחיר נוכחי (סגירת הנר האחרון).
   const last = candleHL(klines[klines.length - 1]);
   const cur = last.close;
+
+  // ליד "חי" שטרם נגע ביעד וטרם חלפו 14 יום → נשאר פתוח (לא נספר בדירוג).
+  if (!fullWindowElapsed) {
+    return { result: 'open', reason: 'OPEN', exitPrice: cur, closedAtMs: last.openTime, candles: klines.length };
+  }
+
+  // חלפו 14 יום ללא נגיעה — סגירה לפי מחיר נוכחי (סגירת הנר האחרון).
   const win = isLong ? cur >= entry : cur <= entry;
   return {
     result: win ? 'win' : 'loss',
@@ -112,7 +118,8 @@ export async function checkLead(lead) {
     throw new Error(`לא נמצאו נתוני מחיר עבור ${symbol}`);
   }
 
-  return evaluateOutcome(klines, { direction: lead.direction, entry, tp, sl });
+  const fullWindowElapsed = startMs + CHECK_WINDOW_MS <= now;
+  return evaluateOutcome(klines, { direction: lead.direction, entry, tp, sl }, { fullWindowElapsed });
 }
 
 /**

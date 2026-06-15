@@ -4,15 +4,14 @@ import { TGM_PROVIDERS, MIN_TRADES_FOR_RANK } from '../engine/tgmProviders';
 import { getAllLeads, saveLead, deleteLead, clearAllLeads, newLeadId } from '../engine/tgmDb';
 import { checkLead } from '../engine/tgmEngine';
 import { runAutoScan } from '../engine/tgmAuto';
+import { fetchLiveSignals } from '../engine/tgmTelegram';
 import { buildRanking } from '../engine/tgmStats';
 import './TgmPage.css';
 
 const COMMON_ASSETS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 'DOGE/USDT'];
 
-const SCAN_PER_PROVIDER = 26;   // לידים לכל ספק בסריקה אוטומטית מלאה (>20 → דירוג רשמי)
-const LIVE_PER_PROVIDER = 1;    // תוספת לידים בכל סבב "מצב חי"
-const LIVE_INTERVAL_MS = 30000; // תדירות מצב חי
-const LIVE_MAX_LEADS = 600;     // תקרת לידים במצב חי (מונע צבירה אינסופית)
+const SCAN_PER_PROVIDER = 26;       // לידים לכל ספק במילוי דמו (>20 → דירוג רשמי)
+const TG_LIVE_INTERVAL_MS = 180000; // תדירות מצב חי מטלגרם (3 דק׳ — הערוצים מתעדכנים לאט)
 
 const EMPTY_FORM = {
   provider: TGM_PROVIDERS[0],
@@ -44,6 +43,8 @@ function defaultDateLocal() {
 
 export default function TgmPage({ navigate }) {
   const [leads, setLeads] = useState([]);
+  const leadsRef = useRef([]);
+  leadsRef.current = leads; // עותק עדכני לצורך בדיקת כפילויות במצב חי
   const [form, setForm] = useState({ ...EMPTY_FORM, date: defaultDateLocal() });
   const [formError, setFormError] = useState('');
   const [showManual, setShowManual] = useState(false);
@@ -98,38 +99,9 @@ export default function TgmPage({ navigate }) {
 
   const stopScan = () => { stopRef.current = true; };
 
-  // טעינה ראשונית + הפעלה אוטומטית כשאין נתונים.
-  useEffect(() => {
-    (async () => {
-      try {
-        const all = await reload();
-        if (all.length === 0 && !autoStartedRef.current) {
-          autoStartedRef.current = true;
-          runScan(SCAN_PER_PROVIDER);
-        }
-      } catch (e) {
-        setStatusMsg('שגיאה בטעינת הנתונים: ' + e.message);
-      }
-    })();
-  }, [reload, runScan]);
-
-  // ── מצב חי: תוספת לידים תקופתית, ללא התערבות ──
-  const liveModeRef = useRef(liveMode);
-  liveModeRef.current = liveMode;
-  useEffect(() => {
-    if (!liveMode) return;
-    const tick = async () => {
-      if (scanningRef.current) return;
-      if (leads.length >= LIVE_MAX_LEADS) { setStatusMsg('🔴 מצב חי — הגעת לתקרת הלידים'); return; }
-      await runScan(LIVE_PER_PROVIDER);
-    };
-    const id = setInterval(tick, LIVE_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [liveMode, leads.length, runScan]);
-
   const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  // ── בדיקה חוזרת של ליד בודד (אזור ידני) ──
+  // ── בדיקה חוזרת של ליד בודד ──
   const runCheck = useCallback(async (lead) => {
     setLeads((prev) => prev.map((l) => (l.id === lead.id ? { ...l, status: 'checking', error: null } : l)));
     try {
@@ -143,6 +115,69 @@ export default function TgmPage({ navigate }) {
       setLeads((prev) => prev.map((l) => (l.id === lead.id ? errored : l)));
     }
   }, []);
+
+  // ── מצב חי: משיכת לידים אמיתיים מערוצי טלגרם חינמיים + בדיקה אוטומטית ──
+  const ingestFromTelegram = useCallback(async () => {
+    if (scanningRef.current) return;
+    scanningRef.current = true;
+    setScanning(true);
+    setStatusMsg('📡 מושך לידים חיים מערוצי טלגרם…');
+    try {
+      const { signals = [], errors = [] } = await fetchLiveSignals('all');
+      const seenPost = new Set(leadsRef.current.map((l) => l.postId).filter(Boolean));
+      const idKey = (l) => `${l.provider}|${l.asset}|${l.entry}|${l.dateMs}`;
+      const seenId = new Set(leadsRef.current.map(idKey));
+
+      const fresh = [];
+      for (const s of signals) {
+        if (s.postId && seenPost.has(s.postId)) continue;
+        const lead = {
+          id: newLeadId(), provider: s.provider, asset: s.asset, direction: s.direction,
+          entry: s.entry, tp: s.tp, sl: s.sl, dateMs: s.dateMs,
+          postId: s.postId, source: 'telegram', status: 'pending', createdAt: Date.now(),
+        };
+        if (seenId.has(idKey(lead))) continue;
+        seenId.add(idKey(lead));
+        fresh.push(lead);
+      }
+
+      for (const lead of fresh) {
+        await saveLead(lead);
+        setLeads((prev) => [lead, ...prev]);
+        await runCheck(lead);
+      }
+
+      const errNote = errors.length ? ` · ערוצים שנכשלו: ${errors.map((e) => e.channel).join(', ')}` : '';
+      setStatusMsg(`📡 נמשכו ${signals.length} סיגנלים מטלגרם · ${fresh.length} חדשים נוספו ונבדקו${errNote}`);
+    } catch (e) {
+      setStatusMsg('שגיאה במשיכה מטלגרם: ' + e.message);
+    } finally {
+      scanningRef.current = false;
+      setScanning(false);
+    }
+  }, [runCheck]);
+
+  // טעינה ראשונית + משיכה ראשונה מטלגרם כשאין נתונים.
+  useEffect(() => {
+    (async () => {
+      try {
+        const all = await reload();
+        if (all.length === 0 && !autoStartedRef.current) {
+          autoStartedRef.current = true;
+          ingestFromTelegram();
+        }
+      } catch (e) {
+        setStatusMsg('שגיאה בטעינת הנתונים: ' + e.message);
+      }
+    })();
+  }, [reload, ingestFromTelegram]);
+
+  // מצב חי: משיכה תקופתית מטלגרם, ללא התערבות.
+  useEffect(() => {
+    if (!liveMode) return;
+    const id = setInterval(() => { ingestFromTelegram(); }, TG_LIVE_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [liveMode, ingestFromTelegram]);
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -205,26 +240,29 @@ export default function TgmPage({ navigate }) {
       <div className="tgm-header">
         <div>
           <h2 className="tgm-title">🛰️ TGM — סורק לידים</h2>
-          <p className="tgm-sub">איסוף ובדיקה אוטומטיים של לידים מ-10 ספקים — דירוג לפי אחוז הצלחה אמיתי (Binance API)</p>
+          <p className="tgm-sub">מצב חי — משיכת לידים אמיתיים מערוצי טלגרם חינמיים ובדיקתם מול Binance API</p>
         </div>
-        <div className={`tgm-badge ${scanning ? 'tgm-badge--live' : ''}`}>{scanning ? '🛰️ סורק…' : '🟢 מוכן'}</div>
+        <div className={`tgm-badge ${scanning ? 'tgm-badge--live' : ''}`}>{scanning ? '📡 פעיל…' : liveMode ? '🔴 מצב חי' : '🟢 מוכן'}</div>
       </div>
 
-      {/* בקרת אוטומציה */}
+      {/* בקרת מצב חי */}
       <div className="tgm-auto-bar">
-        {!scanning ? (
-          <button className="tgm-btn tgm-btn--add" onClick={() => runScan(SCAN_PER_PROVIDER)} disabled={busy}>🛰️ הפעל סריקה אוטומטית</button>
-        ) : (
-          <button className="tgm-btn tgm-btn--clear" onClick={stopScan}>⏸️ עצור סריקה</button>
-        )}
+        <button className="tgm-btn tgm-btn--add" onClick={() => ingestFromTelegram()} disabled={scanning}>📡 משוך לידים מטלגרם עכשיו</button>
         <label className={`tgm-live-toggle ${liveMode ? 'tgm-live-toggle--on' : ''}`}>
           <input type="checkbox" checked={liveMode} onChange={(e) => setLiveMode(e.target.checked)} />
-          <span>🔴 מצב חי — עדכון אוטומטי כל 30ש׳</span>
+          <span>🔴 מצב חי — משיכה אוטומטית כל 3 דק׳</span>
         </label>
+        <button className="tgm-btn tgm-btn--demo" onClick={() => runScan(SCAN_PER_PROVIDER)} disabled={scanning} title="מילוי נתוני דמו להדגמה (לא אמיתי)">🎲 מילוי דמו</button>
         <button className="tgm-btn tgm-btn--clear" onClick={handleClearAll} disabled={scanning}>🗑️ נקה הכל</button>
       </div>
 
-      {scanning && (
+      {/* הסבר מקור הנתונים */}
+      <div className="tgm-source-note">
+        📡 מקור חי: <b>CryptoSignals.org</b> (@cryptosignals). לידים נמשכים מהערוץ הציבורי החינמי, נבדקים אוטומטית מול Binance,
+        ולידים טריים מסומנים "פתוח" עד שייגעו ב-TP/SL או יחלפו 14 יום. ערוצים נוספים יתווספו כשיימצא מקור חינמי עם entry/TP/SL מלאים.
+      </div>
+
+      {scanning && progress.total > 0 && (
         <div className="tgm-progress">
           <div className="tgm-progress-bar"><div className="tgm-progress-fill" style={{ width: `${pct}%` }} /></div>
           <span className="tgm-progress-label">{progress.done}/{progress.total} ({pct}%)</span>
@@ -315,12 +353,13 @@ export default function TgmPage({ navigate }) {
       <div className="tgm-section-title">📋 לידים ({leads.length})</div>
       <div className="tgm-leads">
         {leads.length === 0 && !scanning && (
-          <div className="tgm-empty">אין לידים עדיין — לחץ "הפעל סריקה אוטומטית".</div>
+          <div className="tgm-empty">אין לידים עדיין — לחץ "משוך לידים מטלגרם עכשיו".</div>
         )}
         {leads.slice(0, 120).map((l) => (
           <div key={l.id} className={`tgm-lead-card tgm-lead--${l.status}`}>
             <div className="tgm-lead-main">
               <span className="tgm-lead-prov">{l.provider}</span>
+              {l.source === 'telegram' && <span className="tgm-lead-src" title="נמשך מערוץ טלגרם חי">📡</span>}
               <span className="tgm-lead-asset">{l.asset}</span>
               <span className={`tgm-lead-dir tgm-lead-dir--${l.direction === 'LONG' ? 'long' : 'short'}`}>
                 {l.direction === 'LONG' ? 'LONG ▲' : 'SHORT ▼'}
@@ -354,6 +393,7 @@ function StatusBadge({ lead }) {
   const { status, reason } = lead;
   if (status === 'win') return <span className="tgm-result tgm-result--win">✓ ניצחון{reason ? ` · ${reason === 'TIME' ? 'מחיר נוכחי' : reason}` : ''}</span>;
   if (status === 'loss') return <span className="tgm-result tgm-result--loss">✕ הפסד{reason ? ` · ${reason === 'TIME' ? 'מחיר נוכחי' : reason}` : ''}</span>;
+  if (status === 'open') return <span className="tgm-result tgm-result--open" title="טרם נגע ב-TP/SL — נספר רק לאחר הכרעה">◷ פתוח</span>;
   if (status === 'checking') return <span className="tgm-result tgm-result--checking">⏳ בודק…</span>;
   if (status === 'error') return <span className="tgm-result tgm-result--error" title={lead.error}>⚠️ שגיאה</span>;
   return <span className="tgm-result tgm-result--pending">• ממתין לבדיקה</span>;
