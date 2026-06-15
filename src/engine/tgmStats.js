@@ -1,14 +1,14 @@
 // TGM — חישוב טבלת הדירוג מתוך הלידים שנבדקו.
-import { TGM_PROVIDERS, MIN_TRADES_FOR_RANK } from './tgmProviders';
+import { LIVE_PROVIDERS, MIN_TRADES_FOR_RANK } from './tgmProviders';
 
 /**
- * מקבל מערך לידים, מחזיר שורות מסכמות לכל ספק, ממוינות לפי אחוז הצלחה.
- * רק לידים שנבדקו (status 'win'/'loss') נספרים כטריידים.
+ * מקבל מערך לידים, מחזיר שורות מסכמות לכל ספק חי, ממוינות לפי אחוז הצלחה.
+ * רק לידים שנבדקו (status 'win'/'loss') נספרים כטריידים — 'open' לא נספר.
  * ספק עם פחות מ-MIN_TRADES_FOR_RANK טריידים → "מדגם לא מספיק", ללא דירוג רשמי.
  */
-export function buildRanking(leads) {
+export function buildRanking(leads, providers = LIVE_PROVIDERS) {
   const byProvider = new Map();
-  for (const name of TGM_PROVIDERS) {
+  for (const name of providers) {
     byProvider.set(name, { provider: name, trades: 0, wins: 0 });
   }
 

@@ -1,17 +1,10 @@
-// TGM — סורק לידים: רשימת 10 ספקי הלידים הקבועה.
-// השמות מוצגים בדיוק כפי שהוגדרו (אנגלית), הממשק עצמו RTL עברית.
+// TGM — סורק לידים: ספקים חיים בלבד.
+// כל ספק כאן חייב מקור חי אמיתי (ערוץ טלגרם ציבורי חינמי שניתן לקצור ממנו
+// entry/TP/SL באופן שיטתי). הרשימה חייבת לשקף את TELEGRAM_CHANNELS שב-api/_tgmTelegram.js.
+// כדי להוסיף ספק — הוסף ערוץ שם, והוסף את שם הספק כאן.
 
-export const TGM_PROVIDERS = [
-  'Learn2Trade',
-  'Evening Trader',
-  'Wolf of Trading',
-  'CryptoSignals.org',
-  'CryptoNinjas',
-  'altFINS',
-  'Token Metrics',
-  'Dash 2 Trade',
-  'Fed Russian Insiders',
-  'Binance Killers',
+export const LIVE_PROVIDERS = [
+  'CryptoSignals.org', // @cryptosignals — entry/TP/SL מלאים בערוץ החינמי
 ];
 
 // מינימום טריידים שמזכה ספק בדירוג רשמי.

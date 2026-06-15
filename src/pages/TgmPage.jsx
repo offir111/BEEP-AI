@@ -1,20 +1,18 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import RobotNavTabs from '../components/RobotNavTabs';
-import { TGM_PROVIDERS, MIN_TRADES_FOR_RANK } from '../engine/tgmProviders';
+import { LIVE_PROVIDERS, MIN_TRADES_FOR_RANK } from '../engine/tgmProviders';
 import { getAllLeads, saveLead, deleteLead, clearAllLeads, newLeadId } from '../engine/tgmDb';
 import { checkLead } from '../engine/tgmEngine';
-import { runAutoScan } from '../engine/tgmAuto';
 import { fetchLiveSignals } from '../engine/tgmTelegram';
 import { buildRanking } from '../engine/tgmStats';
 import './TgmPage.css';
 
 const COMMON_ASSETS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 'DOGE/USDT'];
 
-const SCAN_PER_PROVIDER = 26;       // לידים לכל ספק במילוי דמו (>20 → דירוג רשמי)
 const TG_LIVE_INTERVAL_MS = 180000; // תדירות מצב חי מטלגרם (3 דק׳ — הערוצים מתעדכנים לאט)
 
 const EMPTY_FORM = {
-  provider: TGM_PROVIDERS[0],
+  provider: LIVE_PROVIDERS[0],
   asset: 'BTC/USDT',
   direction: 'LONG',
   entry: '',
@@ -51,53 +49,17 @@ export default function TgmPage({ navigate }) {
   const [busy, setBusy] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
 
-  // מצב הסריקה האוטומטית
-  const [scanning, setScanning] = useState(false);
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [scanning, setScanning] = useState(false); // אינדיקציית עיסוק במשיכה חיה
   const [liveMode, setLiveMode] = useState(false);
 
-  const stopRef = useRef(false);       // איתות עצירה למאסף
-  const scanningRef = useRef(false);    // מונע ריצות חופפות
-  const autoStartedRef = useRef(false); // הפעלה אוטומטית פעם אחת בטעינה
+  const scanningRef = useRef(false);    // מונע משיכות חופפות
+  const autoStartedRef = useRef(false); // משיכה ראשונה פעם אחת בטעינה
 
   const reload = useCallback(async () => {
     const all = await getAllLeads();
     setLeads(all);
     return all;
   }, []);
-
-  // שמירת ליד שהושלם + הוספה מצטברת ל-state.
-  const ingestLead = useCallback(async (lead) => {
-    await saveLead(lead);
-    setLeads((prev) => [lead, ...prev]);
-  }, []);
-
-  // ── סריקה אוטומטית מלאה ──
-  const runScan = useCallback(async (perProvider) => {
-    if (scanningRef.current) return;
-    scanningRef.current = true;
-    stopRef.current = false;
-    setScanning(true);
-    setProgress({ done: 0, total: perProvider * TGM_PROVIDERS.length });
-    setStatusMsg('🛰️ אוסף ובודק לידים אוטומטית מ-Binance…');
-    try {
-      const done = await runAutoScan({
-        perProvider,
-        onLead: ingestLead,
-        onProgress: (done, total) => setProgress({ done, total }),
-        shouldStop: () => stopRef.current,
-        concurrency: 5,
-      });
-      setStatusMsg(stopRef.current ? `⏸️ הסריקה נעצרה — נאספו ${done} לידים` : `✓ הסריקה הושלמה — נאספו ${done} לידים`);
-    } catch (e) {
-      setStatusMsg('שגיאה בסריקה האוטומטית: ' + e.message);
-    } finally {
-      scanningRef.current = false;
-      setScanning(false);
-    }
-  }, [ingestLead]);
-
-  const stopScan = () => { stopRef.current = true; };
 
   const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -157,11 +119,18 @@ export default function TgmPage({ navigate }) {
     }
   }, [runCheck]);
 
-  // טעינה ראשונית + משיכה ראשונה מטלגרם כשאין נתונים.
+  // טעינה ראשונית: ניקוי חד-פעמי של לידים ישנים (דמו/סינתטיים/ספקים שהוסרו),
+  // ואז משיכה ראשונה מטלגרם כשאין נתונים חיים.
   useEffect(() => {
     (async () => {
       try {
-        const all = await reload();
+        let all = await reload();
+        const stale = all.filter((l) => l.auto || l.demo || !LIVE_PROVIDERS.includes(l.provider));
+        if (stale.length) {
+          for (const l of stale) await deleteLead(l.id);
+          all = await reload();
+          setStatusMsg(`נוקו ${stale.length} לידים ישנים (דמו/ספקים שהוסרו) — מצב חי בלבד`);
+        }
         if (all.length === 0 && !autoStartedRef.current) {
           autoStartedRef.current = true;
           ingestFromTelegram();
@@ -220,17 +189,16 @@ export default function TgmPage({ navigate }) {
 
   const handleClearAll = async () => {
     if (!window.confirm('למחוק את כל הלידים? פעולה זו אינה הפיכה.')) return;
-    stopRef.current = true;
     setLiveMode(false);
     await clearAllLeads();
     setLeads([]);
-    autoStartedRef.current = true; // לא להפעיל סריקה אוטומטית מחדש לאחר ניקוי יזום
+    autoStartedRef.current = true; // לא למשוך מטלגרם מחדש אוטומטית לאחר ניקוי יזום
     setStatusMsg('כל הלידים נמחקו');
   };
 
   const ranking = useMemo(() => buildRanking(leads), [leads]);
   const checkedCount = leads.filter((l) => l.status === 'win' || l.status === 'loss').length;
-  const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+  const openCount = leads.filter((l) => l.status === 'open').length;
 
   return (
     <div className="tgm-wrap" dir="rtl">
@@ -252,22 +220,15 @@ export default function TgmPage({ navigate }) {
           <input type="checkbox" checked={liveMode} onChange={(e) => setLiveMode(e.target.checked)} />
           <span>🔴 מצב חי — משיכה אוטומטית כל 3 דק׳</span>
         </label>
-        <button className="tgm-btn tgm-btn--demo" onClick={() => runScan(SCAN_PER_PROVIDER)} disabled={scanning} title="מילוי נתוני דמו להדגמה (לא אמיתי)">🎲 מילוי דמו</button>
         <button className="tgm-btn tgm-btn--clear" onClick={handleClearAll} disabled={scanning}>🗑️ נקה הכל</button>
       </div>
 
       {/* הסבר מקור הנתונים */}
       <div className="tgm-source-note">
-        📡 מקור חי: <b>CryptoSignals.org</b> (@cryptosignals). לידים נמשכים מהערוץ הציבורי החינמי, נבדקים אוטומטית מול Binance,
-        ולידים טריים מסומנים "פתוח" עד שייגעו ב-TP/SL או יחלפו 14 יום. ערוצים נוספים יתווספו כשיימצא מקור חינמי עם entry/TP/SL מלאים.
+        📡 מצב חי בלבד — לידים אמיתיים מערוצי טלגרם ציבוריים חינמיים, נבדקים אוטומטית מול Binance.
+        ליד טרי מסומן "פתוח" עד שייגע ב-TP/SL או שיחלפו 14 יום. כרגע מקור פעיל אחד: <b>CryptoSignals.org</b> (@cryptosignals);
+        ספקים שאין מהם מקור חינמי שיטתי הוסרו. ערוץ נוסף יתווסף כשיימצא מקור חינמי עם entry/TP/SL מלאים.
       </div>
-
-      {scanning && progress.total > 0 && (
-        <div className="tgm-progress">
-          <div className="tgm-progress-bar"><div className="tgm-progress-fill" style={{ width: `${pct}%` }} /></div>
-          <span className="tgm-progress-label">{progress.done}/{progress.total} ({pct}%)</span>
-        </div>
-      )}
 
       {statusMsg && <div className="tgm-status">{statusMsg}</div>}
 
@@ -303,7 +264,7 @@ export default function TgmPage({ navigate }) {
           </tbody>
         </table>
         <div className="tgm-table-foot">
-          סה״כ {checkedCount} טריידים שנבדקו · דירוג רשמי מ-{MIN_TRADES_FOR_RANK} טריידים ומעלה
+          סה״כ {checkedCount} טריידים שהוכרעו · {openCount} פתוחים · דירוג רשמי מ-{MIN_TRADES_FOR_RANK} טריידים ומעלה
         </div>
       </div>
 
@@ -316,7 +277,7 @@ export default function TgmPage({ navigate }) {
           <div className="tgm-form-grid">
             <label className="tgm-field"><span>ספק</span>
               <select value={form.provider} onChange={(e) => setField('provider', e.target.value)}>
-                {TGM_PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
+                {LIVE_PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </label>
             <label className="tgm-field"><span>נכס</span>
