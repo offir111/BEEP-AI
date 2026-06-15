@@ -4,7 +4,8 @@
 // כדי להוסיף ספק — הוסף ערוץ שם, והוסף את שם הספק כאן.
 
 export const LIVE_PROVIDERS = [
-  'CryptoSignals.org', // @cryptosignals — entry/TP/SL מלאים בערוץ החינמי
+  'CryptoSignals.org',    // @cryptosignals — entry/TP/SL מלאים בערוץ החינמי (~20K)
+  'Crypto Signal Farmers', // @CryptoSignalFarmers — Entry/TP1../Stop Loss מובנה (~7K)
 ];
 
 // מינימום טריידים שמזכה ספק בדירוג רשמי.

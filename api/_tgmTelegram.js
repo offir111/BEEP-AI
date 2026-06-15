@@ -9,6 +9,7 @@
 // ── רישום ערוצים: handle → שם הספק (כפי שמופיע בטבלת הדירוג) ──
 export const TELEGRAM_CHANNELS = {
   cryptosignals: 'CryptoSignals.org',
+  CryptoSignalFarmers: 'Crypto Signal Farmers',
 };
 
 const NON_COIN_TAGS = new Set([
@@ -27,6 +28,14 @@ function parsePrice(tok) {
   if (m[2]) mult = m[2].toLowerCase() === 'k' ? 1e3 : 1e6;
   const v = parseFloat(m[1]) * mult;
   return Number.isFinite(v) ? v : NaN;
+}
+
+// הסרת תוויות מספור שמזריקות ספרות מזויפות לפני חילוץ מחירים:
+// "TP1:", "TP 2", "Target 3", "T4", "Entry 1", "1)", "2." → רווח.
+function stripLabels(seg) {
+  return String(seg || '')
+    .replace(/\b(?:TP|TG|TARGET|ENTRY)\s*\d+\s*[:\)\-.]?/gi, ' ')
+    .replace(/[│|]/g, ' ');
 }
 
 // כל אסימוני המחיר ברצף טקסט (לפי הסדר).
@@ -94,7 +103,7 @@ export function parseSignalText(text) {
   let tp = NaN;
   let bestCount = 0;
   for (const m of t.matchAll(/(?:scalp\s+)?(?:targets?|targeting|take[-\s]?profit)\s*[:\-]?\s*/gi)) {
-    const seg = t.slice(m.index + m[0].length, m.index + m[0].length + 140);
+    const seg = stripLabels(t.slice(m.index + m[0].length, m.index + m[0].length + 160));
     const prices = extractPrices(seg);
     if (prices.length > bestCount) { bestCount = prices.length; tp = prices[0]; }
   }
@@ -106,7 +115,7 @@ export function parseSignalText(text) {
     let end = t.length;
     if (tgtIdx > eIdx) end = Math.min(end, tgtIdx);
     if (stopIdx > eIdx) end = Math.min(end, stopIdx);
-    const prices = extractPrices(t.slice(eIdx, end));
+    const prices = extractPrices(stripLabels(t.slice(eIdx, end)));
     if (prices.length >= 2) entry = (prices[0] + prices[1]) / 2;
     else if (prices.length === 1) entry = prices[0];
   }
