@@ -6,6 +6,7 @@
 import './RobotNavTabs.css';
 
 const ROBOT_TABS = [
+  { id: 'tgm',        label: '🛰️ TGM'    },
   { id: 'sot',        label: '🤖 SOT'    },
   { id: 'model-w',    label: '⚙️ W'      },
   { id: 'model-bit',  label: '₿ BIT'     },

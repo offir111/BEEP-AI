@@ -23,13 +23,14 @@ import HeatmapPage       from './pages/HeatmapPage';
 import MyAlertsPage      from './pages/MyAlertsPage';
 import ProfilePage       from './pages/ProfilePage';
 import GainersPage       from './pages/GainersPage';
+import TgmPage           from './pages/TgmPage';
 import NotFoundPage      from './pages/NotFoundPage';
 import './App.css';
 
 const VALID_PAGES = [
   'home','charts','crypto','news','alerts',
   'model-w','model-bit','model-smc','model-grid',
-  'finviz','etoro','twitter','daily','sot','heatmap','myalerts','profile','gainers'
+  'finviz','etoro','twitter','daily','sot','heatmap','myalerts','profile','gainers','tgm'
 ];
 
 // UX-07: Offline detection banner
@@ -67,6 +68,7 @@ const PAGE_TITLES = {
   myalerts: '🔔 ההתראות שלי',
   profile: '👤 הפרופיל שלי',
   gainers: '🚀 GAINERS — זמן אמת',
+  tgm: '🛰️ TGM — סורק לידים',
 };
 
 function PageTopBar({ page, onBack, onClose }) {
@@ -166,6 +168,7 @@ function AppInner() {
         {page === 'myalerts'   && <MyAlertsPage />}
         {page === 'profile'    && <ProfilePage username={session.username} loginAt={session.loginAt} />}
         {page === 'gainers'    && <GainersPage />}
+        {page === 'tgm'        && <TgmPage navigate={navigate} />}
         {page === '404'       && <NotFoundPage navigate={navigate} />}
       </main>
     </div>

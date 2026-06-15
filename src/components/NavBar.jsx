@@ -12,6 +12,7 @@ const MAIN_PAGES = [
 ];
 
 const MORE_PAGES = [
+  { id: 'tgm',       icon: '🛰️', label: 'TGM — סורק לידים' },
   { id: 'sot',       icon: '🤖', label: 'SOT'       },
   { id: 'model-w',   icon: '⚙️', label: 'Model W'   },
   { id: 'model-bit', icon: '₿',  label: 'Model BIT' },
