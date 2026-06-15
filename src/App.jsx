@@ -21,13 +21,14 @@ import DailyPage         from './pages/DailyPage';
 import ScanOfTodayPage   from './pages/ScanOfTodayPage';
 import HeatmapPage       from './pages/HeatmapPage';
 import MyAlertsPage      from './pages/MyAlertsPage';
+import GainersPage       from './pages/GainersPage';
 import NotFoundPage      from './pages/NotFoundPage';
 import './App.css';
 
 const VALID_PAGES = [
   'home','charts','crypto','news','alerts',
   'model-w','model-bit','model-smc','model-grid',
-  'finviz','etoro','twitter','daily','sot','heatmap','myalerts'
+  'finviz','etoro','twitter','daily','sot','heatmap','myalerts','gainers'
 ];
 
 // UX-07: Offline detection banner
@@ -63,6 +64,7 @@ const PAGE_TITLES = {
   twitter: '🐦 טוויטר', 'model-grid': '📐 Model Grid', daily: '📅 יומי', sot: '🤖 SOT',
   heatmap: '🗺️ מפת חום',
   myalerts: '🔔 ההתראות שלי',
+  gainers: '🚀 GAINERS — זמן אמת',
 };
 
 function PageTopBar({ page, onBack, onClose }) {
@@ -152,6 +154,7 @@ function AppInner() {
         {page === 'sot'        && <ScanOfTodayPage navigate={navigate} />}
         {page === 'heatmap'    && <HeatmapPage />}
         {page === 'myalerts'   && <MyAlertsPage />}
+        {page === 'gainers'    && <GainersPage />}
         {page === '404'       && <NotFoundPage navigate={navigate} />}
       </main>
     </div>

@@ -1,27 +1,23 @@
-// BEEP AI Service Worker
-const CACHE = 'beepai-v1';
-const ASSETS = ['/', '/index.html', '/manifest.json'];
+// BEEP AI Service Worker — push notifications only.
+// IMPORTANT: no app-shell caching. Caching index.html/JS caused stale
+// "white screen" after every deploy. The browser always goes to network now.
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-  ));
-  self.clients.claim();
+self.addEventListener('activate', (e) => {
+  e.waitUntil((async () => {
+    // Nuke any caches left by older service-worker versions
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
 
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
-  );
-});
+// No 'fetch' handler on purpose → every request hits the network (always fresh).
 
-// Push notification handler
+// ── Push notification handler ──
 self.addEventListener('push', e => {
   let data = {};
   try { data = e.data?.json() || {}; } catch { data = { title: '⚡ BEEP AI', body: e.data?.text() || 'התראה חדשה' }; }

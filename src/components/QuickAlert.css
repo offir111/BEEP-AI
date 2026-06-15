@@ -144,6 +144,11 @@
 .sa-alert-scan-btn:hover { filter: brightness(1.08); }
 .sa-alert-scan-btn:active { filter: brightness(0.95); }
 
+/* Phone — narrow the search row 20% so it doesn't touch the edges */
+@media (max-width: 600px) {
+  .sa-alert-search { max-width: 78%; margin: 0 auto; }
+}
+
 /* ── BTC big header ──────────────────────────────────────────── */
 .sa-alert-sym-big {
   display: block;

@@ -6,7 +6,7 @@
 
 let _cache   = {};
 let _cacheTs = {};
-const CACHE_MS = 5 * 60 * 1000;
+const CACHE_MS = 60 * 1000;
 
 const TV_URL = 'https://scanner.tradingview.com/america/scan';
 
@@ -34,6 +34,7 @@ const BASE = [
   { left: 'type',    operation: 'equal',    right: 'stock' },
   { left: 'subtype', operation: 'in_range', right: ['common', 'foreign-issuer'] },
   { left: 'average_volume_10d_calc', operation: 'greater', right: 300_000 },
+  { left: 'close',   operation: 'greater',  right: 2 },   // quality — no sub-$2 penny pumps
 ];
 
 const CAP_MAP = {
@@ -96,6 +97,7 @@ async function tvScan(filters, sortBy, sortOrder, count) {
     name:       (d[1] || '').slice(0, 32),
     price:      d[2] != null ? +Number(d[2]).toFixed(2) : 0,
     change_pct: d[3] != null ? +Number(d[3]).toFixed(2) : 0,
+    chg1d:      d[3] != null ? +Number(d[3]).toFixed(2) : null,
     market_cap: d[4] || 0,
     volume:     d[5] || 0,
     rsi:        d[6] != null ? +Number(d[6]).toFixed(1)  : null,
@@ -164,7 +166,7 @@ export default async function handler(req, res) {
     _cache[cacheKey]   = payload;
     _cacheTs[cacheKey] = now;
 
-    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
+    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
     return res.status(200).json(payload);
 
   } catch (err) {

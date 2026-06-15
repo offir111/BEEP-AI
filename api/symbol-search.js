@@ -25,16 +25,26 @@ export default async function handler(req, res) {
     if (!r.ok) return res.json([]);
     const data = await r.json();
 
+    // Map Yahoo exchange codes → TradingView-recognised exchanges
+    const TV_EXCH = {
+      NMS: 'NASDAQ', NGM: 'NASDAQ', NCM: 'NASDAQ', NAS: 'NASDAQ',
+      NYQ: 'NYSE', NYS: 'NYSE', PNK: 'OTC',
+      PCX: 'AMEX', ASE: 'AMEX', BTS: 'AMEX',
+    };
+
     const items = (data?.quotes || [])
       .filter(item => item.quoteType === 'EQUITY')
       .slice(0, 12)
-      .map(item => ({
-        symbol:      item.symbol,
-        full_name:   `${item.exchange || 'NASDAQ'}:${item.symbol}`,
-        description: item.longname || item.shortname || item.symbol,
-        exchange:    item.exchange || 'NASDAQ',
-        type:        'stock',
-      }));
+      .map(item => {
+        const exch = TV_EXCH[item.exchange] || item.exchange || 'NASDAQ';
+        return {
+          symbol:      item.symbol,
+          full_name:   `${exch}:${item.symbol}`,
+          description: item.longname || item.shortname || item.symbol,
+          exchange:    exch,
+          type:        'stock',
+        };
+      });
 
     res.json(items);
   } catch {

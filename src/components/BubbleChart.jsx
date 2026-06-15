@@ -74,14 +74,33 @@ const CG_MARKETS =
   '?vs_currency=usd&order=market_cap_desc&per_page=250&page=1' +
   '&sparkline=false&price_change_percentage=1h,24h,7d,30d,1y';
 // Binance — real-time universe (all USDT pairs) for short timeframes
-const BINANCE_24H = 'https://api.binance.com/api/v3/ticker/24hr';
+const BINANCE_24H = '/api/binance?ep=ticker/24hr';
+
+// Timeframe items for the bottom bar + top dropdown (crypto)
+const TF_ITEMS = [
+  { id: '5m',  label: '5m' },
+  { id: '1h',  label: '1H' },
+  { id: '24h', label: '1D' },
+  { id: '7d',  label: '1W' },
+  { id: '30d', label: '1M' },
+  { id: '1y',  label: '1Y' },
+];
+
+// CoinGecko already returns ALL timeframes in one call → instant client-side switch
+const CG_PCT_FIELD = {
+  '1h':  'price_change_percentage_1h_in_currency',
+  '24h': 'price_change_percentage_24h_in_currency',
+  '7d':  'price_change_percentage_7d_in_currency',
+  '30d': 'price_change_percentage_30d_in_currency',
+  '1y':  'price_change_percentage_1y_in_currency',
+};
 // Tab id normalization across assets (crypto uses 24h/7d/30d; stocks 1d/1w/1m)
 const STOCK_FROM_CRYPTO  = { '1h': '1d', '24h': '1d', '7d': '1w', '30d': '1m', '1y': '1y' };
 const CRYPTO_FROM_STOCK  = { '1h': '1h', '1d': '24h', '1w': '7d', '1m': '30d', '1y': '1y' };
 
 /* ── Stocks local cache (so a display always exists) ──────────── */
 const STOCKS_CACHE_KEY = 'beepai_stocks_cache';
-const STOCKS_REFRESH_MS = 60_000;  // auto-refresh cadence for stocks
+const STOCKS_REFRESH_MS = 30_000;  // auto-refresh cadence (~matches cryptobubbles)
 function loadStocksCache(key) {
   try {
     const all = JSON.parse(localStorage.getItem(STOCKS_CACHE_KEY)) || {};
@@ -118,22 +137,25 @@ function bubbleRGB(pct, colorN) {
 /* ── Build bubbles — pure GAINERS: top movers by %, size by cap ──
    "15" = top 15 by % (gainers first); "all" = the whole set.
    Draw order: large bubbles first (z-bottom), small on top. */
-function makeBubbles(items, W, H, showAll, favSet) {
+function makeBubbles(items, W, H, showAll, favSet, sizeMode = 'perf') {
   if (!items.length) return [];
-  const ranked = [...items].sort((a, b) => (b.pct || 0) - (a.pct || 0)); // gainers first
+  // Universe = top by MARKET CAP (like cryptobubbles) → includes crashers, not just gainers
+  const ranked = [...items].sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0));
   const pool   = showAll ? ranked.slice(0, 100) : ranked.slice(0, 15);
   if (!pool.length) return [];
 
   const maxAbsPct   = Math.max(...pool.map(c => Math.abs(c.pct)), 0.1);
-  // ^0.55 gives much more balanced sizing — BTC is large but not crushing
-  const norm        = cap => Math.pow(Math.max(cap, 1), 0.55);
-  const totalNorm   = pool.reduce((s, c) => s + norm(c.market_cap || 1), 0) || 1;
-  const maxR        = Math.min(W, H) * 0.18;  // was 0.30 — prevents BTC/ETH from dominating
-  const scaleFactor = (W * H * 0.40) / (totalNorm * Math.PI);
+  // size by performance (|% move|) — cryptobubbles default — or by market cap (M.C mode)
+  const sizeOf      = sizeMode === 'mc'
+    ? c => Math.pow(Math.max(c.market_cap || 1, 1), 0.55)
+    : c => Math.max(Math.abs(c.pct || 0), 0.1);
+  const totalSize   = pool.reduce((s, c) => s + sizeOf(c), 0) || 1;
+  const maxR        = Math.min(W, H) * 0.22;
+  const scaleFactor = (W * H * 0.42) / (totalSize * Math.PI);
 
   const bubbles = pool.map((c) => {
-    const rawR   = Math.sqrt(norm(c.market_cap || 1) * scaleFactor);
-    const r      = Math.max(14, Math.min(rawR, maxR));
+    const rawR   = Math.sqrt(sizeOf(c) * scaleFactor);
+    const r      = Math.max(13, Math.min(rawR, maxR));
     const colorN = Math.max(0.2, Math.min(1.0, Math.abs(c.pct) / maxAbsPct));
     const x = r + Math.random() * (W - 2 * r);
     const y = r + Math.random() * (H - 2 * r);
@@ -275,13 +297,15 @@ export default function BubbleChart({ onManualSearch, onClose }) {
   const assetRef   = useRef('crypto');
   const tabRef     = useRef('1h');
   const capRef     = useRef('all');
-  const showAllRef = useRef(false);
+  const showAllRef = useRef(true);
   const signalRef  = useRef(null);
 
   const [asset,     setAsset]     = useState('crypto');
   const [activeTab, setActiveTab] = useState('1h');
   const [capFilter, setCapFilter] = useState('all');
-  const [showAll,   setShowAll]   = useState(false);
+  const [sizeMode,  setSizeMode]  = useState('perf');  // 'perf' = size by % move | 'mc' = market cap
+  const sizeModeRef = useRef('perf');
+  const [showAll,   setShowAll]   = useState(true);
   const [signal,    setSignal]    = useState(null);
   const [selectedBubble, setSelectedBubble] = useState(null);
   const [capOpen,   setCapOpen]   = useState(false);
@@ -316,7 +340,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
     const favs    = getFavorites();
     const favSet  = new Set([...favs.crypto, ...favs.stocks]);
 
-    const makeItems = (raw) => makeBubbles(raw, w, h, showAllRef.current, favSet);
+    const makeItems = (raw) => makeBubbles(raw, w, h, showAllRef.current, favSet, sizeModeRef.current);
 
     if (assetRef.current === 'crypto') {
       const coins = cryptoCoinsRef.current;
@@ -386,7 +410,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
         price: s.price, volume: s.volume,
         _type: s._type || 'stocks',
       }));
-      bubblesRef.current = makeBubbles(items, w, h, true, favSet); // favorites: all
+      bubblesRef.current = makeBubbles(items, w, h, true, favSet, sizeModeRef.current); // favorites: all
     }
   }, [syncCanvas]);
 
@@ -430,17 +454,23 @@ export default function BubbleChart({ onManualSearch, onClose }) {
 
     try {
       let items;
-      if (period === '30d' || period === '1y') {
-        // Long timeframes need CoinGecko data — wait up to 10s for it
-        let waited = 0;
-        while (!cgMapRef.current && waited < 10000) {
-          await new Promise(r => setTimeout(r, 300));
-          waited += 300;
-        }
-        if (!cgArrRef.current.length) throw new Error('no cg data for long tf');
-        const f = period === '30d' ? 'price_change_percentage_30d_in_currency'
-                                   : 'price_change_percentage_1y_in_currency';
-        items = cgArrRef.current.map(c => ({
+      if (period !== '5m') {
+        // All standard timeframes → CoinGecko (same source as cryptobubbles → identical numbers).
+        // Fetch fresh so the 60s refresh keeps it live.
+        let arr = [];
+        try {
+          const cg = await (await fetch(CG_MARKETS, { signal: AbortSignal.timeout(10000) })).json();
+          if (Array.isArray(cg) && cg.length) {
+            arr = cg;
+            cgArrRef.current = cg;
+            const m = {}; for (const c of cg) { const s = c.symbol.toUpperCase(); if (!m[s]) m[s] = c; }
+            cgMapRef.current = m;
+          }
+        } catch {}
+        if (!arr.length) arr = cgArrRef.current || [];
+        if (!arr.length) throw new Error('no cg data');
+        const f = CG_PCT_FIELD[period] || CG_PCT_FIELD['24h'];
+        items = arr.map(c => ({
           id: c.id, symbol: c.symbol.toUpperCase(), name: c.name, image: c.image,
           current_price: c.current_price, market_cap: c.market_cap || 0, total_volume: c.total_volume || 0,
           price_change_percentage_24h: c.price_change_percentage_24h || 0,
@@ -474,12 +504,12 @@ export default function BubbleChart({ onManualSearch, onClose }) {
           usdt.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume));
           const top = usdt.slice(0, 120);
           const bySym = {}; top.forEach(t => { bySym[t.symbol] = t; });
-          const ws = period === '7d' ? '7d' : '1h';
+          const ws = period === '7d' ? '7d' : period === '5m' ? '5m' : '1h';
           const syms = top.map(t => t.symbol);
           const chunks = [];
           for (let i = 0; i < syms.length; i += 50) chunks.push(syms.slice(i, i + 50));
           const res = await Promise.all(chunks.map(ch =>
-            fetch(`https://api.binance.com/api/v3/ticker?symbols=${encodeURIComponent(JSON.stringify(ch))}&windowSize=${ws}`,
+            fetch(`/api/binance?ep=ticker&symbols=${encodeURIComponent(JSON.stringify(ch))}&windowSize=${ws}`,
               { signal: AbortSignal.timeout(12000) }).then(r => r.json()).catch(() => [])));
           items = res.flat()
             .filter(t => t && isFinite(parseFloat(t.priceChangePercent)))
@@ -505,15 +535,33 @@ export default function BubbleChart({ onManualSearch, onClose }) {
     }
   }, [rebuildBubbles, triggerCgEnrich]);
 
-  /* ── initial crypto load: demo instantly → real data in background ── */
+  /* ── INSTANT timeframe switch (cryptobubbles-style) ──────────────
+     CoinGecko already holds every timeframe per coin, so switching just
+     re-reads the field + re-animates — no network call. */
+  const applyCryptoFromCG = useCallback((period) => {
+    const arr = cgArrRef.current;
+    if (!arr || !arr.length) return false;
+    const f = CG_PCT_FIELD[period] || CG_PCT_FIELD['24h'];
+    cryptoCoinsRef.current = arr.map(c => ({
+      id: c.id, symbol: c.symbol.toUpperCase(), name: c.name, image: c.image,
+      current_price: c.current_price, market_cap: c.market_cap || 0, total_volume: c.total_volume || 0,
+      price_change_percentage_24h: c.price_change_percentage_24h || 0,
+      price_change_percentage_7d_in_currency: c.price_change_percentage_7d_in_currency || 0,
+      pct: c[f] || 0,
+    }));
+    cryptoCoinsRef.current.forEach(c => {
+      if (!c.image || imgCache.current[c.id]) return;
+      const img = new Image(); img.crossOrigin = 'anonymous'; img.src = c.image;
+      img.onload = () => { imgCache.current[c.id] = img; };
+    });
+    setCryptoStatus('ok');
+    rebuildBubbles();
+    return true;
+  }, [rebuildBubbles]);
+
+  /* ── initial crypto load: spinner until REAL data arrives (no demo) ── */
   useEffect(() => {
-    // Show demo bubbles immediately (0ms) — real data replaces them when ready
-    if (cryptoCoinsRef.current.length === 0) {
-      cryptoCoinsRef.current = DEMO_COINS;
-      setCryptoStatus('ok');
-      requestAnimationFrame(() => rebuildBubbles());
-    }
-    // Fetch real Binance data in background (replaces demo on arrival)
+    if (cryptoCoinsRef.current.length === 0) setCryptoStatus('loading');
     fetchCrypto(tabRef.current);
   }, [fetchCrypto, rebuildBubbles, cryptoRetryTrigger]);
 
@@ -722,11 +770,26 @@ export default function BubbleChart({ onManualSearch, onClose }) {
     tabRef.current = id;
     setActiveTab(id);
     if (assetRef.current === 'crypto') {
-      fetchCrypto(id);   // refetch real-time data for the selected timeframe
+      // 5m has no CoinGecko field → live Binance rolling window. Others: instant client-side.
+      if (id === '5m') fetchCrypto('5m');
+      else if (!applyCryptoFromCG(id)) fetchCrypto(id);
     } else if (assetRef.current === 'stocks') {
       fetchStocks(capRef.current, id, signalRef.current); // keep current display while refreshing
     }
-  }, [fetchCrypto, fetchStocks]);
+  }, [applyCryptoFromCG, fetchCrypto, fetchStocks]);
+
+  /* ── Vertical timeframe / sizing bar (cryptobubbles-style) ── */
+  const handleSizeMode = useCallback(() => {
+    const next = sizeModeRef.current === 'mc' ? 'perf' : 'mc';
+    sizeModeRef.current = next;
+    setSizeMode(next);
+    rebuildBubbles();
+  }, [rebuildBubbles]);
+
+  const handleVbTab = useCallback((id) => {
+    if (sizeModeRef.current !== 'perf') { sizeModeRef.current = 'perf'; setSizeMode('perf'); }
+    handleTab(id);
+  }, [handleTab]);
 
   /* ── cap filter ───────────────────────────────────────────── */
   const handleCap = useCallback((id) => {
@@ -881,6 +944,9 @@ export default function BubbleChart({ onManualSearch, onClose }) {
   const showCanvas   = curStatus === 'ok';
   const currentTabs  = asset === 'crypto' ? CRYPTO_TABS : STOCK_TABS;
   const activeTabLbl = currentTabs.find(t => t.id === activeTab)?.label || '1H';
+  // Timeframe list for the bottom bar + top dropdown (crypto has 5m/1H; stocks use their own tabs)
+  const tfList   = asset === 'crypto' ? TF_ITEMS : STOCK_TABS;
+  const tfLabel  = sizeMode === 'mc' ? 'M.C' : (tfList.find(t => t.id === activeTab)?.label || tfList[0].label);
   const capLabel     = CAP_OPTS.find(c => c.id === capFilter)?.label || 'הכל';
 
   /* ── Render ───────────────────────────────────────────────── */
@@ -900,57 +966,26 @@ export default function BubbleChart({ onManualSearch, onClose }) {
           </button>
         </div>
 
-        {/* FILTERS: 15/הכל · time · market cap */}
-        <div className="bc-filters">
-          <div className="bc-mode-toggle">
-            <button className={`bc-mode-btn${!showAll ? ' bc-mode-btn--on' : ''}`}
-              onClick={() => showAll && handleToggle()}>15</button>
-            <button className={`bc-mode-btn${showAll ? ' bc-mode-btn--on' : ''}`}
-              onClick={() => !showAll && handleToggle()}>הכל</button>
-          </div>
-
+        {/* RIGHT: timeframe square (opens menu) + ⭐ favorites + CRYPTO/STOCKS */}
+        <div className="bc-asset">
           {asset !== 'favorites' && (
-            <div className="bc-dd-wrap" ref={timeDdRef}>
-              <button className="bc-dd-btn"
-                onClick={() => { setTimeOpen(v => !v); setCapOpen(false); }}>
-                {activeTabLbl} <span className="bc-dd-arrow">{timeOpen ? '▴' : '▾'}</span>
+            <div className="bc-dd-wrap bc-tf-dd" ref={timeDdRef}>
+              <button className="bc-tf-btn" onClick={() => { setTimeOpen(v => !v); setCapOpen(false); }}>
+                {tfLabel}<span className="bc-dd-arrow">{timeOpen ? '▴' : '▾'}</span>
               </button>
               {timeOpen && (
                 <div className="bc-dd-menu">
-                  {currentTabs.map(t => (
+                  {tfList.map(t => (
                     <button key={t.id}
-                      className={`bc-dd-item${activeTab === t.id ? ' bc-dd-item--on' : ''}`}
-                      onClick={() => { handleTab(t.id); setTimeOpen(false); }}>
-                      {t.label}
-                    </button>
+                      className={`bc-dd-item${sizeMode === 'perf' && activeTab === t.id ? ' bc-dd-item--on' : ''}`}
+                      onClick={() => { handleVbTab(t.id); setTimeOpen(false); }}>{t.label}</button>
                   ))}
+                  <button className={`bc-dd-item${sizeMode === 'mc' ? ' bc-dd-item--on' : ''}`}
+                    onClick={() => { handleSizeMode(); setTimeOpen(false); }}>M.C</button>
                 </div>
               )}
             </div>
           )}
-
-          <div className="bc-dd-wrap" ref={capDdRef}>
-            <button className="bc-dd-btn"
-              onClick={() => { setCapOpen(v => !v); setTimeOpen(false); }}>
-              MARKET CAP{capFilter !== 'all' ? `: ${capLabel}` : ''}
-              <span className="bc-dd-arrow">{capOpen ? '▴' : '▾'}</span>
-            </button>
-            {capOpen && (
-              <div className="bc-dd-menu">
-                {CAP_OPTS.map(c => (
-                  <button key={c.id}
-                    className={`bc-dd-item${capFilter === c.id ? ' bc-dd-item--on' : ''}`}
-                    onClick={() => { handleCap(c.id); setCapOpen(false); }}>
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* RIGHT: ⭐ favorites + CRYPTO/STOCKS */}
-        <div className="bc-asset">
           <div className="bc-asset-toggle bc-fav-toggle">
             <button className={`bc-asset-btn${asset === 'favorites' ? ' bc-asset-btn--on' : ''}`}
               onClick={() => asset !== 'favorites' && handleAsset('favorites')}>⭐</button>
@@ -999,7 +1034,7 @@ export default function BubbleChart({ onManualSearch, onClose }) {
           <div className="bc-state">
             <div className="bc-spinner" />
             <span className="bc-loading-text">
-              טוען<span className="bc-dots"><span>.</span><span>.</span><span>.</span></span>
+              מיד נתוני זמן אמת<span className="bc-dots"><span>.</span><span>.</span><span>.</span></span>
             </span>
             <button className="bc-speedup-btn" onClick={handleRefresh}>
               ⟳ לחץ לזירוז טעינה
@@ -1036,17 +1071,25 @@ export default function BubbleChart({ onManualSearch, onClose }) {
         )}
       </div>
 
-      {/* ── Footer ── */}
+      {/* ── Footer — manual scan · centered timeframe bar · LIVE ── */}
       <div className="bc-footer">
-        <span className="bc-live-dot">● LIVE</span>
-        <span className="bc-credit">
-          {asset === 'crypto'    ? 'Binance · זמן אמת'
-           : asset === 'stocks'  ? 'TradingView · זמן אמת'
-           : 'מועדפים אישיים'}
-        </span>
         <button className="bc-manual-btn" onClick={onManualSearch}>
           🔍 סריקה ידנית
         </button>
+
+        {asset !== 'favorites' && (
+          <div className="bc-tbar">
+            {tfList.map(t => (
+              <button key={t.id}
+                className={`bc-tbtn${sizeMode === 'perf' && activeTab === t.id ? ' bc-tbtn--on' : ''}`}
+                onClick={() => handleVbTab(t.id)}>{t.label}</button>
+            ))}
+            <button className={`bc-tbtn bc-tbtn--mc${sizeMode === 'mc' ? ' bc-tbtn--on' : ''}`}
+              onClick={handleSizeMode}>M.C</button>
+          </div>
+        )}
+
+        <span className="bc-live-dot">● LIVE</span>
       </div>
     </div>
   );

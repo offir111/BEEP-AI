@@ -18,21 +18,15 @@ const BINANCE = {
   BSOL: 'BSOLUSDT', KEEL: 'KEELBTC',
 };
 
-async function fetchCandles(symbol) {
+async function fetchCandles(symbol, isCrypto, cgId) {
   const s = symbol.toUpperCase();
-  if (BINANCE[s]) {
-    const r = await fetch(
-      `https://api.binance.com/api/v3/klines?symbol=${BINANCE[s]}&interval=1d&limit=200`
-    );
+  // crypto → Binance klines via server proxy (not geo-blocked); CoinGecko fallback
+  const pair = BINANCE[s] || (isCrypto ? `${s}USDT` : null);
+  if (pair) {
+    const r = await fetch(`/api/crypto-candles?symbol=${pair}${cgId ? `&cg=${encodeURIComponent(cgId)}` : ''}`);
     if (!r.ok) return [];
-    const raw = await r.json();
-    return raw.map(k => ({
-      time:  Math.floor(k[0] / 1000),
-      open:  parseFloat(k[1]),
-      high:  parseFloat(k[2]),
-      low:   parseFloat(k[3]),
-      close: parseFloat(k[4]),
-    }));
+    const d = await r.json();
+    return Array.isArray(d.candles) ? d.candles : [];
   }
   const yf = s === 'GOLD' ? 'GC=F' : s;
   const r  = await fetch(`/api/candles?symbol=${encodeURIComponent(yf)}`);
@@ -94,7 +88,7 @@ function fmtPrice(p) {
 const HIT_PX       = 7;
 const PRICE_AXIS_PX = 75;
 
-export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) {
+export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, isCrypto, cgId }) {
   const containerRef         = useRef(null);
   const chartRef             = useRef(null);
   const seriesRef            = useRef(null);
@@ -282,7 +276,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange }) 
     linesRef.current = [];
 
     let cancelled = false;
-    fetchCandles(symbol)
+    fetchCandles(symbol, isCrypto, cgId)
       .then(candles => {
         if (cancelled || symRef.current !== symbol || !seriesRef.current) return;
         if (!candles.length) { setError(true); return; }

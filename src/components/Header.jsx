@@ -42,11 +42,11 @@ export default function Header({ username, onLogout, navigate, page }) {
 
         {/* Bell button */}
         <button
-          className={`hdr-bell ${page === 'alerts' ? 'hdr-bell--on' : ''}`}
-          onClick={() => navigate('alerts')}
+          className={`hdr-bell ${page === 'myalerts' ? 'hdr-bell--on' : ''}`}
+          onClick={() => navigate('myalerts')}
           title="התראות מחיר"
           aria-label={`התראות מחיר${activeCount > 0 ? ` — ${activeCount} פעילות` : ''}`}
-          aria-current={page === 'alerts' ? 'page' : undefined}
+          aria-current={page === 'myalerts' ? 'page' : undefined}
         >
           <svg viewBox="0 0 24 24" className="hdr-bell-icon">
             <path d="M12 2C10.9 2 10 2.9 10 4v.55C7.16 5.24 5 7.9 5 11v6l-1.71 1.71A1 1 0 0 0 4 20h16a1 1 0 0 0 .71-1.71L19 17v-6c0-3.1-2.16-5.76-5-6.45V4c0-1.1-.9-2-2-2zm0 20c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2z"/>

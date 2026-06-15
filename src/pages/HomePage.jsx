@@ -3,6 +3,7 @@ import { useAlerts } from '../context/AlertsContext';
 import ScannerWidget  from '../components/ScannerWidget';
 import MiniChartPanel from '../components/MiniChartPanel';
 import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
+import FngIndicator from '../components/FngIndicator';
 import './HomePage.css';
 import '../components/LivePrice.css';
 
@@ -304,13 +305,24 @@ export default function HomePage({ navigate }) {
       {/* Order (RTL: first=visual-right → last=visual-left):
           גרפים | S&P | GOLD | ETH | SOL | [empty] | BTC-Signal | F&G-Crypto | F&G-Stocks */}
       <div className="hp-market-strip">
-        <MarketPill sym="S&P"  label="S&P 500" />
-        <MarketPill sym="GOLD" label="זהב" />
-        <MarketPill sym="ETH"  label="ETH" />
-        <MarketPill sym="SOL"  label="SOL" />
-        <MarketPill sym="SPCX" label="SPCX" />
-        <BtcSignalPill />
-        <FearGreedCrypto />
+        {/* GAINERS (right) → real-time gainers page */}
+        <button className="hp-gainers-btn" onClick={() => navigate('gainers')}>
+          <span className="hp-gainers-title">GAINERS</span>
+        </button>
+
+        {/* Heatmap (middle) — treemap sketch, opens heatmap page */}
+        <button className="hp-heatmap-btn" onClick={() => navigate('heatmap')} aria-label="מפת חום">
+          <svg className="hp-heatmap-svg" viewBox="0 0 100 18" preserveAspectRatio="none" aria-hidden="true">
+            <rect x="0"  y="0" width="30" height="18" fill="#991b1b"/>
+            <rect x="31" y="0" width="22" height="18" fill="#16a34a"/>
+            <rect x="54" y="0" width="20" height="18" fill="#dc2626"/>
+            <rect x="75" y="0" width="25" height="18" fill="#22c55e"/>
+          </svg>
+          <span className="hp-heatmap-label">HIT MAP</span>
+        </button>
+
+        {/* Fear & Greed (left) — split crypto | stock, opens gauge */}
+        <FngIndicator />
       </div>
 
       {/* ── SOT Scanner Widget ── */}

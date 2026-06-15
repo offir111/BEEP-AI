@@ -10,6 +10,10 @@
   gap: 12px;
   position: relative;
   z-index: 200;
+  width: 100%;
+  max-width: var(--page-max, 960px);
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .hdr-brand {
