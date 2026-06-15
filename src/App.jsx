@@ -21,6 +21,7 @@ import DailyPage         from './pages/DailyPage';
 import ScanOfTodayPage   from './pages/ScanOfTodayPage';
 import HeatmapPage       from './pages/HeatmapPage';
 import MyAlertsPage      from './pages/MyAlertsPage';
+import ProfilePage       from './pages/ProfilePage';
 import GainersPage       from './pages/GainersPage';
 import NotFoundPage      from './pages/NotFoundPage';
 import './App.css';
@@ -28,7 +29,7 @@ import './App.css';
 const VALID_PAGES = [
   'home','charts','crypto','news','alerts',
   'model-w','model-bit','model-smc','model-grid',
-  'finviz','etoro','twitter','daily','sot','heatmap','myalerts','gainers'
+  'finviz','etoro','twitter','daily','sot','heatmap','myalerts','profile','gainers'
 ];
 
 // UX-07: Offline detection banner
@@ -64,6 +65,7 @@ const PAGE_TITLES = {
   twitter: '🐦 טוויטר', 'model-grid': '📐 Model Grid', daily: '📅 יומי', sot: '🤖 SOT',
   heatmap: '🗺️ מפת חום',
   myalerts: '🔔 ההתראות שלי',
+  profile: '👤 הפרופיל שלי',
   gainers: '🚀 GAINERS — זמן אמת',
 };
 
@@ -84,7 +86,14 @@ function PageTopBar({ page, onBack, onClose }) {
 
 function AppInner() {
   const [session, setSession] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('beepai_session')); } catch { return null; }
+    try {
+      const s = JSON.parse(localStorage.getItem('beepai_session'));
+      if (s && !s.loginAt) {            // backfill last-login for pre-existing sessions
+        s.loginAt = Date.now();
+        localStorage.setItem('beepai_session', JSON.stringify(s));
+      }
+      return s;
+    } catch { return null; }
   });
   const [page, setPage] = useState('home');
   const [navHistory, setNavHistory] = useState(['home']);
@@ -126,8 +135,9 @@ function AppInner() {
 
   if (!session) {
     return <LoginScreen onLogin={(s) => {
-      localStorage.setItem('beepai_session', JSON.stringify(s));
-      setSession(s);
+      const enriched = { ...s, loginAt: Date.now() };
+      localStorage.setItem('beepai_session', JSON.stringify(enriched));
+      setSession(enriched);
     }} />;
   }
 
@@ -154,6 +164,7 @@ function AppInner() {
         {page === 'sot'        && <ScanOfTodayPage navigate={navigate} />}
         {page === 'heatmap'    && <HeatmapPage />}
         {page === 'myalerts'   && <MyAlertsPage />}
+        {page === 'profile'    && <ProfilePage username={session.username} loginAt={session.loginAt} />}
         {page === 'gainers'    && <GainersPage />}
         {page === '404'       && <NotFoundPage navigate={navigate} />}
       </main>

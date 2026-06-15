@@ -31,7 +31,8 @@ const STOCK_API_MAP = {
 
 const CRYPTO_SET = new Set([
   'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'DOGE', 'ADA',
-  'DOT', 'AVAX', 'MATIC', 'LINK', 'ATOM', 'BSOL', 'CIFR',
+  'DOT', 'AVAX', 'MATIC', 'LINK', 'ATOM', 'BSOL',
+  // NOTE: CIFR (Cipher Mining) is a NASDAQ stock, not crypto — polled via /api/market.
 ]);
 
 function isCrypto(symbol) {
@@ -199,7 +200,9 @@ export function LiveQuoteProvider({ children }) {
         if (!d || d.price == null) return;
 
         const price  = parseFloat(d.price);
-        const change = d.change != null ? parseFloat(d.change) : null;
+        // /api/market returns the daily move as `changePercent` (accept `change` too for safety).
+        const rawChange = d.change ?? d.changePercent;
+        const change = rawChange != null ? parseFloat(rawChange) : null;
         const high   = d.high  != null ? parseFloat(d.high)   : null;
         const low    = d.low   != null ? parseFloat(d.low)    : null;
 

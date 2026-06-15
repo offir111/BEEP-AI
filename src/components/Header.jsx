@@ -59,8 +59,8 @@ export default function Header({ username, onLogout, navigate, page }) {
           )}
         </button>
 
-        {/* User avatar — opens alerts/charts page */}
-        <button className="hdr-avatar" onClick={() => navigate('myalerts')} title="ההתראות שלי" aria-label="ההתראות שלי">
+        {/* User avatar — opens the user profile page */}
+        <button className="hdr-avatar" onClick={() => navigate('profile')} title="הפרופיל שלי" aria-label="הפרופיל שלי">
           {username?.[0]?.toUpperCase()}
         </button>
 
