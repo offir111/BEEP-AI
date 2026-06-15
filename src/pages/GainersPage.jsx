@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAlerts } from '../context/AlertsContext';
 import QuickAlert from '../components/QuickAlert';
 import IframeWithFallback from '../components/IframeWithFallback';
+import { apiUrl } from '../utils/apiBase';
 import './GainersPage.css';
 
 const RIGHT_COLS = [
@@ -52,7 +53,7 @@ export default function GainersPage() {
     let cancelled = false;
     const poll = async () => {
       try {
-        const r = await fetch('/api/crypto-gainers');
+        const r = await fetch(apiUrl('/api/crypto-gainers'));
         const d = await r.json();
         if (cancelled || !Array.isArray(d.rows)) return;
         const prev = prevRef.current;
@@ -77,7 +78,7 @@ export default function GainersPage() {
     let cancelled = false;
     const load = async () => {
       try {
-        const r = await fetch('/api/tv-screener?period=1d');
+        const r = await fetch(apiUrl('/api/tv-screener?period=1d'));
         const d = await r.json();
         if (cancelled) return;
         setStocks((d.quotes || []).map(q => ({
