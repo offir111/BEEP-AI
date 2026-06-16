@@ -1,0 +1,56 @@
+/* AlertsPage.css — bounded chart box, same size as news-widget */
+
+/* ── Page root ───────────────────────────────────────────────── */
+.ap-root {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* ── Chart box — same dimensions & style as .news-widget ─────── */
+.ap-chart-box {
+  position: relative;          /* ← dialog overlay is absolute INSIDE this box */
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
+  border: 1px solid var(--border, #2a2a3a);
+  background: #0f0f1a;
+  height: 600px;
+}
+
+/* ── Reopen button — bottom-center of chart box ──────────────── */
+.ap-reopen {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  border-radius: 8px;
+  color: #D4AF37;
+  padding: 9px 20px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  direction: rtl;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.ap-reopen:hover { background: rgba(212, 175, 55, 0.26); }
+
+.ap-reopen-badge {
+  background: #ef4444;
+  color: #fff;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}

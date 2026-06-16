@@ -1,0 +1,346 @@
+/* ModelGridPage.css — Grid bot dashboard, styled like ModelBitPage */
+
+/* accent: teal/cyan #22d3ee (same color as LIVE tag in home card) */
+
+.mg-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Header ───────────────────────────────────────────────────── */
+.mg-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
+  border: 1px solid var(--border);
+  border-right: 3px solid #22d3ee;
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+}
+
+.mg-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #22d3ee;
+  margin-bottom: 4px;
+}
+
+.mg-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.mg-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 12px;
+  flex-shrink: 0;
+}
+.mg-status--live { color: var(--accent-green); border-color: var(--accent-green); }
+
+.mg-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.mg-dot--live {
+  background: var(--accent-green);
+  box-shadow: 0 0 6px var(--accent-green);
+  animation: mg-pulse 1.8s infinite;
+}
+@keyframes mg-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+/* ── Skeleton / error ─────────────────────────────────────────── */
+.mg-skeleton {
+  background: linear-gradient(90deg, var(--bg-hover) 25%, var(--border) 50%, var(--bg-hover) 75%);
+  background-size: 200% 100%;
+  animation: mg-shimmer 1.4s infinite;
+  border-radius: var(--radius-sm);
+  margin: 3px 0;
+}
+@keyframes mg-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+.mg-err {
+  font-size: 0.8rem;
+  color: var(--accent-red);
+  cursor: pointer;
+  padding: 8px;
+  text-align: center;
+}
+
+.mg-demo-banner {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: var(--radius-sm);
+  color: #fca5a5;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 9px 16px;
+  margin: 10px;
+}
+
+/* ── BTC price card ───────────────────────────────────────────── */
+.mg-price-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: border-color 0.2s;
+}
+
+@keyframes mg-flash-up-anim   { 0%{background:rgba(74,222,128,0.08)} 100%{background:var(--bg-card)} }
+@keyframes mg-flash-down-anim { 0%{background:rgba(239,68,68,0.08)}  100%{background:var(--bg-card)} }
+.mg-flash-up   { animation: mg-flash-up-anim   0.7s ease-out; }
+.mg-flash-down { animation: mg-flash-down-anim 0.7s ease-out; }
+
+.mg-price-card-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.mg-btc-icon {
+  width: 48px; height: 48px;
+  background: rgba(34,211,238,0.12);
+  border: 1px solid rgba(34,211,238,0.3);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+  color: #22d3ee;
+  flex-shrink: 0;
+}
+
+.mg-btc-label { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.mg-btc-sub   { font-size: 0.7rem; color: var(--text-muted); }
+
+.mg-range-badge {
+  margin-right: auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid;
+}
+.mg-range-badge--in  { color: var(--accent-green); border-color: rgba(74,222,128,0.4); background: rgba(74,222,128,0.08); }
+.mg-range-badge--out { color: #fbbf24;             border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.08); }
+
+.mg-big-price {
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.mg-change-row { display: flex; align-items: center; gap: 12px; }
+.mg-change-24  { font-size: 1rem; font-weight: 700; }
+
+.mg-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.mg-stat       { display: flex; flex-direction: column; gap: 3px; }
+.mg-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.mg-stat-val   { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
+
+/* ── Params bar ───────────────────────────────────────────────── */
+.mg-params-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+}
+.mg-param       { display: flex; align-items: center; gap: 6px; }
+.mg-param-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.mg-param-val   { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
+.mg-param-sep   { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+/* ── KPI grid ─────────────────────────────────────────────────── */
+.mg-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.mg-kpi {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  text-align: center;
+}
+.mg-kpi-label { font-size: 0.65rem; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.mg-kpi-val   { font-size: 1.15rem; font-weight: 800; color: var(--text-primary); }
+
+/* ── Tabs section ─────────────────────────────────────────────── */
+.mg-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.mg-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.mg-tab {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.mg-tab:hover  { color: var(--text-secondary); }
+.mg-tab--on    { color: #22d3ee; border-bottom-color: #22d3ee; }
+
+.mg-tab-body { padding: 14px 16px; }
+
+/* ── Grid progress bar ────────────────────────────────────────── */
+.mg-grid-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.mg-grid-bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-hover);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.mg-grid-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22d3ee, #4ade80);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+.mg-grid-bar-label { font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; }
+
+/* ── Overview ─────────────────────────────────────────────────── */
+.mg-overview-grid { display: flex; flex-direction: column; gap: 0; }
+.mg-ov-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.mg-ov-row:last-child { border-bottom: none; }
+.mg-ov-label { font-size: 0.78rem; color: var(--text-muted); }
+.mg-ov-val   { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
+
+/* ── Table ────────────────────────────────────────────────────── */
+.mg-levels-body { padding: 0; }
+.mg-table-wrap { overflow-x: auto; }
+
+.mg-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.mg-table th {
+  padding: 10px 14px;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  background: var(--bg-secondary);
+}
+.mg-table td {
+  padding: 10px 14px;
+  color: var(--text-primary);
+  border-bottom: 1px solid rgba(42,42,58,0.5);
+}
+.mg-table tbody tr:last-child td { border-bottom: none; }
+.mg-table tbody tr:hover td { background: var(--bg-hover); }
+
+.mg-row-current td { background: rgba(34,211,238,0.06) !important; }
+
+.mg-level-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid;
+}
+.mg-level-filled { color: var(--accent-green); border-color: rgba(74,222,128,0.4); background: rgba(74,222,128,0.08); }
+.mg-level-wait   { color: var(--text-muted);   border-color: var(--border);         background: transparent; }
+
+.mg-type-buy  { background: rgba(74,222,128,0.12); color: var(--accent-green); padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; }
+.mg-type-sell { background: rgba(239,68,68,0.12);  color: var(--accent-red);   padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; }
+
+.mg-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  padding: 28px;
+}
+
+/* ── Chart ────────────────────────────────────────────────────── */
+.mg-chart-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.mg-chart-title {
+  padding: 12px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.mg-chart-container { height: 420px; }
+.mg-chart-iframe { width: 100%; height: 100%; border: none; display: block; }
+
+/* ── Color utilities ──────────────────────────────────────────── */
+.mg-green { color: var(--accent-green); }
+.mg-red   { color: var(--accent-red);   }
+.mg-gold  { color: #D4AF37;             }
+.mg-blue  { color: #22d3ee;             }
+.mg-muted { color: var(--text-muted);   }
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 520px) {
+  .mg-big-price    { font-size: 2rem; }
+  .mg-kpi-grid     { grid-template-columns: repeat(2,1fr); }
+  .mg-chart-container { height: 300px; }
+  .mg-stats-row    { gap: 14px; }
+  .mg-params-bar   { gap: 6px; }
+}

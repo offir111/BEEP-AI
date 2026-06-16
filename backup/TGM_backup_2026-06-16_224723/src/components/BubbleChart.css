@@ -1,0 +1,635 @@
+/* BubbleChart.css ─────────────────────────────────────────────
+   Crypto + Stocks bubble panel — Mobile-first responsive
+   ──────────────────────────────────────────────────────────── */
+
+.bc-wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  animation: bc-fadein 0.2s ease;
+}
+
+@keyframes bc-fadein {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Single control row ─────────────────────────────────────── */
+.bc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 0;
+  gap: 5px;
+  direction: ltr;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 100;
+  overflow: visible;
+}
+
+/* LEFT group: X (+ refresh on mobile) — pinned to the left */
+.bc-hdr-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-right: auto;   /* push everything else to the right */
+}
+
+/* FILTERS group: 15/הכל · time · market cap */
+.bc-filters {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
+  overflow: visible;   /* dropdowns escape */
+}
+
+/* RIGHT group: ⭐ favorites + CRYPTO/STOCKS */
+.bc-asset {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.bc-fav-toggle { flex-shrink: 0; }
+
+/* Refresh — always next to the X */
+.bc-refresh-m { padding: 5px 10px; font-size: 11px; }
+
+/* ✕ Close button */
+.bc-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.55);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.bc-close-btn:hover {
+  background: rgba(255,80,80,0.18);
+  border-color: rgba(255,80,80,0.4);
+  color: #ff8080;
+}
+
+/* Asset toggle (קריפטו | מניות) */
+.bc-asset-toggle {
+  display: flex;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.14);
+}
+
+.bc-asset-btn {
+  padding: 5px 12px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.bc-asset-btn + .bc-asset-btn {
+  border-right: 1px solid rgba(255,255,255,0.14);
+}
+
+.bc-asset-btn--on {
+  background: rgba(255,255,255,0.13);
+  color: #fff;
+  cursor: default;
+}
+
+/* Count toggle (15 מובילים | הכל) */
+.bc-mode-toggle {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.bc-mode-btn {
+  padding: 5px 10px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.bc-mode-btn + .bc-mode-btn {
+  border-right: 1px solid rgba(255,255,255,0.12);
+}
+
+.bc-mode-btn--on {
+  background: rgba(255,255,255,0.13);
+  color: #fff;
+  cursor: default;
+}
+
+/* ── Dropdown (MC + Time) ───────────────────────────────────── */
+.bc-dd-wrap {
+  position: relative;
+}
+
+.bc-dd-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.75);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.14s, border-color 0.14s;
+}
+.bc-dd-btn:hover {
+  background: rgba(255,255,255,0.11);
+  border-color: rgba(255,255,255,0.28);
+}
+.bc-dd-btn--dim {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.bc-dd-arrow {
+  font-size: 9px;
+  opacity: 0.6;
+}
+
+/* Dropdown popup */
+.bc-dd-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 999;
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+  min-width: 80px;
+  animation: bc-dd-in 0.12s ease;
+}
+
+@keyframes bc-dd-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.bc-dd-item {
+  display: block;
+  width: 100%;
+  padding: 7px 14px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.6);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+.bc-dd-item:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+.bc-dd-item--on {
+  background: rgba(30,144,255,0.18);
+  color: #90caf9;
+}
+
+/* ── Row 2: crypto tabs / stocks cap filter ─────────────────── */
+.bc-subrow {
+  padding: 7px 12px 4px;
+}
+
+/* Crypto tabs */
+.bc-tabs {
+  display: flex;
+  gap: 5px;
+}
+
+.bc-tab {
+  padding: 4px 11px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.5);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.05em;
+  transition: all 0.15s;
+}
+
+.bc-tab:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+
+.bc-tab--on {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.4);
+  color: #fff;
+}
+
+/* Market cap filter — 6 options in one row */
+.bc-cap-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.bc-cap-label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.bc-cap-btn {
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.11);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.42);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.13s;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.bc-cap-btn:hover { color: #fff; border-color: rgba(255,255,255,0.28); }
+
+.bc-cap-btn--on {
+  background: rgba(30,144,255,0.22);
+  border-color: rgba(30,144,255,0.5);
+  color: #90caf9;
+  cursor: default;
+}
+
+/* ── Canvas ─────────────────────────────────────────────────── */
+.bc-canvas {
+  width: 100%;
+  height: clamp(300px, 72vw, 500px);
+  display: block;
+  background: #111;
+  border-radius: 4px;
+  touch-action: manipulation;
+}
+
+/* ── States ─────────────────────────────────────────────────── */
+.bc-state {
+  width: 100%;
+  height: clamp(300px, 72vw, 500px);
+  background: #111;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: rgba(255,255,255,0.42);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* error state handled by auto-retry — no manual button needed */
+
+.bc-spinner {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.08);
+  border-top-color: #1e90ff;
+  animation: bc-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes bc-spin { to { transform: rotate(360deg); } }
+
+/* Loading text + animated dots */
+.bc-loading-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+}
+
+.bc-dots {
+  display: inline-flex;
+  gap: 1px;
+  margin-right: 1px;
+}
+
+.bc-dots span {
+  animation: bc-dot-bounce 1.2s ease-in-out infinite;
+  color: #1e90ff;
+  font-size: 18px;
+  line-height: 1;
+}
+.bc-dots span:nth-child(1) { animation-delay: 0s;    }
+.bc-dots span:nth-child(2) { animation-delay: 0.2s;  }
+.bc-dots span:nth-child(3) { animation-delay: 0.4s;  }
+
+@keyframes bc-dot-bounce {
+  0%, 80%, 100% { transform: translateY(0);    opacity: 0.3; }
+  40%           { transform: translateY(-5px); opacity: 1;   }
+}
+
+/* ── Footer ─────────────────────────────────────────────────── */
+.bc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 10px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.bc-live-dot {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4ade80;
+  letter-spacing: 0.04em;
+  animation: bc-blink 1.8s ease-in-out infinite;
+}
+
+@keyframes bc-blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+.bc-credit {
+  font-size: 10px;
+  color: rgba(255,255,255,0.22);
+}
+
+.bc-manual-btn {
+  padding: 6px 13px;
+  border-radius: 99px;
+  border: 1px solid rgba(30,144,255,0.4);
+  background: rgba(13,71,161,0.18);
+  color: #90caf9;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.bc-manual-btn:hover {
+  background: rgba(30,144,255,0.2);
+  color: #fff;
+}
+
+/* ── Bottom timeframe bar (centered) ── */
+.bc-tbar {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.bc-tbtn {
+  min-width: 30px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.6);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.13s;
+}
+.bc-tbtn:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+.bc-tbtn--on { background: rgba(52,211,153,0.18); border-color: rgba(52,211,153,0.55); color: #34d399; }
+.bc-tbtn--mc.bc-tbtn--on { background: rgba(212,175,55,0.18); border-color: rgba(212,175,55,0.55); color: #ffcf00; }
+
+/* ── Top timeframe square (opens dropdown) ── */
+.bc-tf-dd { position: relative; flex-shrink: 0; }
+.bc-tf-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(52,211,153,0.45);
+  background: rgba(52,211,153,0.12);
+  color: #34d399;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bc-tf-btn:hover { background: rgba(52,211,153,0.2); }
+
+/* Refresh button (footer) */
+.bc-refresh-btn {
+  padding: 6px 9px;
+  border-radius: 99px;
+  border: 1px solid var(--border, #2a2a3a);
+  background: var(--bg-card, #1a1a26);
+  color: var(--text-secondary, #a0a0b0);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.bc-refresh-btn:hover { background: var(--bg-hover, #22223a); color: #fff; }
+.bc-refresh-ico { display: inline-block; }
+.bc-refresh-btn--spinning .bc-refresh-ico { animation: bc-spin 0.8s linear infinite; }
+/* Inline refresh inside the filter row — pinned to the visual left (RTL) */
+.bc-refresh-btn--inline { margin-inline-start: auto; padding: 5px 10px; font-size: 11px; }
+
+/* "Speed up loading" button on the cold-start spinner */
+.bc-speedup-btn {
+  margin-top: 4px;
+  padding: 8px 16px;
+  border-radius: 99px;
+  border: 1px solid rgba(30,144,255,0.45);
+  background: rgba(30,144,255,0.16);
+  color: #90caf9;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.bc-speedup-btn:hover { background: rgba(30,144,255,0.28); color: #fff; }
+.bc-speedup-btn:active { transform: scale(0.97); }
+
+/* ── Signal filter row ──────────────────────────────────────── */
+.bc-signal-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px 4px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.bc-signal-row::-webkit-scrollbar { display: none; }
+
+.bc-sig-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.13);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.55);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.14s;
+  flex-shrink: 0;
+}
+.bc-sig-btn:hover {
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+  border-color: rgba(255,255,255,0.28);
+}
+.bc-sig-btn--on {
+  background: rgba(255,200,0,0.12);
+  border-color: rgba(255,200,0,0.40);
+  color: #ffd600;
+  box-shadow: 0 0 8px rgba(255,200,0,0.14);
+}
+
+/* GAINERS — default "no filter" button, green accent */
+.bc-sig-btn--gainers { flex-shrink: 0; }
+.bc-sig-btn--gainers.bc-sig-btn--on {
+  background: rgba(52,211,153,0.14);
+  border-color: rgba(52,211,153,0.45);
+  color: #34d399;
+  box-shadow: 0 0 8px rgba(52,211,153,0.18);
+}
+
+/* ── Vertical timeframe / sizing bar — hugs the right edge of the bubble canvas ── */
+.bc-vbar {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 5px 4px;
+  border-radius: 12px;
+  background: rgba(10,12,20,0.72);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(4px);
+}
+.bc-vbtn {
+  width: 34px;
+  padding: 7px 0;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(255,255,255,0.55);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.13s;
+}
+.bc-vbtn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.bc-vbtn--on {
+  background: rgba(52,211,153,0.18);
+  border-color: rgba(52,211,153,0.5);
+  color: #34d399;
+}
+.bc-vbtn--mc { margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.12); }
+.bc-vbtn--mc.bc-vbtn--on { background: rgba(212,175,55,0.18); border-color: rgba(212,175,55,0.55); color: #ffcf00; }
+
+.bc-sig-active-label {
+  font-size: 10px;
+  color: rgba(255,200,0,0.65);
+  font-weight: 600;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ── Favorites asset button highlight ──────────────────────── */
+.bc-asset-btn:nth-child(3).bc-asset-btn--on {
+  background: rgba(255,214,0,0.18);
+  color: #ffd600;
+}
+
+/* ── Phone layout: 3 rows ─────────────────────────────────────
+   Row 1: [X + רענן]  ………  [⭐ + CRYPTO/STOCKS]
+   Row 2: 15/הכל · 1H · MARKET CAP
+   Row 3: signal buttons (no refresh — it moved up to row 1)         */
+@media (max-width: 600px) {
+  .bc-header   { padding: 7px 7px 0; gap: 6px; }
+  .bc-hdr-left { order: 1; }
+  .bc-asset    { order: 2; }
+  .bc-filters  { order: 3; flex-basis: 100%; flex-wrap: wrap; gap: 6px; }
+  .bc-signal-row { flex-wrap: wrap; overflow-x: visible; }
+}
+
+/* ── Mobile button sizing ───────────────────────────────────── */
+@media (max-width: 480px) {
+  .bc-signal-row  { padding: 6px 7px 4px; gap: 6px; }
+  .bc-footer      { padding: 5px 8px 9px; }
+
+  /* Comfortable, clearly-tappable button sizes */
+  .bc-mode-btn    { padding: 6px 11px; font-size: 12px; }
+  .bc-dd-btn      { padding: 6px 10px; font-size: 12px; }
+  .bc-asset-btn   { padding: 6px 12px; font-size: 13px; }
+  .bc-sig-btn     { padding: 6px 11px; font-size: 11px; }
+  .bc-manual-btn  { padding: 6px 11px; font-size: 11px; }
+  .bc-live-dot    { font-size: 9px; }
+  .bc-credit      { font-size: 9px; }
+
+  /* Canvas height — leaves room for the wrapped control rows above */
+  .bc-canvas,
+  .bc-state {
+    height: clamp(260px, calc(100vw - 40px), 460px);
+  }
+}
+
+@media (max-width: 360px) {
+  .bc-dd-btn { padding: 3px 6px; font-size: 9px; }
+  .bc-sig-active-label { display: none; } /* save space on very small screens */
+}

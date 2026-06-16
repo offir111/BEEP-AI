@@ -1,0 +1,56 @@
+/* RobotNavTabs — quick robot navigation bar, beep-ai style */
+
+.rnt-nav {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 10px 0 12px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex-shrink: 0;
+}
+.rnt-nav::-webkit-scrollbar { display: none; }
+
+.rnt-tab {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+
+  /* inactive state */
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.rnt-tab:hover:not(.rnt-tab--on) {
+  background: var(--bg-hover);
+  border-color: rgba(212,175,55,0.3);
+  color: var(--text-primary);
+}
+
+/* active state — gold accent matching navbar */
+.rnt-tab--on {
+  background: rgba(212,175,55,0.12);
+  border: 1px solid rgba(212,175,55,0.4);
+  color: var(--accent-gold);
+  box-shadow: 0 2px 12px rgba(212,175,55,0.2);
+  cursor: default;
+}
+
+.rnt-arrow {
+  font-size: 0.65rem;
+  opacity: 0.55;
+  margin-top: 1px;
+}
+
+@media (max-width: 480px) {
+  .rnt-tab { font-size: 0.75rem; padding: 6px 11px; }
+}

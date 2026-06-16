@@ -1,0 +1,106 @@
+/* AlertChart.css — Lightweight Charts container */
+
+.alert-chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #050505;
+  overflow: hidden;
+}
+
+.alert-chart-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── תווית מחיר נוכחי — זהה לאפליקציית האם (pc-price-label) ── */
+.pc-price-label {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  background: #000000;
+  border: 1px solid rgba(212,175,55,0.50);
+  border-radius: 7px;
+  padding: 8px 10px;
+}
+.pc-price-sym {
+  color: #FFE447;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+}
+.pc-price-val {
+  color: #ffffff;
+  font-size: 1.35rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* Loading / error overlay */
+.alert-chart-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(15, 15, 26, 0.75);
+  color: #6b7280;
+  font-size: 0.85rem;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Spinner */
+.alert-chart-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #1e1e3a;
+  border-top-color: #D4AF37;
+  border-radius: 50%;
+  animation: acSpin 0.8s linear infinite;
+}
+@keyframes acSpin {
+  to { transform: rotate(360deg); }
+}
+
+.alert-chart-err {
+  color: #ef4444;
+  font-size: 0.8rem;
+}
+
+/* ── Floating price badge on each alert line ─────────────────── */
+.acl-badge {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid #D4AF37;    /* overridden per-line via style.borderColor */
+  background: rgba(10, 10, 20, 0.88);
+  backdrop-filter: blur(4px);
+  pointer-events: none;         /* don't block chart mouse events */
+  z-index: 5;
+  white-space: nowrap;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.55);
+}
+
+.acl-price {
+  font-family: 'Courier New', monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #f0f0f0;
+}

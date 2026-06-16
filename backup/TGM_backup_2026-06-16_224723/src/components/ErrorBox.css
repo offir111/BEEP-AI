@@ -1,0 +1,27 @@
+.errbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md, 10px);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #fca5a5;
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+.errbox-icon { font-size: 1rem; flex-shrink: 0; }
+.errbox-msg  { flex: 1; min-width: 0; }
+.errbox-retry {
+  padding: 5px 12px;
+  border-radius: var(--radius-sm, 6px);
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.errbox-retry:hover { background: rgba(239, 68, 68, 0.25); }
