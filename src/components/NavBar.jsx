@@ -3,12 +3,10 @@ import './NavBar.css';
 
 // BUG-01: Alerts added to main pages (desktop + mobile)
 // BUG-01: Mobile "More" drawer added for all secondary tools
+// נשארים רק בית + חדשות; "רובוטים" (התפריט) משובץ ביניהם.
 const MAIN_PAGES = [
-  { id: 'home',   icon: '🏠', label: 'בית'    },
-  { id: 'crypto', icon: '₿',  label: 'קריפטו' },
-  { id: 'news',   icon: '📰', label: 'חדשות'  },
-  { id: 'heatmap', icon: '🗺️', label: 'מפת חום' },
-  { id: 'alerts', icon: '🔔', label: 'התראות' },
+  { id: 'home', icon: '🏠', label: 'בית'   },
+  { id: 'news', icon: '📰', label: 'חדשות' },
 ];
 
 const MORE_PAGES = [
@@ -55,30 +53,27 @@ export default function NavBar({ page, navigate }) {
     <>
       {/* ── Desktop top nav ── */}
       <nav className="navbar navbar--top" role="navigation" aria-label="ניווט ראשי">
-        {MAIN_PAGES.map(p => (
-          <button
-            key={p.id}
-            className={`nav-item ${page === p.id ? 'nav-item--on' : ''}`}
-            onClick={() => navigate(p.id)}
-            aria-label={p.label}
-            aria-current={page === p.id ? 'page' : undefined}
-          >
-            <span className="nav-icon" aria-hidden="true">{p.icon}</span>
-            <span className="nav-label">{p.label}</span>
-          </button>
-        ))}
+        {/* בית */}
+        <button
+          className={`nav-item ${page === 'home' ? 'nav-item--on' : ''}`}
+          onClick={() => navigate('home')}
+          aria-label="בית"
+          aria-current={page === 'home' ? 'page' : undefined}
+        >
+          <span className="nav-icon" aria-hidden="true">🏠</span>
+          <span className="nav-label">בית</span>
+        </button>
 
-        {/* More dropdown */}
+        {/* רובוטים — דרופדאון (באמצע, בלי אייקון ובלי חץ) */}
         <div className="nav-more-wrap" ref={menuRef}>
           <button
             className={`nav-item nav-more-btn ${moreActive ? 'nav-item--on' : ''} ${open ? 'nav-more-btn--open' : ''}`}
             onClick={() => setOpen(v => !v)}
-            aria-label="כלי מסחר נוספים"
+            aria-label="רובוטים"
             aria-expanded={open}
             aria-haspopup="true"
           >
-            <span className="nav-icon" aria-hidden="true">⚙️</span>
-            <span className="nav-label">רובוטים ▾</span>
+            <span className="nav-label">רובוטים</span>
           </button>
 
           {open && (
@@ -100,6 +95,17 @@ export default function NavBar({ page, navigate }) {
             </div>
           )}
         </div>
+
+        {/* חדשות */}
+        <button
+          className={`nav-item ${page === 'news' ? 'nav-item--on' : ''}`}
+          onClick={() => navigate('news')}
+          aria-label="חדשות"
+          aria-current={page === 'news' ? 'page' : undefined}
+        >
+          <span className="nav-icon" aria-hidden="true">📰</span>
+          <span className="nav-label">חדשות</span>
+        </button>
       </nav>
 
       {/* ── Mobile bottom nav ── */}
