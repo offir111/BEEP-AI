@@ -14,7 +14,7 @@ import QuickAlert from '../components/QuickAlert';
 import './AlertsPage.css';
 
 export default function AlertsPage() {
-  const { alerts, markSeen, editAlert } = useAlerts();
+  const { alerts, markSeen, editAlert, removeAlert } = useAlerts();
 
   const [chartSymbol, setChartSymbol] = useState('BTC');
   const [showDialog,  setShowDialog]  = useState(true);
@@ -46,6 +46,7 @@ export default function AlertsPage() {
           symbol={chartSymbol}
           alerts={symAlerts}
           onAlertPriceChange={(id, price) => editAlert(id, { target: price })}
+          onAlertRemove={removeAlert}
         />
 
         {/* Dialog floats inside the chart box */}
