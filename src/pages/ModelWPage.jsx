@@ -149,9 +149,9 @@ export default function ModelWPage({ navigate }) {
         </div>
       </div>
 
-      {/* Simulation banner */}
+      {/* Purpose banner */}
       <div className="mw-sim-banner">
-        ⚠️ מצב סימולציה — לא עסקאות אמיתיות
+        🤖 Model W עוקב בזמן אמת אחר BTC · ETH · SOL · BNB מ-Binance ומפיק איתות קנייה/החזקה/מכירה לפי תנופת המחיר (יעד 4% · סטופ 2%)
       </div>
 
       {/* Performance stats from GitHub */}

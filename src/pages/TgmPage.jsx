@@ -3,7 +3,7 @@ import RobotNavTabs from '../components/RobotNavTabs';
 import { LIVE_PROVIDERS, MIN_TRADES_FOR_RANK } from '../engine/tgmProviders';
 import { getAllLeads, saveLead, deleteLead, clearAllLeads, newLeadId } from '../engine/tgmDb';
 import { checkLead } from '../engine/tgmEngine';
-import { fetchLiveSignals } from '../engine/tgmTelegram';
+import { fetchLiveSignals, fetchCloudLeads, triggerCloudCron } from '../engine/tgmTelegram';
 import { buildRanking } from '../engine/tgmStats';
 import './TgmPage.css';
 
@@ -51,9 +51,12 @@ export default function TgmPage({ navigate }) {
 
   const [scanning, setScanning] = useState(false); // אינדיקציית עיסוק במשיכה חיה
   const [liveMode, setLiveMode] = useState(false);
+  const [cloudMode, setCloudMode] = useState(false); // ענן מחובר (Redis ב-Vercel)
+  const [lastCron, setLastCron] = useState(null);
 
   const scanningRef = useRef(false);    // מונע משיכות חופפות
   const autoStartedRef = useRef(false); // משיכה ראשונה פעם אחת בטעינה
+  const cloudModeRef = useRef(false);
 
   const reload = useCallback(async () => {
     const all = await getAllLeads();
@@ -78,8 +81,31 @@ export default function TgmPage({ navigate }) {
     }
   }, []);
 
-  // ── מצב חי: משיכת לידים אמיתיים מערוצי טלגרם חינמיים + בדיקה אוטומטית ──
-  const ingestFromTelegram = useCallback(async () => {
+  // ── קריאת לידים מהענן (מצב ענן) ──
+  const refreshFromCloud = useCallback(async (trigger = false) => {
+    if (scanningRef.current) return;
+    scanningRef.current = true;
+    setScanning(true);
+    try {
+      if (trigger) {
+        setStatusMsg('☁️ מפעיל סבב משיכה בענן…');
+        await triggerCloudCron().catch(() => {});
+      }
+      const { leads: cloudLeads = [], lastCron: lc } = await fetchCloudLeads();
+      cloudLeads.sort((a, b) => (b.dateMs || 0) - (a.dateMs || 0));
+      setLeads(cloudLeads);
+      setLastCron(lc || null);
+      setStatusMsg(`☁️ מצב ענן — ${cloudLeads.length} לידים נשמרים בענן (ממשיך לרוץ גם כשהמחשב סגור)`);
+    } catch (e) {
+      setStatusMsg('שגיאה בקריאה מהענן: ' + e.message);
+    } finally {
+      scanningRef.current = false;
+      setScanning(false);
+    }
+  }, []);
+
+  // ── משיכת לידים מטלגרם + בדיקה (מצב מקומי, ללא ענן) ──
+  const ingestLocal = useCallback(async () => {
     if (scanningRef.current) return;
     scanningRef.current = true;
     setScanning(true);
@@ -119,34 +145,52 @@ export default function TgmPage({ navigate }) {
     }
   }, [runCheck]);
 
-  // טעינה ראשונית: ניקוי חד-פעמי של לידים ישנים (דמו/סינתטיים/ספקים שהוסרו),
-  // ואז משיכה אוטומטית מטלגרם בכל כניסה (כדי שהטבלה תתעדכן לבד עם כל הספקים).
+  // משיכה/רענון — בוחר ענן או מקומי לפי המצב.
+  const ingestFromTelegram = useCallback(() => {
+    return cloudModeRef.current ? refreshFromCloud(true) : ingestLocal();
+  }, [refreshFromCloud, ingestLocal]);
+
+  // טעינה ראשונית: אם הענן מחובר — קורא ממנו (עמיד, רץ 24/7).
+  // אחרת — מצב מקומי (IndexedDB + משיכה מהדפדפן).
   useEffect(() => {
     (async () => {
       try {
+        const cloud = await fetchCloudLeads().catch(() => ({ configured: false }));
+        if (cloud.configured) {
+          cloudModeRef.current = true;
+          setCloudMode(true);
+          const cl = (cloud.leads || []).sort((a, b) => (b.dateMs || 0) - (a.dateMs || 0));
+          setLeads(cl);
+          setLastCron(cloud.lastCron || null);
+          setStatusMsg(`☁️ מצב ענן — ${cl.length} לידים נשמרים בענן (ממשיך לרוץ גם כשהמחשב סגור)`);
+          return;
+        }
+        // ── מצב מקומי ──
+        cloudModeRef.current = false;
+        setCloudMode(false);
         let all = await reload();
         const stale = all.filter((l) => l.auto || l.demo || !LIVE_PROVIDERS.includes(l.provider));
         if (stale.length) {
           for (const l of stale) await deleteLead(l.id);
           all = await reload();
-          setStatusMsg(`נוקו ${stale.length} לידים ישנים (דמו/ספקים שהוסרו) — מצב חי בלבד`);
         }
         if (!autoStartedRef.current) {
           autoStartedRef.current = true;
-          ingestFromTelegram(); // משיכה אוטומטית בכל כניסה; הכפילויות מסוננות לפי postId
+          ingestLocal();
         }
       } catch (e) {
         setStatusMsg('שגיאה בטעינת הנתונים: ' + e.message);
       }
     })();
-  }, [reload, ingestFromTelegram]);
+  }, [reload, ingestLocal]);
 
-  // מצב חי: משיכה תקופתית מטלגרם, ללא התערבות.
+  // מצב חי: רענון תקופתי (ענן → קריאה; מקומי → משיכה), ללא התערבות.
   useEffect(() => {
     if (!liveMode) return;
-    const id = setInterval(() => { ingestFromTelegram(); }, TG_LIVE_INTERVAL_MS);
+    const tick = () => (cloudModeRef.current ? refreshFromCloud(false) : ingestLocal());
+    const id = setInterval(tick, TG_LIVE_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [liveMode, ingestFromTelegram]);
+  }, [liveMode, refreshFromCloud, ingestLocal]);
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -188,6 +232,10 @@ export default function TgmPage({ navigate }) {
   };
 
   const handleClearAll = async () => {
+    if (cloudModeRef.current) {
+      setStatusMsg('☁️ במצב ענן הנתונים נשמרים בענן ואינם נמחקים מכאן — זו ההיסטוריה ארוכת-הטווח של הספקים');
+      return;
+    }
     if (!window.confirm('למחוק את כל הלידים? פעולה זו אינה הפיכה.')) return;
     setLiveMode(false);
     await clearAllLeads();
@@ -210,24 +258,33 @@ export default function TgmPage({ navigate }) {
           <h2 className="tgm-title">🛰️ TGM — סורק לידים</h2>
           <p className="tgm-sub">מצב חי — משיכת לידים אמיתיים מערוצי טלגרם חינמיים ובדיקתם מול Binance API</p>
         </div>
-        <div className={`tgm-badge ${scanning ? 'tgm-badge--live' : ''}`}>{scanning ? '📡 פעיל…' : liveMode ? '🔴 מצב חי' : '🟢 מוכן'}</div>
+        <div className={`tgm-badge ${scanning ? 'tgm-badge--live' : ''}`}>
+          {scanning ? '⏳ פעיל…' : cloudMode ? '☁️ ענן' : liveMode ? '🔴 מצב חי' : '🟢 מוכן'}
+        </div>
       </div>
 
       {/* בקרת מצב חי */}
       <div className="tgm-auto-bar">
-        <button className="tgm-btn tgm-btn--add" onClick={() => ingestFromTelegram()} disabled={scanning}>📡 משוך לידים מטלגרם עכשיו</button>
+        <button className="tgm-btn tgm-btn--add" onClick={() => ingestFromTelegram()} disabled={scanning}>
+          {cloudMode ? '☁️ רענן מהענן עכשיו' : '📡 משוך לידים מטלגרם עכשיו'}
+        </button>
         <label className={`tgm-live-toggle ${liveMode ? 'tgm-live-toggle--on' : ''}`}>
           <input type="checkbox" checked={liveMode} onChange={(e) => setLiveMode(e.target.checked)} />
-          <span>🔴 מצב חי — משיכה אוטומטית כל 3 דק׳</span>
+          <span>🔴 רענון אוטומטי כל 3 דק׳</span>
         </label>
         <button className="tgm-btn tgm-btn--clear" onClick={handleClearAll} disabled={scanning}>🗑️ נקה הכל</button>
       </div>
 
       {/* הסבר מקור הנתונים */}
       <div className="tgm-source-note">
-        📡 מצב חי בלבד — לידים אמיתיים מערוצי טלגרם ציבוריים חינמיים, נבדקים אוטומטית מול Binance.
-        ליד טרי מסומן "פתוח" עד שייגע ב-TP/SL או שיחלפו 14 יום. כרגע מקור פעיל אחד: <b>CryptoSignals.org</b> (@cryptosignals);
-        ספקים שאין מהם מקור חינמי שיטתי הוסרו. ערוץ נוסף יתווסף כשיימצא מקור חינמי עם entry/TP/SL מלאים.
+        {cloudMode ? (
+          <>☁️ <b>מצב ענן פעיל</b> — שרת בענן מושך את הערוצים, בודק מול Binance ושומר את כל ההיסטוריה <b>גם כשהמחשב סגור</b>.
+          לידים פתוחים נבדקים מחדש אוטומטית עד הכרעה, כך שבעוד חודש יהיה דירוג אמין לכל ספק.
+          {lastCron && <> · עדכון אחרון: {new Date(lastCron).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</>}</>
+        ) : (
+          <>📡 מצב מקומי — לידים אמיתיים מערוצי טלגרם חינמיים, נבדקים מול Binance. נשמר בדפדפן זה בלבד.
+          (מצב ענן יופעל אוטומטית לאחר פריסה ל-Vercel עם Redis — אז הנתונים יישמרו בענן וימשיכו לרוץ גם כשהמחשב סגור.)</>
+        )}
       </div>
 
       {statusMsg && <div className="tgm-status">{statusMsg}</div>}
