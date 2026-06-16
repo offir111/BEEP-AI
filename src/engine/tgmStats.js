@@ -1,5 +1,5 @@
 // TGM — חישוב טבלת הדירוג מתוך הלידים שנבדקו.
-import { LIVE_PROVIDERS, MIN_TRADES_FOR_RANK } from './tgmProviders';
+import { LIVE_PROVIDERS, MIN_TRADES_FOR_RANK, MIN_SAMPLE_FOR_RATE } from './tgmProviders';
 
 /**
  * מקבל מערך לידים, מחזיר שורות מסכמות לכל ספק חי, ממוינות לפי אחוז הצלחה.
@@ -22,7 +22,11 @@ export function buildRanking(leads, providers = LIVE_PROVIDERS) {
 
   const rows = [...byProvider.values()].map((r) => ({
     ...r,
+    // אחוז הצלחה רק על טריידים שהוכרעו תקין (win/loss). שגיאות לא נכללו ב-trades מלכתחילה.
     successRate: r.trades > 0 ? (r.wins / r.trades) * 100 : 0,
+    // האם להציג אחוז בכלל: רק כשהמדגם שהוכרע ≥ MIN_SAMPLE_FOR_RATE.
+    // מתחת לזה → "מדגם קטן מדי", כדי שלא יוצג 100% שקרי ממדגם זעיר/אפס.
+    showRate: r.trades >= MIN_SAMPLE_FOR_RATE,
     eligible: r.trades >= MIN_TRADES_FOR_RANK,
   }));
 

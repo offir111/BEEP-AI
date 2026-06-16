@@ -11,5 +11,9 @@ export const LIVE_PROVIDERS = [
 // מינימום טריידים שמזכה ספק בדירוג רשמי.
 export const MIN_TRADES_FOR_RANK = 20;
 
+// מינימום טריידים שהוכרעו תקין כדי להציג בכלל אחוז הצלחה.
+// מתחת לזה מציגים "מדגם קטן מדי" במקום אחוז — מונע 100% שקרי ממדגם זעיר.
+export const MIN_SAMPLE_FOR_RATE = 10;
+
 // חלון בדיקה מקסימלי לכל ליד (14 יום) במ"ש.
 export const CHECK_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;

@@ -58,6 +58,38 @@
   padding: 8px 12px;
 }
 
+/* ── מתג תצוגה (מעבדת מנועים / סורק טלגרם) ── */
+.tgm-view-switch {
+  display: flex;
+  gap: 8px;
+}
+.tgm-view-btn {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tgm-view-btn:hover { color: var(--text-primary); }
+.tgm-view-btn--on {
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+  background: rgba(212, 175, 55, 0.1);
+  box-shadow: 0 0 14px rgba(212, 175, 55, 0.08);
+}
+
+/* תג "מדגם קטן מדי" בטבלת הדירוג הקיימת */
+.tgm-small-sample {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
 /* ── Auto-scan control bar ── */
 .tgm-auto-bar {
   display: flex;

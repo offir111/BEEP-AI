@@ -1,0 +1,265 @@
+/* TGM · מעבדת מנועים — עיצוב בשפה הקיימת (dark, gold accents, RTL). */
+
+.tge-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* כותרת */
+.tge-header {
+  background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
+  border: 1px solid var(--border);
+  border-right: 3px solid var(--accent-gold);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+}
+.tge-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+  margin-bottom: 4px;
+}
+.tge-sub { font-size: 0.76rem; color: var(--text-secondary); line-height: 1.5; }
+.tge-sub b { color: var(--text-primary); }
+
+/* בקרה */
+.tge-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.tge-btn {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.tge-btn:hover:not(:disabled) { border-color: var(--accent-gold); }
+.tge-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.tge-btn--gold {
+  color: #0b0b10;
+  background: var(--accent-gold);
+  border-color: var(--accent-gold);
+}
+.tge-btn--gold:hover:not(:disabled) { filter: brightness(1.08); }
+.tge-btn--danger { color: var(--accent-red); border-color: rgba(239, 68, 68, 0.4); }
+.tge-btn--danger:hover:not(:disabled) { border-color: var(--accent-red); }
+
+.tge-month {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  margin-inline-start: auto;
+}
+.tge-month select {
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
+
+.tge-status {
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  background: rgba(74, 158, 255, 0.08);
+  border: 1px solid rgba(74, 158, 255, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+
+/* טאבים */
+.tge-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tge-tab {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tge-tab:hover { color: var(--text-primary); }
+.tge-tab--on {
+  color: var(--accent-gold);
+  border-color: var(--accent-gold);
+  background: rgba(212, 175, 55, 0.1);
+}
+
+/* שלושה מספרים */
+.tge-triple {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.tge-triple-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 10px;
+  text-align: center;
+  background: var(--bg-card);
+}
+.tge-triple-num { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+.tge-triple-lbl { font-size: 0.72rem; color: var(--text-secondary); margin-top: 6px; }
+.tge-triple--win { border-color: rgba(74, 222, 128, 0.4); background: rgba(74, 222, 128, 0.06); }
+.tge-triple--win .tge-triple-num { color: var(--accent-green); }
+.tge-triple--loss { border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.06); }
+.tge-triple--loss .tge-triple-num { color: var(--accent-red); }
+.tge-triple--err { border-color: rgba(212, 175, 55, 0.4); background: rgba(212, 175, 55, 0.06); }
+.tge-triple--err .tge-triple-num { color: var(--accent-gold); }
+
+/* KPIs */
+.tge-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+.tge-kpi {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  background: var(--bg-card);
+  text-align: center;
+}
+.tge-kpi-val { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); }
+.tge-kpi-val--strong { font-size: 1.25rem; color: var(--accent-gold); }
+.tge-kpi-lbl { font-size: 0.68rem; color: var(--text-secondary); margin-top: 4px; }
+.tge-dim { color: var(--text-secondary) !important; font-weight: 600 !important; font-size: 0.9rem !important; }
+
+/* כותרת קטע */
+.tge-section-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  margin-top: 6px;
+}
+
+/* טבלת דירוג */
+.tge-table-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.tge-table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+.tge-table th {
+  text-align: center;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 9px 6px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.tge-table td {
+  text-align: center;
+  padding: 9px 6px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+}
+.tge-table tr:last-child td { border-bottom: none; }
+.tge-row--dim td { opacity: 0.6; }
+.tge-medal {
+  font-weight: 800;
+  color: var(--accent-gold);
+  background: rgba(212, 175, 55, 0.12);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+.tge-dash { color: var(--text-secondary); }
+.tge-table-foot {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  text-align: center;
+}
+
+/* תצוגת מנוע */
+.tge-engine-head {
+  border: 1px solid var(--border);
+  border-right: 3px solid var(--accent-gold);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  background: var(--bg-card);
+}
+.tge-engine-name { font-size: 1rem; font-weight: 800; }
+.tge-engine-desc { font-size: 0.74rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.5; }
+
+/* לידים */
+.tge-leads { display: flex; flex-direction: column; gap: 8px; }
+.tge-lead {
+  border: 1px solid var(--border);
+  border-right: 3px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--bg-card);
+}
+.tge-lead--win { border-right-color: var(--accent-green); }
+.tge-lead--loss { border-right-color: var(--accent-red); }
+.tge-lead--error { border-right-color: var(--accent-gold); background: rgba(212, 175, 55, 0.04); }
+
+.tge-lead-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tge-lead-sym { font-size: 0.9rem; font-weight: 800; color: var(--text-primary); }
+.tge-lead-co { font-size: 0.72rem; color: var(--text-secondary); }
+.tge-lead-reason { font-size: 0.74rem; color: var(--text-secondary); margin: 6px 0; line-height: 1.4; }
+.tge-lead-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  align-items: center;
+}
+.tge-lead-row b { color: var(--text-primary); }
+.tge-lead-exit { font-size: 0.68rem; opacity: 0.85; }
+.tge-lead-date { margin-inline-start: auto; }
+.tge-lead-err { font-size: 0.72rem; color: var(--accent-gold); margin-top: 6px; }
+
+.tge-chip {
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 2px 9px;
+  margin-inline-start: auto;
+}
+.tge-chip--win { color: var(--accent-green); background: rgba(74, 222, 128, 0.12); }
+.tge-chip--loss { color: var(--accent-red); background: rgba(239, 68, 68, 0.12); }
+.tge-chip--err { color: var(--accent-gold); background: rgba(212, 175, 55, 0.14); }
+
+.tge-empty, .tge-more {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 14px;
+}
+.tge-disclaimer {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 10px;
+  border-top: 1px dashed var(--border);
+  margin-top: 4px;
+}
+
+@media (max-width: 540px) {
+  .tge-triple-num { font-size: 1.4rem; }
+  .tge-table { font-size: 0.68rem; }
+  .tge-month { margin-inline-start: 0; }
+}

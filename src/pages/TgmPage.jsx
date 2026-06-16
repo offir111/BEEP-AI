@@ -5,6 +5,7 @@ import { getAllLeads, saveLead, deleteLead, clearAllLeads, newLeadId } from '../
 import { checkLead } from '../engine/tgmEngine';
 import { fetchLiveSignals, fetchCloudLeads, triggerCloudCron } from '../engine/tgmTelegram';
 import { buildRanking } from '../engine/tgmStats';
+import TgmEngines from '../tgm/TgmEngines';
 import './TgmPage.css';
 
 const COMMON_ASSETS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 'DOGE/USDT'];
@@ -49,6 +50,7 @@ export default function TgmPage({ navigate }) {
   const [busy, setBusy] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
 
+  const [view, setView] = useState('engines'); // 'engines' = מעבדת המנועים החדשה · 'live' = סורק הטלגרם הקיים
   const [scanning, setScanning] = useState(false); // אינדיקציית עיסוק במשיכה חיה
   const [liveMode, setLiveMode] = useState(false);
   const [cloudMode, setCloudMode] = useState(false); // ענן מחובר (Redis ב-Vercel)
@@ -252,6 +254,20 @@ export default function TgmPage({ navigate }) {
     <div className="tgm-wrap" dir="rtl">
       <RobotNavTabs currentPage="tgm" navigate={navigate} />
 
+      {/* מתג תצוגה: מעבדת המנועים החדשה מול סורק הטלגרם הקיים */}
+      <div className="tgm-view-switch">
+        <button className={`tgm-view-btn ${view === 'engines' ? 'tgm-view-btn--on' : ''}`} onClick={() => setView('engines')}>
+          🧪 מעבדת מנועים
+        </button>
+        <button className={`tgm-view-btn ${view === 'live' ? 'tgm-view-btn--on' : ''}`} onClick={() => setView('live')}>
+          📡 סורק טלגרם (חי)
+        </button>
+      </div>
+
+      {view === 'engines' && <TgmEngines />}
+
+      {view === 'live' && (
+       <>
       {/* Header */}
       <div className="tgm-header">
         <div>
@@ -313,7 +329,9 @@ export default function TgmPage({ navigate }) {
                     )}
                   </td>
                   <td>
-                    {row.trades > 0 ? <span style={{ color: pctColor, fontWeight: 800 }}>{sr.toFixed(1)}%</span> : <span className="tgm-rank-dash">—</span>}
+                    {row.showRate
+                      ? <span style={{ color: pctColor, fontWeight: 800 }}>{sr.toFixed(1)}%</span>
+                      : <span className="tgm-small-sample" title="נדרשים ≥10 טריידים שהוכרעו כדי להציג אחוז הצלחה">מדגם קטן מדי</span>}
                   </td>
                 </tr>
               );
@@ -403,6 +421,8 @@ export default function TgmPage({ navigate }) {
 
       {/* Disclaimer */}
       <div className="tgm-disclaimer">⚠️ מידע ומחקר בלבד, לא ייעוץ השקעות.</div>
+       </>
+      )}
     </div>
   );
 }
