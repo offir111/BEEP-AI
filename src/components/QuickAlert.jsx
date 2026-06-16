@@ -8,6 +8,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAlerts } from '../context/AlertsContext';
+import { apiUrl } from '../utils/apiBase';
 import './QuickAlert.css';
 
 /* ── Step-size logic (1:1 from S.T.B) ─────────────────────── */
@@ -56,8 +57,8 @@ export default function QuickAlert({
     setLoadingPrice(true);
     const isCrypto = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','DOT','AVAX','MATIC'].includes(symbol.toUpperCase());
     (isCrypto
-      ? fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol.toUpperCase()}USDT`).then(r=>r.json()).then(d=>parseFloat(d.price))
-      : fetch(`/api/market?symbol=${encodeURIComponent(symbol)}`).then(r=>r.json()).then(d=>d.price ? parseFloat(d.price) : null)
+      ? fetch(apiUrl(`/api/binance?ep=ticker/price&symbol=${symbol.toUpperCase()}USDT`)).then(r=>r.json()).then(d=>parseFloat(d.price))
+      : fetch(apiUrl(`/api/market?symbol=${encodeURIComponent(symbol)}`)).then(r=>r.json()).then(d=>d.price ? parseFloat(d.price) : null)
     ).then(p => { if (!cancelled && p) { setLivePrice(p); setLoadingPrice(false); } })
      .catch(() => { if (!cancelled) setLoadingPrice(false); });
     return () => { cancelled = true; };

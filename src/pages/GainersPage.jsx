@@ -40,9 +40,10 @@ export default function GainersPage() {
   const [rows,    setRows]    = useState([]);
   const [stocks,  setStocks]  = useState([]);
   const [loading, setLoading] = useState(true);
-  const [alertSym, setAlertSym] = useState(null);
-  const [alertCg,  setAlertCg]  = useState(null);
-  const [showBox,  setShowBox]  = useState(false);
+  const [alertSym,   setAlertSym]   = useState(null);
+  const [alertCg,    setAlertCg]    = useState(null);
+  const [alertPrice, setAlertPrice] = useState(null);
+  const [showBox,    setShowBox]    = useState(false);
   const { alerts } = useAlerts();
 
   const prevRef = useRef({});
@@ -101,7 +102,7 @@ export default function GainersPage() {
   }, [mode, rows, stocks, sortKey]);
 
   const switchMode = (m) => { setMode(m); setLoading(true); };
-  const openDetail = (r) => { setAlertSym(r.sym); setAlertCg(r.id || null); setShowBox(false); };
+  const openDetail = (r) => { setAlertSym(r.sym); setAlertCg(r.id || null); setAlertPrice(r.price ?? null); setShowBox(false); };
 
   return (
     <div className="gn-wrap" dir="rtl">
@@ -153,9 +154,11 @@ export default function GainersPage() {
       {alertSym && (
         <div className="gn-detail-overlay" onClick={() => setAlertSym(null)}>
           <div className="gn-detail-box" onClick={e => e.stopPropagation()}>
-            <div className="gn-detail-iframe">
-              <AlertChartPanel symbol={alertSym} isCrypto={mode === 'crypto'} defaultTf="1D" />
-            </div>
+            {!showBox && (
+              <div className="gn-detail-iframe">
+                <AlertChartPanel symbol={alertSym} isCrypto={mode === 'crypto'} defaultTf="1D" />
+              </div>
+            )}
             <button className="gn-detail-x" onClick={() => setAlertSym(null)} aria-label="סגור גרף">✕</button>
             {!showBox && (
               <button className="gn-detail-bell" onClick={() => setShowBox(true)}>
@@ -167,7 +170,7 @@ export default function GainersPage() {
                 )}
               </button>
             )}
-            {showBox && <QuickAlert contained symbol={alertSym} onClose={() => setShowBox(false)} />}
+            {showBox && <QuickAlert contained symbol={alertSym} currentPrice={alertPrice} onClose={() => setShowBox(false)} />}
           </div>
         </div>
       )}
