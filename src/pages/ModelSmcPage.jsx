@@ -136,7 +136,7 @@ export default function ModelSmcPage({ navigate }) {
             גרף {selected.symbol} — {selected.name} — 1D
           </div>
           <div className="smc-chart-container">
-            <AlertChartPanel symbol={selected.symbol} isCrypto={false} interval="1d" />
+            <AlertChartPanel symbol={selected.symbol} isCrypto={false} defaultTf="1D" />
           </div>
         </div>
       )}

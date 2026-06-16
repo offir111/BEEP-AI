@@ -213,7 +213,7 @@ export default function ModelBitPage({ navigate }) {
       <div className="mb-chart-wrap">
         <div className="mb-chart-title">גרף BTC/USDT — 1H</div>
         <div className="mb-chart-container">
-          <AlertChartPanel symbol="BTC" isCrypto interval="1h" />
+          <AlertChartPanel symbol="BTC" isCrypto defaultTf="1h" />
         </div>
       </div>
 

@@ -343,7 +343,7 @@ export default function ModelGridPage({ navigate }) {
       <div className="mg-chart-wrap">
         <div className="mg-chart-title">גרף BTC/USDT — 15M</div>
         <div className="mg-chart-container">
-          <AlertChartPanel symbol="BTC" isCrypto interval="15m" />
+          <AlertChartPanel symbol="BTC" isCrypto defaultTf="15m" />
         </div>
       </div>
 

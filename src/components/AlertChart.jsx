@@ -19,11 +19,11 @@ const BINANCE = {
   BSOL: 'BSOLUSDT', KEEL: 'KEELBTC',
 };
 
-async function fetchCandles(symbol, isCrypto, cgId, interval = '1d') {
+async function fetchCandles(symbol, isCrypto, cgId, interval = '1d', limit = 200) {
   const s = symbol.toUpperCase();
   const pair = BINANCE[s] || (isCrypto ? `${s}USDT` : null);
   if (pair) {
-    const r = await fetch(`/api/crypto-candles?symbol=${pair}&interval=${interval}${cgId ? `&cg=${encodeURIComponent(cgId)}` : ''}`);
+    const r = await fetch(`/api/crypto-candles?symbol=${pair}&interval=${interval}&limit=${limit}${cgId ? `&cg=${encodeURIComponent(cgId)}` : ''}`);
     if (!r.ok) return [];
     const d = await r.json();
     return Array.isArray(d.candles) ? d.candles : [];
@@ -69,7 +69,7 @@ function makeChartOpts(w, h) {
 
 const PRICE_AXIS_PX = 75;
 
-export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, onAlertRemove, isCrypto, cgId, interval = '1d' }) {
+export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, onAlertRemove, isCrypto, cgId, interval = '1d', limit = 200 }) {
   const containerRef     = useRef(null);   // chart canvas div (= chartDivRef)
   const chartRef         = useRef(null);
   const seriesRef        = useRef(null);
@@ -244,7 +244,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
     if (!chartReady || !seriesRef.current) return;
     setLoading(true); setError(false);
     let cancelled = false;
-    fetchCandles(symbol, isCrypto, cgId, interval)
+    fetchCandles(symbol, isCrypto, cgId, interval, limit)
       .then(candles => {
         if (cancelled || symRef.current !== symbol || !seriesRef.current) return;
         if (!candles.length) { setError(true); return; }
@@ -265,7 +265,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, chartReady, interval]);
+  }, [symbol, chartReady, interval, limit]);
 
   // ── recompute positions whenever alerts change ───────────────
   useEffect(() => { if (chartReady) recompute(); }, [alerts, chartReady, recompute]);

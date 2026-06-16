@@ -72,7 +72,7 @@
   background: var(--bg-card);
   color: var(--text-primary);
   transition: transform 0.12s ease, filter 0.12s ease;
-  overflow: hidden;
+  overflow: visible;   /* כדי שהבאדג' בפינה לא ייחתך */
 }
 .pf-tile:hover   { filter: brightness(1.12); }
 .pf-tile:active  { transform: scale(0.96); }
@@ -118,8 +118,11 @@
 /* Alert-count badge (small circle, top-left corner) */
 .pf-tile-badge {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  /* פינה ימנית-עליונה, רובו בחוץ (כ-20% בלבד בתוך הקוביה) — לא מסתיר את שם המניה */
+  top: -11px;
+  right: -11px;
+  left: auto;
+  z-index: 5;
   min-width: 18px;
   height: 18px;
   padding: 0 4px;

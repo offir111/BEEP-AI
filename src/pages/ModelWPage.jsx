@@ -198,7 +198,7 @@ export default function ModelWPage({ navigate }) {
             גרף {selected.short} — 1H
           </div>
           <div className="mw-chart-container">
-            <AlertChartPanel symbol={selected.short} isCrypto interval="1h" />
+            <AlertChartPanel symbol={selected.short} isCrypto defaultTf="1h" />
           </div>
         </div>
       )}

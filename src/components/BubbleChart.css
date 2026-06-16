@@ -457,21 +457,21 @@
 
 /* Refresh button (footer) */
 .bc-refresh-btn {
-  padding: 6px 12px;
+  padding: 6px 9px;
   border-radius: 99px;
-  border: 1px solid rgba(52,211,153,0.4);
-  background: rgba(52,211,153,0.12);
-  color: #34d399;
-  font-size: 12px;
+  border: 1px solid var(--border, #2a2a3a);
+  background: var(--bg-card, #1a1a26);
+  color: var(--text-secondary, #a0a0b0);
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
   transition: background 0.15s, color 0.15s;
 }
-.bc-refresh-btn:hover { background: rgba(52,211,153,0.2); color: #fff; }
+.bc-refresh-btn:hover { background: var(--bg-hover, #22223a); color: #fff; }
 .bc-refresh-ico { display: inline-block; }
 .bc-refresh-btn--spinning .bc-refresh-ico { animation: bc-spin 0.8s linear infinite; }
 /* Inline refresh inside the filter row — pinned to the visual left (RTL) */

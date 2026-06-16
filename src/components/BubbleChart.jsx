@@ -956,17 +956,12 @@ export default function BubbleChart({ onManualSearch, onClose }) {
       {/* ── Row 1: main controls ── */}
       <div className="bc-header">
 
-        {/* LEFT: X (+ refresh on mobile) */}
+        {/* LEFT: X only */}
         <div className="bc-hdr-left">
           <button className="bc-close-btn" onClick={onClose}>✕</button>
-          <button
-            className={`bc-refresh-btn bc-refresh-m${refreshing ? ' bc-refresh-btn--spinning' : ''}`}
-            onClick={handleRefresh} title="רענן נתונים" aria-label="רענן נתונים">
-            <span className="bc-refresh-ico">⟳</span>{refreshing ? ' מתעדכן' : ' רענן'}
-          </button>
         </div>
 
-        {/* RIGHT: timeframe square (opens menu) + ⭐ favorites + CRYPTO/STOCKS */}
+        {/* RIGHT: timeframe square (opens menu) + refresh (arrow only) + ⭐ favorites + CRYPTO/STOCKS */}
         <div className="bc-asset">
           {asset !== 'favorites' && (
             <div className="bc-dd-wrap bc-tf-dd" ref={timeDdRef}>
@@ -986,6 +981,12 @@ export default function BubbleChart({ onManualSearch, onClose }) {
               )}
             </div>
           )}
+          {/* רענן — חץ בלבד, צמוד לכפתור הזמן */}
+          <button
+            className={`bc-refresh-btn${refreshing ? ' bc-refresh-btn--spinning' : ''}`}
+            onClick={handleRefresh} title="רענן נתונים" aria-label="רענן נתונים">
+            <span className="bc-refresh-ico">⟳</span>
+          </button>
           <div className="bc-asset-toggle bc-fav-toggle">
             <button className={`bc-asset-btn${asset === 'favorites' ? ' bc-asset-btn--on' : ''}`}
               onClick={() => asset !== 'favorites' && handleAsset('favorites')}>⭐</button>

@@ -9,12 +9,13 @@ export default async function handler(req, res) {
   const symbol   = (req.query.symbol || 'BTCUSDT').toUpperCase().replace(/[^A-Z0-9]/g, '');
   const interval = (req.query.interval || '1d');
   const cg       = (req.query.cg || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const limit    = Math.min(Math.max(parseInt(req.query.limit) || 200, 50), 1000);
 
   let candles = [];
 
   // 1) Binance public mirror (proper daily candles for listed pairs)
   try {
-    const r = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=200`);
+    const r = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
     if (r.ok) {
       const raw = await r.json();
       if (Array.isArray(raw)) candles = raw.map(k => ({

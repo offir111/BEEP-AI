@@ -28,8 +28,9 @@ const SYMBOLS = [
 ];
 
 const INTERVALS = [
-  {id:'1',label:'1m'},{id:'5',label:'5m'},{id:'15',label:'15m'},
+  {id:'5',label:'5m'},{id:'15',label:'15m'},
   {id:'60',label:'1h'},{id:'240',label:'4h'},{id:'D',label:'1D'},{id:'W',label:'1W'},
+  {id:'M',label:'1M'},{id:'Y',label:'1Y'},
 ];
 
 function buildTVUrl(sym, exchange, interval) {
@@ -184,7 +185,8 @@ export default function ChartsPage() {
   );
 
   // סמל + טווח-זמן עבור AlertChart (גרף הקנבס הזהה לאפליקציית האם)
-  const BIN_INTERVAL = { '1':'1m','5':'5m','15':'15m','60':'1h','240':'4h','D':'1d','W':'1w' };
+  const BIN_INTERVAL = { '5':'5m','15':'15m','60':'1h','240':'4h','D':'1d','W':'1w','M':'1M','Y':'1d' };
+  const BIN_LIMIT    = { 'Y':365 }; // 1Y = שנה של נרות יומיים
   const chartSym = active.binance ? active.priceApi : (active.priceApi === 'GC=F' ? 'GOLD' : active.priceApi);
 
   return (
@@ -291,6 +293,7 @@ export default function ChartsPage() {
           symbol={chartSym}
           isCrypto={!!active.binance}
           interval={BIN_INTERVAL[interval] || '1d'}
+          limit={BIN_LIMIT[interval] || 200}
           alerts={symAlerts}
           onAlertPriceChange={(id, price) => editAlert(id, { target: price })}
           onAlertRemove={removeAlert}

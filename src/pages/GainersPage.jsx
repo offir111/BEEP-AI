@@ -154,7 +154,7 @@ export default function GainersPage() {
         <div className="gn-detail-overlay" onClick={() => setAlertSym(null)}>
           <div className="gn-detail-box" onClick={e => e.stopPropagation()}>
             <div className="gn-detail-iframe">
-              <AlertChartPanel symbol={alertSym} isCrypto={mode === 'crypto'} interval="1d" />
+              <AlertChartPanel symbol={alertSym} isCrypto={mode === 'crypto'} defaultTf="1D" />
             </div>
             <button className="gn-detail-x" onClick={() => setAlertSym(null)} aria-label="סגור גרף">✕</button>
             {!showBox && (
