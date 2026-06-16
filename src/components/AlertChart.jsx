@@ -81,6 +81,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
   const rafRef           = useRef(null);
   const priceChangeCbRef = useRef(onAlertPriceChange);
   const recomputeRef     = useRef(null);
+  const alertPositionsRef = useRef({});   // עותק עדכני לזיהוי שינוי בהצמדה הרציפה
 
   const [chartReady,     setChartReady]     = useState(false);
   const [loading,        setLoading]        = useState(true);
@@ -93,10 +94,11 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
   useEffect(() => { priceChangeCbRef.current = onAlertPriceChange; }, [onAlertPriceChange]);
   useEffect(() => { alertsRef.current = alerts; }, [alerts]);
 
-  // ── recompute alert Y positions (price → pixel) ──────────────
+  // ── recompute alert Y positions (price → pixel), עם זיהוי שינוי ──
+  // מעדכן state רק כשמשהו זז ביותר מ-0.5px — כך אפשר להריץ בכל פריים בלי הצפה.
   const recompute = useCallback(() => {
     const series = seriesRef.current;
-    if (!series) return;
+    if (!series || dragRef.current) return; // בזמן גרירה — הפיקסלים מונעים מהדלתא, לא מ-priceToCoordinate
     const pos = {};
     alertsRef.current
       .filter(a => !a.triggered)
@@ -104,9 +106,25 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
         const y = series.priceToCoordinate(a.target);
         if (y != null) pos[a.id] = y;
       });
-    setAlertPositions(pos);
+    const prev = alertPositionsRef.current;
+    const pk = Object.keys(prev), nk = Object.keys(pos);
+    let changed = pk.length !== nk.length;
+    if (!changed) {
+      for (const k of nk) { if (Math.abs((prev[k] ?? -1e9) - pos[k]) > 0.5) { changed = true; break; } }
+    }
+    if (changed) { alertPositionsRef.current = pos; setAlertPositions(pos); }
   }, []);
   useEffect(() => { recomputeRef.current = recompute; }, [recompute]);
+
+  // ── הצמדה רציפה לפיקסלים בכל פריים — כך הקווים עוקבים אחרי זום/autoscale ──
+  // (זהו המקבילה האוניברסלית ל-recompute-per-tick שיש באפליקציית האם).
+  useEffect(() => {
+    if (!chartReady) return;
+    let raf;
+    const loop = () => { recomputeRef.current?.(); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [chartReady]);
 
   // ── coordinate helpers ───────────────────────────────────────
   const clientYToChartY = useCallback((clientY) => {
