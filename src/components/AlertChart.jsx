@@ -10,6 +10,7 @@
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart, CandlestickSeries, HistogramSeries, CrosshairMode, ColorType } from 'lightweight-charts';
+import { apiUrl } from '../utils/apiBase';
 import './AlertChart.css';
 
 // ── Binance symbols ───────────────────────────────────────────
@@ -23,13 +24,13 @@ async function fetchCandles(symbol, isCrypto, cgId, interval = '1d', limit = 200
   const s = symbol.toUpperCase();
   const pair = BINANCE[s] || (isCrypto ? `${s}USDT` : null);
   if (pair) {
-    const r = await fetch(`/api/crypto-candles?symbol=${pair}&interval=${interval}&limit=${limit}${cgId ? `&cg=${encodeURIComponent(cgId)}` : ''}`);
+    const r = await fetch(apiUrl(`/api/crypto-candles?symbol=${pair}&interval=${interval}&limit=${limit}${cgId ? `&cg=${encodeURIComponent(cgId)}` : ''}`));
     if (!r.ok) return [];
     const d = await r.json();
     return Array.isArray(d.candles) ? d.candles : [];
   }
   const yf = s === 'GOLD' ? 'GC=F' : s;
-  const r  = await fetch(`/api/candles?symbol=${encodeURIComponent(yf)}&interval=${interval}`);
+  const r  = await fetch(apiUrl(`/api/candles?symbol=${encodeURIComponent(yf)}&interval=${interval}`));
   if (!r.ok) return [];
   const d = await r.json();
   return Array.isArray(d.candles) ? d.candles : [];
