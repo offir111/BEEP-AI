@@ -41,6 +41,9 @@
   margin: 2px 7px;
   background: rgba(255,255,255,0.18);
 }
+/* קירוב הנתונים למרכז — כל עמודה 4 מ"מ פנימה (סה"כ 0.8 ס"מ קרובים יותר) */
+.hp-fng-split .hp-fng-half:first-child { transform: translateX(-4mm); }
+.hp-fng-split .hp-fng-half:last-child  { transform: translateX(4mm); }
 
 /* ── Gauge modal ── */
 .nb-fng-overlay {
