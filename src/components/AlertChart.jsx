@@ -29,7 +29,7 @@ async function fetchCandles(symbol, isCrypto, cgId, interval = '1d', limit = 200
     return Array.isArray(d.candles) ? d.candles : [];
   }
   const yf = s === 'GOLD' ? 'GC=F' : s;
-  const r  = await fetch(`/api/candles?symbol=${encodeURIComponent(yf)}`);
+  const r  = await fetch(`/api/candles?symbol=${encodeURIComponent(yf)}&interval=${interval}`);
   if (!r.ok) return [];
   const d = await r.json();
   return Array.isArray(d.candles) ? d.candles : [];
