@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext, useRef } from 'react';
 import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
-import IframeWithFallback from '../components/IframeWithFallback';
+import AlertChartPanel from '../components/AlertChartPanel';
 import RobotNavTabs from '../components/RobotNavTabs';
 import './ModelWPage.css';
 
@@ -198,12 +198,7 @@ export default function ModelWPage({ navigate }) {
             גרף {selected.short} — 1H
           </div>
           <div className="mw-chart-container">
-            <IframeWithFallback
-              iframeKey={selected.symbol}
-              title={`גרף ${selected.short} שעתי`}
-              src={`https://s.tradingview.com/widgetembed/?symbol=${tvSymbol(selected.short)}&interval=60&theme=dark&locale=he_IL&toolbarbg=12121a&hide_top_toolbar=0&hide_legend=0&saveimage=0`}
-              className="mw-chart-iframe"
-            />
+            <AlertChartPanel symbol={selected.short} isCrypto interval="1h" />
           </div>
         </div>
       )}

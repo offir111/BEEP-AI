@@ -6,7 +6,7 @@
  * BTC live מ-LiveQuoteContext (WebSocket).
  */
 import { useState, useEffect, useCallback, useContext } from 'react';
-import IframeWithFallback from '../components/IframeWithFallback';
+import AlertChartPanel from '../components/AlertChartPanel';
 import RobotNavTabs from '../components/RobotNavTabs';
 import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import './ModelGridPage.css';
@@ -343,11 +343,7 @@ export default function ModelGridPage({ navigate }) {
       <div className="mg-chart-wrap">
         <div className="mg-chart-title">גרף BTC/USDT — 15M</div>
         <div className="mg-chart-container">
-          <IframeWithFallback
-            title="גרף BTC/USDT 15 דקות"
-            src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=15&theme=dark&locale=he_IL&toolbarbg=12121a"
-            className="mg-chart-iframe"
-          />
+          <AlertChartPanel symbol="BTC" isCrypto interval="15m" />
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import IframeWithFallback from '../components/IframeWithFallback';
+import AlertChartPanel from '../components/AlertChartPanel';
 import RobotNavTabs from '../components/RobotNavTabs';
 import './ModelSmcPage.css';
 import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
@@ -136,12 +136,7 @@ export default function ModelSmcPage({ navigate }) {
             גרף {selected.symbol} — {selected.name} — 1D
           </div>
           <div className="smc-chart-container">
-            <IframeWithFallback
-              iframeKey={selected.symbol}
-              title={`גרף ${selected.symbol} יומי`}
-              src={`https://s.tradingview.com/widgetembed/?symbol=NASDAQ:${selected.symbol}&interval=D&theme=dark&locale=he_IL&toolbarbg=12121a`}
-              className="smc-chart-iframe"
-            />
+            <AlertChartPanel symbol={selected.symbol} isCrypto={false} interval="1d" />
           </div>
         </div>
       )}

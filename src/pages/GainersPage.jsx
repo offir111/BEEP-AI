@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAlerts } from '../context/AlertsContext';
 import QuickAlert from '../components/QuickAlert';
-import IframeWithFallback from '../components/IframeWithFallback';
+import AlertChartPanel from '../components/AlertChartPanel';
 import { apiUrl } from '../utils/apiBase';
 import './GainersPage.css';
 
@@ -153,12 +153,9 @@ export default function GainersPage() {
       {alertSym && (
         <div className="gn-detail-overlay" onClick={() => setAlertSym(null)}>
           <div className="gn-detail-box" onClick={e => e.stopPropagation()}>
-            <IframeWithFallback
-              iframeKey={alertSym + mode}
-              src={buildTVUrl(mode === 'crypto' ? `BINANCE:${alertSym}USDT` : alertSym)}
-              title={`גרף ${alertSym}`}
-              className="gn-detail-iframe"
-            />
+            <div className="gn-detail-iframe">
+              <AlertChartPanel symbol={alertSym} isCrypto={mode === 'crypto'} interval="1d" />
+            </div>
             <button className="gn-detail-x" onClick={() => setAlertSym(null)} aria-label="סגור גרף">✕</button>
             {!showBox && (
               <button className="gn-detail-bell" onClick={() => setShowBox(true)}>

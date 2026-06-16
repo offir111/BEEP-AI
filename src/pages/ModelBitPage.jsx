@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useContext } from 'react';
-import IframeWithFallback from '../components/IframeWithFallback';
+import AlertChartPanel from '../components/AlertChartPanel';
 import RobotNavTabs from '../components/RobotNavTabs';
 import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import './ModelBitPage.css';
@@ -213,11 +213,7 @@ export default function ModelBitPage({ navigate }) {
       <div className="mb-chart-wrap">
         <div className="mb-chart-title">גרף BTC/USDT — 1H</div>
         <div className="mb-chart-container">
-          <IframeWithFallback
-            title="גרף BTC/USDT שעתי"
-            src="https://s.tradingview.com/widgetembed/?symbol=BINANCE:BTCUSDT&interval=60&theme=dark&locale=he_IL&toolbarbg=12121a"
-            className="mb-chart-iframe"
-          />
+          <AlertChartPanel symbol="BTC" isCrypto interval="1h" />
         </div>
       </div>
 
