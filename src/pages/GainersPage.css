@@ -101,10 +101,25 @@
 .gn-price { font-size: 0.76rem; font-weight: 600; color: rgba(255,255,255,0.85); text-align: left; border-radius: 5px; padding: 1px 3px; }
 .gn-mc    { font-size: 0.7rem; font-weight: 600; color: rgba(255,255,255,0.5); text-align: center; }
 
-.gn-c     { font-size: 0.72rem; font-weight: 700; text-align: center; }
+.gn-c     { font-size: 0.72rem; font-weight: 700; text-align: center; white-space: nowrap; }
 .gn-up    { color: #34d399; }
 .gn-dn    { color: #f87171; }
 .gn-c--na { color: rgba(255,255,255,0.25); }
+.gn-sym, .gn-price, .gn-mc { white-space: nowrap; }
+
+/* ── Horizontal scroll wrapper (header + rows scroll together) ── */
+.gn-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.gn-scroll::-webkit-scrollbar { height: 6px; }
+.gn-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 3px; }
+
+/* On narrow screens give every cell a fixed width so values never overlap;
+   the table overflows and scrolls left-right instead of squashing. */
+@media (max-width: 640px) {
+  .gn-head, .gn-row {
+    grid-template-columns: 24px 50px 56px 64px 48px repeat(5, 54px);
+    min-width: max-content;
+  }
+}
 
 /* ── Detail overlay: alert box on top + chart below ── */
 .gn-detail-overlay {

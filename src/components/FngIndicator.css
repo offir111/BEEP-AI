@@ -15,29 +15,25 @@
 }
 .hp-fng-btn:hover { border-color: rgba(255,255,255,0.3); }
 .hp-fng-cap { font-size: 1.16rem; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }
+/* שתי שורות מרוכזות: מספר מימין, מילה משמאל — סימטרי לשאר הכפתורים */
 .hp-fng-split {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  width: 100%;
-  justify-content: center;
-}
-.hp-fng-half {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-  flex: 1;
-  min-width: 0;
+  gap: 2px;
+  width: 100%;
 }
-.hp-fng-half-lbl { font-family: 'Rubik','Inter',sans-serif; font-weight: 500; font-size: 0.5rem; letter-spacing: 0.5px; color: rgba(255,255,255,0.55); }
-.hp-fng-half-val { font-size: 1.05rem; font-weight: 800; line-height: 1; }
-.hp-fng-divider {
-  width: 1px;
-  align-self: stretch;
-  margin: 2px 4px;
-  background: rgba(255,255,255,0.14);
+.hp-fng-half {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
 }
+.hp-fng-half-val { font-size: 1rem; font-weight: 800; line-height: 1; min-width: 22px; text-align: right; }
+.hp-fng-half-lbl { font-family: 'Rubik','Inter',sans-serif; font-weight: 600; font-size: 0.6rem; letter-spacing: 0.5px; color: rgba(255,255,255,0.6); min-width: 48px; text-align: left; }
+.hp-fng-divider { display: none; }
 
 /* ── Gauge modal ── */
 .nb-fng-overlay {
