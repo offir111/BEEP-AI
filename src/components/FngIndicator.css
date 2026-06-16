@@ -36,10 +36,11 @@
 .hp-fng-half-val { font-size: 1.05rem; font-weight: 800; line-height: 1; text-align: center; width: 100%; }
 .hp-fng-half-lbl { font-family: 'Rubik','Inter',sans-serif; font-weight: 600; font-size: 0.5rem; letter-spacing: 0.5px; color: #ffffff; text-align: center; width: 100%; }
 .hp-fng-divider {
-  width: 1px;
-  align-self: stretch;
-  margin: 2px 7px;
-  background: rgba(255,255,255,0.18);
+  width: 2px;
+  align-self: stretch;       /* גובה מלא — יורד עד מילות STOCKS/CRYPTO */
+  margin: 0 7px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 1px;
 }
 /* קירוב הנתונים למרכז — כל עמודה 4 מ"מ פנימה (סה"כ 0.8 ס"מ קרובים יותר) */
 .hp-fng-split .hp-fng-half:first-child { transform: translateX(-4mm); }
