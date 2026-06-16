@@ -9,8 +9,20 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
+.gn-filter-note {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.55);
+  text-align: center;
+  padding: 5px 10px;
+  margin-bottom: 8px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  line-height: 1.5;
+}
+.gn-filter-note b { color: #ffcf00; font-weight: 700; }
 .gn-tab {
   flex: 1;
   padding: 10px 0;

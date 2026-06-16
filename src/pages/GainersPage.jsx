@@ -113,6 +113,13 @@ export default function GainersPage() {
         <span className="gn-live"><span className="gn-live-dot" />LIVE</span>
       </div>
 
+      {/* שורת הסבר — הפילטר הפעיל + המקור */}
+      <div className="gn-filter-note">
+        {mode === 'stocks'
+          ? <>🇺🇸 מניות אמריקאיות בלבד · ווליום מעל 300,000 · מחיר מעל $2 · <b>TradingView Gainers</b></>
+          : <>₿ קריפטו · שווי שוק מעל $10M · <b>CoinGecko Gainers</b></>}
+      </div>
+
       {/* Scrollable table (header + rows share columns; scrolls left-right on mobile) */}
       <div className="gn-scroll">
       {/* Column header — timeframe columns are clickable to sort */}
