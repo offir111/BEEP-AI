@@ -150,7 +150,6 @@ export default function FngIndicator() {
             <span className="hp-fng-half-lbl">CRYPTO</span>
           </div>
         </div>
-        <span className="hp-fng-cap">F&amp;G</span>
       </button>
       {open && <FngModal cryptoSeries={cryptoSeries} stockVal={stockVal} stockLbl={stockLbl} onClose={() => setOpen(false)} />}
     </>

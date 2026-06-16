@@ -20,16 +20,21 @@
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 0;
+  width: 100%;
 }
 .hp-fng-half {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 1px;
+  flex: 1;
+  min-width: 0;
 }
-.hp-fng-half-val { font-size: 1rem; font-weight: 800; line-height: 1; text-align: center; }
-.hp-fng-half-lbl { font-family: 'Rubik','Inter',sans-serif; font-weight: 600; font-size: 0.5rem; letter-spacing: 0.5px; color: rgba(255,255,255,0.6); text-align: center; }
+.hp-fng-half-val { font-size: 1.05rem; font-weight: 800; line-height: 1; text-align: center; width: 100%; }
+.hp-fng-half-lbl { font-family: 'Rubik','Inter',sans-serif; font-weight: 600; font-size: 0.5rem; letter-spacing: 0.5px; color: #ffffff; text-align: center; width: 100%; }
 .hp-fng-divider {
   width: 1px;
   align-self: stretch;
