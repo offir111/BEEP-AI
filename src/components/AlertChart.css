@@ -4,13 +4,44 @@
   position: relative;
   width: 100%;
   height: 100%;
-  background: #0f0f1a;
+  background: #050505;
   overflow: hidden;
 }
 
 .alert-chart-canvas {
   width: 100%;
   height: 100%;
+}
+
+/* ── תווית מחיר נוכחי — זהה לאפליקציית האם (pc-price-label) ── */
+.pc-price-label {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  background: #000000;
+  border: 1px solid rgba(212,175,55,0.50);
+  border-radius: 7px;
+  padding: 8px 10px;
+}
+.pc-price-sym {
+  color: #FFE447;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+}
+.pc-price-val {
+  color: #ffffff;
+  font-size: 1.35rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 /* Loading / error overlay */

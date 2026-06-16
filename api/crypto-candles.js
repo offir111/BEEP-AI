@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     if (r.ok) {
       const raw = await r.json();
       if (Array.isArray(raw)) candles = raw.map(k => ({
-        time: Math.floor(k[0] / 1000), open: +k[1], high: +k[2], low: +k[3], close: +k[4],
+        time: Math.floor(k[0] / 1000), open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
       }));
     }
   } catch {}

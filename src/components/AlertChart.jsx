@@ -9,7 +9,7 @@
  * זהו בדיוק הקוד שעובד באפליקציית האם — כדי שלא "נסתבך" שוב.
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { createChart, CandlestickSeries, CrosshairMode } from 'lightweight-charts';
+import { createChart, CandlestickSeries, HistogramSeries, CrosshairMode, ColorType } from 'lightweight-charts';
 import './AlertChart.css';
 
 // ── Binance symbols ───────────────────────────────────────────
@@ -19,11 +19,11 @@ const BINANCE = {
   BSOL: 'BSOLUSDT', KEEL: 'KEELBTC',
 };
 
-async function fetchCandles(symbol, isCrypto, cgId) {
+async function fetchCandles(symbol, isCrypto, cgId, interval = '1d') {
   const s = symbol.toUpperCase();
   const pair = BINANCE[s] || (isCrypto ? `${s}USDT` : null);
   if (pair) {
-    const r = await fetch(`/api/crypto-candles?symbol=${pair}${cgId ? `&cg=${encodeURIComponent(cgId)}` : ''}`);
+    const r = await fetch(`/api/crypto-candles?symbol=${pair}&interval=${interval}${cgId ? `&cg=${encodeURIComponent(cgId)}` : ''}`);
     if (!r.ok) return [];
     const d = await r.json();
     return Array.isArray(d.candles) ? d.candles : [];
@@ -35,42 +35,45 @@ async function fetchCandles(symbol, isCrypto, cgId) {
   return Array.isArray(d.candles) ? d.candles : [];
 }
 
+// זהה לאפליקציית האם (BEEP BEEP / PriceChart.jsx) — רקע שחור, ערכת זהב, לוגו מוסתר.
 function makeChartOpts(w, h) {
   return {
     width: w,
     height: h,
     layout: {
-      background: { color: '#0f0f1a' },
-      textColor:  '#6b7280',
-      fontFamily: 'inherit',
-      attributionLogo: false,         // הסתרת לוגו TradingView (כמו באפליקציית האם)
+      background: { type: ColorType.Solid, color: '#050505' },
+      textColor:  '#c8a84b',
+      fontSize:   11,
+      fontFamily: 'Rubik, sans-serif',
+      attributionLogo: false,
     },
     grid: {
-      vertLines: { color: '#12122a' },
-      horzLines: { color: '#12122a' },
+      vertLines: { color: 'rgba(212,175,55,0.06)' },
+      horzLines: { color: 'rgba(212,175,55,0.08)' },
     },
     crosshair: { mode: CrosshairMode.Normal },
-    rightPriceScale: { borderColor: '#1e1e3a', textColor: '#9ca3af', autoScale: true },
+    rightPriceScale: {
+      borderColor:  'rgba(212,175,55,0.30)',
+      scaleMargins: { top: 0.08, bottom: 0.22 },
+    },
     timeScale: {
-      borderColor: '#1e1e3a', timeVisible: true, secondsVisible: false,
-      rightOffset: 10, fixRightEdge: false, fixLeftEdge: false,
+      borderColor:    'rgba(212,175,55,0.30)',
+      timeVisible:    true,
+      secondsVisible: false,
+      rightOffset:    1,
     },
-    handleScale: {
-      mouseWheel: true, pinch: true,
-      axisPressedMouseMove: { time: true, price: false },
-    },
-    handleScroll: {
-      mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false,
-    },
+    handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true },
+    handleScale:  { mouseWheel: true,  pinch: true },
   };
 }
 
 const PRICE_AXIS_PX = 75;
 
-export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, onAlertRemove, isCrypto, cgId }) {
+export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, onAlertRemove, isCrypto, cgId, interval = '1d' }) {
   const containerRef     = useRef(null);   // chart canvas div (= chartDivRef)
   const chartRef         = useRef(null);
   const seriesRef        = useRef(null);
+  const volSeriesRef     = useRef(null);
   const symRef           = useRef(symbol);
   const alertsRef        = useRef(alerts);
   const dragRef          = useRef(null);    // { id, startPrice, startChartY }
@@ -82,6 +85,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
   const [chartReady,     setChartReady]     = useState(false);
   const [loading,        setLoading]        = useState(true);
   const [error,          setError]          = useState(false);
+  const [lastPrice,      setLastPrice]      = useState(null);
   const [alertPositions, setAlertPositions] = useState({}); // { id: y }
   const [dragState,      setDragState]      = useState(null); // { id } | null
   const [dragDeltaY,     setDragDeltaY]     = useState(0);
@@ -169,11 +173,19 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
 
     const chart  = createChart(el, makeChartOpts(el.clientWidth, el.clientHeight));
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
-      wickUpColor: '#26a69a', wickDownColor: '#ef5350',
+      upColor: '#4ade80', downColor: '#f87171', borderVisible: false,
+      borderUpColor: '#4ade80', borderDownColor: '#f87171',
+      wickUpColor: '#4ade80', wickDownColor: '#f87171',
     });
+    // היסטוגרמת ווליום בתחתית (כמו במקור)
+    const volSeries = chart.addSeries(HistogramSeries, {
+      color: 'rgba(212,175,55,0.25)', priceFormat: { type: 'volume' }, priceScaleId: 'vol',
+    });
+    chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+
     chartRef.current = chart;
     seriesRef.current = series;
+    volSeriesRef.current = volSeries;
 
     const ro = new ResizeObserver(() => {
       if (!containerRef.current || !chartRef.current) return;
@@ -203,6 +215,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
+      volSeriesRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -213,12 +226,20 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
     if (!chartReady || !seriesRef.current) return;
     setLoading(true); setError(false);
     let cancelled = false;
-    fetchCandles(symbol, isCrypto, cgId)
+    fetchCandles(symbol, isCrypto, cgId, interval)
       .then(candles => {
         if (cancelled || symRef.current !== symbol || !seriesRef.current) return;
         if (!candles.length) { setError(true); return; }
-        seriesRef.current.setData(candles);
+        const clean = candles.map(({ volume, ...c }) => c);
+        const volumes = candles.map(d => ({
+          time: d.time, value: d.volume ?? 0,
+          color: d.close >= d.open ? 'rgba(74,222,128,0.35)' : 'rgba(248,113,113,0.35)',
+        }));
+        seriesRef.current.setData(clean);
+        volSeriesRef.current?.setData(volumes);
         chartRef.current?.timeScale().fitContent();
+        const last = candles[candles.length - 1];
+        if (last) setLastPrice(last.close);
         setError(false);
         setTimeout(() => recomputeRef.current?.(), 30);
       })
@@ -226,7 +247,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, chartReady]);
+  }, [symbol, chartReady, interval]);
 
   // ── recompute positions whenever alerts change ───────────────
   useEffect(() => { if (chartReady) recompute(); }, [alerts, chartReady, recompute]);
@@ -234,6 +255,14 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
   return (
     <div className="alert-chart-wrap">
       <div ref={containerRef} className="alert-chart-canvas" />
+
+      {/* ── תווית מחיר נוכחי (פינה שמאלית עליונה) — כמו במקור ── */}
+      {lastPrice != null && (
+        <div className="pc-price-label" dir="ltr" style={{ pointerEvents: 'none' }}>
+          <span className="pc-price-sym">{symbol}</span>
+          <span className="pc-price-val">${Number(lastPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+        </div>
+      )}
 
       {/* ── שכבת קווי ההתראות — לוכדת את אירועי הגרירה על כל שטח הגרף ── */}
       <div
