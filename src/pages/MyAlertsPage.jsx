@@ -5,9 +5,8 @@
  */
 import { useState, useEffect, useRef, useCallback, useContext, useMemo } from 'react';
 import { useAlerts } from '../context/AlertsContext';
-import AlertLine          from '../components/AlertLine';
+import AlertChart         from '../components/AlertChart';
 import QuickAlert         from '../components/QuickAlert';
-import IframeWithFallback from '../components/IframeWithFallback';
 import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import './ChartsPage.css';
 import './MyAlertsPage.css';
@@ -227,6 +226,10 @@ export default function MyAlertsPage() {
     !a.triggered && a.symbol === activeShort.toUpperCase()
   );
 
+  // סמל + טווח-זמן עבור AlertChart (גרף הקנבס הזהה לאפליקציית האם)
+  const BIN_INTERVAL = { '1':'1m','5':'5m','15':'15m','60':'1h','240':'4h','D':'1d','W':'1w' };
+  const chartSym = active.binance ? active.priceApi : (active.priceApi === 'GC=F' ? 'GOLD' : active.priceApi);
+
   return (
     <div className="charts-wrap ma-page">
 
@@ -358,30 +361,16 @@ export default function MyAlertsPage() {
         )}
       </div>
 
-      {/* Chart + alert lines overlay */}
+      {/* Chart — גרף הקנבס הזהה לאפליקציית האם, עם קווי התראה נגררים מובנים */}
       <div className="charts-tv-wrap" ref={containerRef}>
-        <IframeWithFallback
-          iframeKey={`${active.id}-${interval}`}
-          src={buildTVUrl(active.id, active.exchange, interval)}
-          title={`גרף ${active.label}`}
-          className="charts-tv-iframe"
+        <AlertChart
+          symbol={chartSym}
+          isCrypto={!!active.binance}
+          interval={BIN_INTERVAL[interval] || '1d'}
+          alerts={symAlerts}
+          onAlertPriceChange={(id, price) => editAlert(id, { target: price })}
+          onAlertRemove={removeAlert}
         />
-
-        {livePrice && symAlerts.length > 0 && (
-          <div className="charts-lines-overlay">
-            {symAlerts.map(a => (
-              <AlertLine
-                key={a.id}
-                alert={a}
-                containerH={containerH}
-                currentPrice={livePrice}
-                chartRange={chartRange}
-                onPriceChange={editAlert}
-                onRemove={removeAlert}
-              />
-            ))}
-          </div>
-        )}
 
         <button className="charts-float-bell" onClick={()=>setShowAlert(true)}>
           🔔
