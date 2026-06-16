@@ -139,18 +139,18 @@ export default function FngIndicator() {
   return (
     <>
       <button className="hp-fng-btn" onClick={() => setOpen(true)} aria-label="Fear & Greed Index">
-        <span className="hp-fng-cap">F&amp;G</span>
         <div className="hp-fng-split">
-          <div className="hp-fng-half">
-            <span className="hp-fng-half-val" style={{ color: fngColor(cryptoVal) }}>{cryptoVal ?? '…'}</span>
-            <span className="hp-fng-half-lbl">CRYPTO</span>
-          </div>
-          <div className="hp-fng-divider" />
           <div className="hp-fng-half">
             <span className="hp-fng-half-val" style={{ color: fngColor(stockVal) }}>{stockVal ?? '…'}</span>
             <span className="hp-fng-half-lbl">STOCKS</span>
           </div>
+          <div className="hp-fng-divider" />
+          <div className="hp-fng-half">
+            <span className="hp-fng-half-val" style={{ color: fngColor(cryptoVal) }}>{cryptoVal ?? '…'}</span>
+            <span className="hp-fng-half-lbl">CRYPTO</span>
+          </div>
         </div>
+        <span className="hp-fng-cap">F&amp;G</span>
       </button>
       {open && <FngModal cryptoSeries={cryptoSeries} stockVal={stockVal} stockLbl={stockLbl} onClose={() => setOpen(false)} />}
     </>

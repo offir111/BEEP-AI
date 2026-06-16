@@ -1,10 +1,11 @@
 /* ── Split F&G button (in the market strip) ── */
+/* כפתור בשורה אחת ממורכזת: [נתון/STOCKS] | מחיצה | [נתון/CRYPTO]  F&G */
 .hp-fng-btn {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 7px;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(255,255,255,0.04);
@@ -14,26 +15,27 @@
   transition: border-color 0.15s;
 }
 .hp-fng-btn:hover { border-color: rgba(255,255,255,0.3); }
-.hp-fng-cap { font-size: 1.16rem; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }
-/* שתי שורות מרוכזות: מספר מימין, מילה משמאל — סימטרי לשאר הכפתורים */
+.hp-fng-cap { font-size: 1rem; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }
 .hp-fng-split {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
-  width: 100%;
+  gap: 0;
 }
 .hp-fng-half {
   display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
 }
-.hp-fng-half-val { font-size: 1rem; font-weight: 800; line-height: 1; min-width: 22px; text-align: right; }
-.hp-fng-half-lbl { font-family: 'Rubik','Inter',sans-serif; font-weight: 600; font-size: 0.6rem; letter-spacing: 0.5px; color: rgba(255,255,255,0.6); min-width: 48px; text-align: left; }
-.hp-fng-divider { display: none; }
+.hp-fng-half-val { font-size: 1rem; font-weight: 800; line-height: 1; text-align: center; }
+.hp-fng-half-lbl { font-family: 'Rubik','Inter',sans-serif; font-weight: 600; font-size: 0.5rem; letter-spacing: 0.5px; color: rgba(255,255,255,0.6); text-align: center; }
+.hp-fng-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 7px;
+  background: rgba(255,255,255,0.18);
+}
 
 /* ── Gauge modal ── */
 .nb-fng-overlay {
