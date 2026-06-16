@@ -163,7 +163,8 @@
 .gn-detail-x:hover { background: #ef4444; color: #fff; }
 .gn-detail-bell {
   position: absolute;
-  bottom: 16px; left: 50%;
+  /* מרכז-עליון, ~1ס"מ מתחת לשורת טווחי הזמן */
+  top: calc(36px + 1cm); bottom: auto; left: 50%;
   transform: translateX(-50%);
   z-index: 6;
   display: inline-flex; align-items: center; gap: 6px;
