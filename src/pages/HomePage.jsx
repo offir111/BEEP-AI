@@ -134,7 +134,9 @@ function RobotCard({ icon, name, desc, tag, tagColor, onClick }) {
 //   [edit0] [edit1] [edit2] [BTC-fixed]
 //   [edit3] [edit4] [edit5] [last-searched]
 // ──────────────────────────────────────────────────────────────
-const DEFAULT_EDITABLE = ['S&P','SOL','ETH','GOLD','QQQ','AAPL'];
+// ברירת מחדל לכפתורי המניות (RTL: BTC קבוע מימין). edit0..edit5:
+// שורה 1: ETH · SOL · SPCX | שורה 2: GOLD · QQQ · S&P
+const DEFAULT_EDITABLE = ['ETH','SOL','SPCX','GOLD','QQQ','S&P'];
 const LS_SYMBOL_KEY    = 'beepai_chart_sym';
 const LS_LAST_KEY      = 'beepai_last_searched';
 const LS_EDITABLE_KEY  = 'beepai_editable_slots';
