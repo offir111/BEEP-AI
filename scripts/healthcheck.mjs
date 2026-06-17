@@ -42,9 +42,11 @@ async function probe({ name, group, critical = false, optional = false, run }) {
 
 // ── Public sources (always checked, no app server needed) ─────────────────────
 await probe({
+  // Mirror, not api.binance.com — the latter is HTTP 451 from cloud/CI regions (geo-block).
+  // The app's real crypto feed is a browser WebSocket (user IP); this server check uses the mirror.
   name: 'Binance BTCUSDT (price + volume)', group: 'Crypto', critical: true,
   run: async () => {
-    const d = await getJson('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT');
+    const d = await getJson('https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT');
     const price = parseFloat(d.lastPrice), qVol = parseFloat(d.quoteVolume);
     if (!Number.isFinite(price) || price < 1000 || price > 1e7) throw new Error(`BTC price out of range: ${d.lastPrice}`);
     if (!Number.isFinite(qVol) || qVol <= 0) throw new Error(`quoteVolume invalid: ${d.quoteVolume}`);

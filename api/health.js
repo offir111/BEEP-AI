@@ -17,8 +17,11 @@ async function check(name, critical, fn) {
 }
 
 // Binance — crypto price + volume sanity (BTC should be a plausible number).
+// NOTE: use the data-api.binance.vision mirror, not api.binance.com — the latter returns
+// HTTP 451 from Vercel's server region (geo-block). The app's live feed is a *browser*
+// WebSocket (user IP, not blocked); this server-side check must use the reachable mirror.
 async function checkBinance() {
-  const r = await fetch('https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT', {
+  const r = await fetch('https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT', {
     signal: AbortSignal.timeout(8000),
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
