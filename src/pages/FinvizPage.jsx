@@ -139,13 +139,14 @@ const TYPE_COLORS = {
   Neutral: { cls: 'pat-neutral', label: 'Neutral' },
 };
 
-// ── Signal label from TradingView score ──────────────────────
+// ── Heuristic strength label from the 0–100 scan score ──────────────────────
+// NOTE: this is a momentum/volume STRENGTH heuristic (not a buy/sell recommendation
+// and not an analyst rating). The scan score arrives on a ~40–92 scale.
 function tvSignal(score) {
-  if (score >=  0.5) return { label: 'STRONG BUY', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' };
-  if (score >=  0.1) return { label: 'BUY',         color: '#4ade80', bg: 'rgba(74,222,128,0.10)' };
-  if (score >= -0.1) return { label: 'NEUTRAL',     color: '#D4AF37', bg: 'rgba(212,175,55,0.10)' };
-  if (score >= -0.5) return { label: 'SELL',         color: '#f87171', bg: 'rgba(248,113,113,0.10)' };
-  return                    { label: 'STRONG SELL', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' };
+  if (score >= 78) return { label: 'מומנטום חזק',  color: '#22c55e', bg: 'rgba(34,197,94,0.12)' };
+  if (score >= 68) return { label: 'מומנטום בינוני', color: '#4ade80', bg: 'rgba(74,222,128,0.10)' };
+  if (score >= 58) return { label: 'ניטרלי',        color: '#D4AF37', bg: 'rgba(212,175,55,0.10)' };
+  return                 { label: 'חלש',           color: '#9ca3af', bg: 'rgba(156,163,175,0.10)' };
 }
 
 // ── Live pattern result section ───────────────────────────────
@@ -154,7 +155,7 @@ function LivePatternResult({ data }) {
   return (
     <div className="fv-live-result">
       <div className="fv-live-header">
-        <span className="fv-live-title">🎯 {data.total} מניות נמצאו — TradingView Live</span>
+        <span className="fv-live-title">🎯 {data.total} מניות נמצאו — סריקה חיה</span>
         <span className="fv-live-time">{data.scannedAt ? new Date(data.scannedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : ''}</span>
       </div>
       {data.patterns.map(pat => pat.stocks.length > 0 && (
@@ -180,7 +181,7 @@ function LivePatternResult({ data }) {
           </div>
         </div>
       ))}
-      <div className="fv-live-source">מקור: TradingView Scanner · {data.criteria?.universe}</div>
+      <div className="fv-live-source">מקור: Yahoo Finance / Stooq · {data.criteria?.universe} · סיווג היוריסטי לפי תנועת יום (לא זיהוי תבנית נרות)</div>
     </div>
   );
 }
