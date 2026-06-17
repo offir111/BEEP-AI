@@ -25,7 +25,7 @@ function getSmcSignal(change) {
 
 function StockCard({ stock, onSelect, selected }) {
   const lqCtx = useContext(LiveQuoteContext);
-  const { price, change: changeRaw, flash } = useQuote(stock.symbol);
+  const { price, change: changeRaw, flash, stale, marketState, noData } = useQuote(stock.symbol);
 
   useEffect(() => {
     if (!lqCtx) return;
@@ -34,8 +34,8 @@ function StockCard({ stock, onSelect, selected }) {
   }, [stock.symbol, lqCtx]);
 
   const data    = price != null ? { price, change: changeRaw ?? 0 } : null;
-  const loading = price == null;
-  const error   = false;
+  const loading = price == null && !noData;       // skeleton only while genuinely loading
+  const error   = price == null && noData;        // feed returned no price at all
 
   const sig = data ? getSmcSignal(data.change) : null;
   const up  = data ? (data.change || 0) >= 0 : true;
@@ -55,12 +55,17 @@ function StockCard({ stock, onSelect, selected }) {
         {loading ? (
           <div className="smc-skeleton" style={{ width: '70%', height: '22px' }} />
         ) : error ? (
-          <div className="smc-err">⚠ טוען...</div>
+          <div className="smc-err">אין נתון</div>
         ) : (
           <>
             <div className={`smc-price${flash === 'up' ? ' lp-flash-up' : flash === 'down' ? ' lp-flash-down' : ''}`}>${data.price.toLocaleString()}</div>
             <div className="smc-change" style={{ color: up ? 'var(--accent-green)' : 'var(--accent-red)' }}>
               {up ? '▲' : '▼'} {Math.abs(data.change).toFixed(2)}%
+              {stale && (
+                <span style={{ marginInlineStart: 6, fontSize: 10, color: 'var(--text-muted, #8a8a99)', fontWeight: 600 }}>
+                  · {marketState === 'PRE' ? 'טרום־מסחר' : marketState === 'POST' ? 'אחרי־מסחר' : 'סגירה'}
+                </span>
+              )}
             </div>
           </>
         )}

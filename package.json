@@ -6,7 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node server.js"
+    "start": "node server.js",
+    "healthcheck": "node scripts/healthcheck.mjs",
+    "test:grid": "node scripts/test-grid.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",

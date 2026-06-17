@@ -8,7 +8,13 @@
 import { useState, useEffect, useCallback, useContext } from 'react';
 import AlertChartPanel from '../components/AlertChartPanel';
 import RobotNavTabs from '../components/RobotNavTabs';
-import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
+import LiveQuoteContext, { useQuote, useWsStatus } from '../context/LiveQuoteContext';
+import {
+  buildCenteredGrid,
+  computeRealizedApr,
+  theoreticalApr,
+  externalGridUsable,
+} from '../engine/gridModel';
 import './ModelGridPage.css';
 
 const PORTFOLIO_URL  = 'https://raw.githubusercontent.com/offir111/model-grid/master/data/portfolio.json';
@@ -32,6 +38,15 @@ function pct(val) {
   return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
 }
 
+// Safe USD volume formatter — never renders "NaN"/"$0.00B" on missing data.
+function fmtVolUsd(v) {
+  if (v == null || !Number.isFinite(v) || v <= 0) return '—';
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(2)}M`;
+  if (v >= 1e3) return `$${(v / 1e3).toFixed(1)}K`;
+  return `$${v.toFixed(0)}`;
+}
+
 /** Draw a mini progress bar showing how many grid levels are filled */
 function GridBar({ levels = [] }) {
   if (!levels.length) return null;
@@ -51,9 +66,10 @@ function GridBar({ levels = [] }) {
 export default function ModelGridPage({ navigate }) {
   // BTC live price — from centralized LiveQuoteContext
   const lqCtx = useContext(LiveQuoteContext);
-  const { price: btcPrice, change: btcChange, high: btcHigh, low: btcLow, flash } = useQuote('BTC');
-  const btc = btcPrice != null ? { price: btcPrice, change: btcChange, high: btcHigh, low: btcLow, vol: null } : null;
-  const btcErr = false;
+  const { price: btcPrice, change: btcChange, high: btcHigh, low: btcLow, vol: btcVol, flash } = useQuote('BTC');
+  const btc = btcPrice != null ? { price: btcPrice, change: btcChange, high: btcHigh, low: btcLow, vol: btcVol } : null;
+  const wsStatus = useWsStatus();
+  const btcErr = wsStatus === 'disconnected' && btcPrice == null;
   useEffect(() => {
     if (!lqCtx) return;
     lqCtx.subscribe(['BTC']);
@@ -100,8 +116,37 @@ export default function ModelGridPage({ navigate }) {
 
   const up    = btcChange != null ? btcChange >= 0 : true;
   const pnl   = port?.realized_pnl ?? 0;
-  const apr   = port?.apr ?? 0;
-  const inRng = grid && btcPrice != null ? btcPrice >= grid.lower && btcPrice <= grid.upper : null;
+
+  // ── Grid source resolution ───────────────────────────────────────────────────
+  // Use the EXTERNAL bot grid only when it is fresh AND the live price sits inside
+  // its band. Otherwise center a fresh grid on the live BTC price (ATR-based when the
+  // bot supplied an ATR, else a ±6% band). This guarantees in-range, coherent levels.
+  const extUsable   = externalGridUsable(grid, btcPrice);
+  const localGrid   = btcPrice != null
+    ? buildCenteredGrid(btcPrice, {
+        levels:     grid?.grids ?? 12,
+        atr:        grid?.atr14,
+        investment: port?.investment ?? 1000,
+      })
+    : null;
+  const displayGrid = extUsable ? grid : localGrid;
+  const gridIsLive  = extUsable && !portErr;   // external + real bot data backing it
+
+  // ── APR ──────────────────────────────────────────────────────────────────────
+  // Realized APR from the bot when we have enough history; otherwise a clearly-labeled
+  // theoretical APR from the grid geometry (fixes the old hard "0.00%").
+  const realizedApr = computeRealizedApr({
+    realizedPnl: port?.realized_pnl,
+    investment:  port?.investment,
+    startMs:     port?.start_time ? new Date(port.start_time).getTime() : NaN,
+    nowMs:       port?.last_updated ? new Date(port.last_updated).getTime() : NaN,
+  });
+  const aprIsTheoretical = realizedApr == null;
+  const apr = realizedApr != null ? realizedApr : theoreticalApr(displayGrid, btcPrice);
+
+  const inRng = displayGrid && btcPrice != null
+    ? btcPrice >= displayGrid.lower && btcPrice <= displayGrid.upper
+    : null;
 
   // Filter log
   const trades = (port?.trade_log ?? []).slice(-30).reverse();
@@ -117,9 +162,9 @@ export default function ModelGridPage({ navigate }) {
           <h2 className="mg-title">📐 Model GRID — Bitcoin Grid Bot</h2>
           <p className="mg-sub">אסטרטגיית גריד — קניה ומכירה אוטומטית ברמות מחיר</p>
         </div>
-        <div className={`mg-status ${!portErr ? 'mg-status--live' : ''}`}>
-          <span className={`mg-dot ${!portErr ? 'mg-dot--live' : ''}`} />
-          {portErr ? 'OFFLINE' : 'LIVE'}
+        <div className={`mg-status ${gridIsLive ? 'mg-status--live' : ''}`}>
+          <span className={`mg-dot ${gridIsLive ? 'mg-dot--live' : ''}`} />
+          {gridIsLive ? '🟢 LIVE' : btcPrice != null ? '🟡 DEMO' : '🔴 OFFLINE'}
         </div>
       </div>
 
@@ -129,7 +174,13 @@ export default function ModelGridPage({ navigate }) {
           <div className="mg-btc-icon">₿</div>
           <div>
             <div className="mg-btc-label">Bitcoin / USDT</div>
-            <div className="mg-btc-sub">Binance WebSocket — עדכון בזמן אמת</div>
+            <div className="mg-btc-sub">
+              {wsStatus === 'live'
+                ? '🟢 Binance WebSocket — עדכון בזמן אמת'
+                : wsStatus === 'disconnected'
+                ? '🔴 מנותק — מתחבר מחדש…'
+                : '🟡 Binance WebSocket — מתחבר…'}
+            </div>
           </div>
           {inRng !== null && (
             <span className={`mg-range-badge ${inRng ? 'mg-range-badge--in' : 'mg-range-badge--out'}`}>
@@ -153,7 +204,7 @@ export default function ModelGridPage({ navigate }) {
               <div className="mg-stats-row">
                 <div className="mg-stat"><span className="mg-stat-label">24H גבוה</span><span className="mg-stat-val mg-green">${fmt(btc.high, 0)}</span></div>
                 <div className="mg-stat"><span className="mg-stat-label">24H נמוך</span><span className="mg-stat-val mg-red">${fmt(btc.low, 0)}</span></div>
-                <div className="mg-stat"><span className="mg-stat-label">Vol</span><span className="mg-stat-val">${(btc.vol / 1e9).toFixed(2)}B</span></div>
+                <div className="mg-stat"><span className="mg-stat-label">Vol</span><span className="mg-stat-val">{fmtVolUsd(btc.vol)}</span></div>
               </div>
             </>
           )
@@ -162,16 +213,31 @@ export default function ModelGridPage({ navigate }) {
 
       {/* ── Grid params bar ── */}
       <div className="mg-params-bar">
-        <span className="mg-param"><span className="mg-param-label">תחתון</span><span className="mg-param-val">${grid ? fmt(grid.lower, 0) : '…'}</span></span>
+        <span className="mg-param"><span className="mg-param-label">תחתון</span><span className="mg-param-val">${displayGrid ? fmt(displayGrid.lower, 0) : '…'}</span></span>
         <span className="mg-param-sep" />
-        <span className="mg-param"><span className="mg-param-label">עליון</span><span className="mg-param-val">${grid ? fmt(grid.upper, 0) : '…'}</span></span>
+        <span className="mg-param"><span className="mg-param-label">עליון</span><span className="mg-param-val">${displayGrid ? fmt(displayGrid.upper, 0) : '…'}</span></span>
         <span className="mg-param-sep" />
-        <span className="mg-param"><span className="mg-param-label">רמות</span><span className="mg-param-val mg-gold">{grid?.grids ?? '…'}</span></span>
+        <span className="mg-param"><span className="mg-param-label">רמות</span><span className="mg-param-val mg-gold">{displayGrid?.grids ?? '…'}</span></span>
         <span className="mg-param-sep" />
-        <span className="mg-param"><span className="mg-param-label">ATR 14</span><span className="mg-param-val">{grid ? fmt(grid.atr14, 0) : '…'}</span></span>
+        <span className="mg-param"><span className="mg-param-label">ATR 14</span><span className="mg-param-val">{displayGrid?.atr14 ? fmt(displayGrid.atr14, 0) : '—'}</span></span>
         <span className="mg-param-sep" />
-        <span className="mg-param"><span className="mg-param-label">APR</span><span className="mg-param-val" style={{ color: apr >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{pct(apr)}</span></span>
+        <span className="mg-param">
+          <span className="mg-param-label">APR{aprIsTheoretical ? ' (תאורטי)' : ''}</span>
+          <span className="mg-param-val" style={{ color: (apr ?? 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{pct(apr)}</span>
+        </span>
       </div>
+
+      {/* Source transparency: tell the user when the grid is centered locally */}
+      {!gridIsLive && btcPrice != null && (
+        <div style={{
+          margin: '0 0 12px', padding: '8px 12px', borderRadius: 8,
+          background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.25)',
+          color: '#D4AF37', fontSize: 12.5, lineHeight: 1.5,
+        }}>
+          🟡 גריד מחושב מקומית סביב המחיר החי (נתוני הבוט החיצוני לא זמינים/מעודכנים).
+          {aprIsTheoretical && ' ה-APR תאורטי — מבוסס על גאומטריית הגריד, לא על מסחר בפועל.'}
+        </div>
+      )}
 
       {/* ── KPI cards ── */}
       {portLoad
@@ -207,7 +273,7 @@ export default function ModelGridPage({ navigate }) {
       }
 
       {/* ── Tabs ── */}
-      {!portLoad && !portErr && (
+      {!portLoad && displayGrid && (
         <div className="mg-section">
           <div className="mg-tabs">
             {['overview', 'levels', 'trades'].map(t => (
@@ -222,25 +288,25 @@ export default function ModelGridPage({ navigate }) {
           </div>
 
           {/* Overview tab */}
-          {tab === 'overview' && grid && (
+          {tab === 'overview' && displayGrid && (
             <div className="mg-tab-body">
-              <GridBar levels={grid.grid ?? []} />
+              <GridBar levels={displayGrid.grid ?? []} />
               <div className="mg-overview-grid">
                 <div className="mg-ov-row">
                   <span className="mg-ov-label">טווח גריד</span>
-                  <span className="mg-ov-val">${fmt(grid.lower, 0)} — ${fmt(grid.upper, 0)}</span>
+                  <span className="mg-ov-val">${fmt(displayGrid.lower, 0)} — ${fmt(displayGrid.upper, 0)}</span>
                 </div>
                 <div className="mg-ov-row">
                   <span className="mg-ov-label">רמות גריד</span>
-                  <span className="mg-ov-val mg-gold">{grid.grids}</span>
+                  <span className="mg-ov-val mg-gold">{displayGrid.grids}</span>
                 </div>
                 <div className="mg-ov-row">
                   <span className="mg-ov-label">רמות מלאות</span>
-                  <span className="mg-ov-val mg-green">{(grid.grid ?? []).filter(l => l.filled).length}</span>
+                  <span className="mg-ov-val mg-green">{(displayGrid.grid ?? []).filter(l => l.filled).length}</span>
                 </div>
                 <div className="mg-ov-row">
                   <span className="mg-ov-label">ממתינות</span>
-                  <span className="mg-ov-val">{(grid.grid ?? []).filter(l => !l.filled).length}</span>
+                  <span className="mg-ov-val">{(displayGrid.grid ?? []).filter(l => !l.filled).length}</span>
                 </div>
                 {port?.last_updated && (
                   <div className="mg-ov-row">
@@ -253,7 +319,7 @@ export default function ModelGridPage({ navigate }) {
           )}
 
           {/* Levels tab */}
-          {tab === 'levels' && grid?.grid?.length > 0 && (
+          {tab === 'levels' && displayGrid?.grid?.length > 0 && (
             <div className="mg-tab-body mg-levels-body">
               <div className="mg-table-wrap">
                 <table className="mg-table">
@@ -268,11 +334,11 @@ export default function ModelGridPage({ navigate }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...grid.grid].reverse().map((lvl, i) => {
+                    {[...displayGrid.grid].reverse().map((lvl, i) => {
                       const isCurrent = btcPrice != null && btcPrice >= lvl.buy && btcPrice <= lvl.sell;
                       return (
                         <tr key={i} className={isCurrent ? 'mg-row-current' : ''}>
-                          <td className="mg-muted">{grid.grid.length - i}</td>
+                          <td className="mg-muted">{displayGrid.grid.length - i}</td>
                           <td className="mg-blue">${fmt(lvl.buy, 0)}</td>
                           <td className="mg-gold">${fmt(lvl.sell, 0)}</td>
                           <td>{lvl.qty != null ? lvl.qty.toFixed(5) : '—'}</td>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useContext } from 'react';
 import AlertChartPanel from '../components/AlertChartPanel';
 import RobotNavTabs from '../components/RobotNavTabs';
-import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
+import LiveQuoteContext, { useQuote, useWsStatus } from '../context/LiveQuoteContext';
 import './ModelBitPage.css';
 
 const BOT_URL = 'https://oh-my-god-production.up.railway.app/api/modelbit/status';
@@ -13,6 +13,15 @@ function Skeleton({ w = '60%', h = '22px' }) {
 function fmt(p) {
   if (p == null) return '—';
   return p >= 1000 ? p.toLocaleString('en', { maximumFractionDigits: 0 }) : p.toFixed(2);
+}
+
+// Format a USDT/USD volume figure safely — never renders "NaN"/"0.00B" on missing data.
+function fmtVolUsd(v) {
+  if (v == null || !Number.isFinite(v) || v <= 0) return '—';
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(2)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(2)}M`;
+  if (v >= 1e3) return `$${(v / 1e3).toFixed(1)}K`;
+  return `$${v.toFixed(0)}`;
 }
 
 function PnlBadge({ val }) {
@@ -27,9 +36,10 @@ function PnlBadge({ val }) {
 export default function ModelBitPage({ navigate }) {
   // BTC live price — from centralized LiveQuoteContext
   const lqCtx = useContext(LiveQuoteContext);
-  const { price: btcPrice, change: btcChange, high: btcHigh, low: btcLow, flash } = useQuote('BTC');
-  const btc = btcPrice != null ? { price: btcPrice, change: btcChange, high: btcHigh, low: btcLow } : null;
-  const btcErr = false; // context auto-reconnects
+  const { price: btcPrice, change: btcChange, high: btcHigh, low: btcLow, vol: btcVol, flash } = useQuote('BTC');
+  const btc = btcPrice != null ? { price: btcPrice, change: btcChange, high: btcHigh, low: btcLow, vol: btcVol } : null;
+  const wsStatus = useWsStatus();
+  const btcErr = wsStatus === 'disconnected' && btcPrice == null; // only error before first price
   useEffect(() => {
     if (!lqCtx) return;
     lqCtx.subscribe(['BTC']);
@@ -98,7 +108,13 @@ export default function ModelBitPage({ navigate }) {
           <div className="mb-btc-icon">₿</div>
           <div>
             <div className="mb-btc-label">Bitcoin / USDT</div>
-            <div className="mb-btc-sub">Binance WebSocket — עדכון בזמן אמת</div>
+            <div className="mb-btc-sub">
+              {wsStatus === 'live'
+                ? '🟢 Binance WebSocket — עדכון בזמן אמת'
+                : wsStatus === 'disconnected'
+                ? '🔴 מנותק — מתחבר מחדש…'
+                : '🟡 Binance WebSocket — מתחבר…'}
+            </div>
           </div>
         </div>
         {!btc && !btcErr ? <Skeleton w="55%" h="48px" /> :
@@ -113,7 +129,7 @@ export default function ModelBitPage({ navigate }) {
             <div className="mb-stats-row">
               <div className="mb-stat"><span className="mb-stat-label">24H גבוה</span><span className="mb-stat-val mb-stat-green">${fmt(btc.high)}</span></div>
               <div className="mb-stat"><span className="mb-stat-label">24H נמוך</span><span className="mb-stat-val mb-stat-red">${fmt(btc.low)}</span></div>
-              <div className="mb-stat"><span className="mb-stat-label">Vol (USDT)</span><span className="mb-stat-val">${(btc.vol / 1e9).toFixed(2)}B</span></div>
+              <div className="mb-stat"><span className="mb-stat-label">Vol (USDT)</span><span className="mb-stat-val">{fmtVolUsd(btc.vol)}</span></div>
             </div>
           </>
         )}

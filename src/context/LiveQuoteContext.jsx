@@ -6,6 +6,7 @@ import {
   useState,
   useCallback,
 } from 'react';
+import { apiUrl } from '../utils/apiBase';
 
 // ── Symbol classification ─────────────────────────────────────────────────────
 
@@ -50,76 +51,51 @@ const LiveQuoteContext = createContext(null);
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function LiveQuoteProvider({ children }) {
-  // Map of symbol → { price, change, high, low, flash }
+  // Map of symbol → { price, change, high, low, vol, volBase, flash, stale, marketState, noData, ts }
   const [quotes, setQuotes] = useState({});
+
+  // Crypto WebSocket connection status: 'connecting' | 'live' | 'disconnected'
+  const [wsStatus, setWsStatus] = useState('connecting');
 
   // Set of currently subscribed symbols (uppercased)
   const subscribedRef = useRef(new Set());
 
-  // WebSocket ref
-  const wsRef       = useRef(null);
-  const reconnTimer = useRef(null);
-  const batchTimer  = useRef(null);
+  // WebSocket refs
+  const wsRef        = useRef(null);
+  const reconnTimer  = useRef(null);
+  const batchTimer   = useRef(null);
+  const reconnTries  = useRef(0);          // for exponential backoff
 
   // Stock polling intervals: symbol → intervalId
   const stockTimers = useRef({});
+  // Consecutive failed stock polls: symbol → count (drives the "no data" state)
+  const stockFails  = useRef({});
 
   // Flash timers: symbol → timeoutId
   const flashTimers = useRef({});
 
-  // ── Flash helper ────────────────────────────────────────────────────────────
-
-  const setFlash = useCallback((symbol, direction) => {
-    if (flashTimers.current[symbol]) clearTimeout(flashTimers.current[symbol]);
-    setQuotes(prev => ({
-      ...prev,
-      [symbol]: { ...(prev[symbol] || {}), flash: direction },
-    }));
-    flashTimers.current[symbol] = setTimeout(() => {
-      setQuotes(prev => ({
-        ...prev,
-        [symbol]: { ...(prev[symbol] || {}), flash: null },
-      }));
-    }, 1400);
-  }, []);
-
-  // ── Quote update helper ──────────────────────────────────────────────────────
-
-  const applyQuote = useCallback((symbol, { price, change, high, low }) => {
-    setQuotes(prev => {
-      const prev_ = prev[symbol] || {};
-      const prevPrice = prev_.price;
-      const direction =
-        prevPrice == null ? null :
-        price > prevPrice ? 'up' :
-        price < prevPrice ? 'down' : null;
-      return {
-        ...prev,
-        [symbol]: { price, change, high, low, flash: direction ?? prev_.flash ?? null },
-      };
-    });
-    // Trigger flash separately so we can schedule its removal
-    setQuotes(prev => {
-      const current = prev[symbol];
-      if (!current || current.flash === null) return prev;
-      return prev; // flash state already set above; removal handled by setFlash
-    });
-  }, []);
-
-  // Unified update that handles flash logic:
-  const updateQuote = useCallback((symbol, { price, change, high, low }) => {
+  // ── Unified quote update (handles flash logic) ───────────────────────────────
+  // Extra fields (vol, volBase, stale, marketState, noData, ts) are merged onto
+  // the stored quote when provided, but never clobbered with undefined.
+  const updateQuote = useCallback((symbol, fields) => {
     const sym = symbol.toUpperCase();
+    const { price } = fields;
     setQuotes(prev => {
       const prev_ = prev[sym] || {};
       const prevPrice = prev_.price;
       const direction =
-        prevPrice == null ? null :
+        price == null || prevPrice == null ? null :
         price > prevPrice ? 'up' :
         price < prevPrice ? 'down' : null;
 
-      const next = { price, change, high, low, flash: direction };
+      // Merge, keeping previous values for any field not explicitly supplied.
+      const next = { ...prev_ };
+      for (const k of Object.keys(fields)) {
+        if (fields[k] !== undefined) next[k] = fields[k];
+      }
+      next.flash = direction ?? prev_.flash ?? null;
+
       if (direction) {
-        // schedule flash clear
         if (flashTimers.current[sym]) clearTimeout(flashTimers.current[sym]);
         flashTimers.current[sym] = setTimeout(() => {
           setQuotes(q => ({
@@ -132,24 +108,40 @@ export function LiveQuoteProvider({ children }) {
     });
   }, []);
 
-  // ── WebSocket ────────────────────────────────────────────────────────────────
+  // ── WebSocket (crypto) with exponential-backoff reconnect ────────────────────
 
   const connectWS = useCallback(() => {
     const cryptoSymbols = [...subscribedRef.current].filter(isCrypto);
-    if (cryptoSymbols.length === 0) return;
+    if (cryptoSymbols.length === 0) {
+      setWsStatus('connecting');
+      return;
+    }
 
-    // Close existing connection
+    // Close existing connection (intentional — suppress auto-reconnect)
     if (wsRef.current) {
-      wsRef.current.onclose = null; // prevent auto-reconnect on intentional close
-      wsRef.current.close();
+      wsRef.current.onclose = null;
+      try { wsRef.current.close(); } catch { /* noop */ }
       wsRef.current = null;
     }
+
+    setWsStatus(reconnTries.current > 0 ? 'disconnected' : 'connecting');
 
     const streams = cryptoSymbols.map(toBinanceStream).join('/');
     const url = `wss://stream.binance.com:9443/stream?streams=${streams}`;
 
-    const ws = new WebSocket(url);
+    let ws;
+    try {
+      ws = new WebSocket(url);
+    } catch {
+      scheduleReconnect();
+      return;
+    }
     wsRef.current = ws;
+
+    ws.onopen = () => {
+      reconnTries.current = 0;
+      setWsStatus('live');
+    };
 
     ws.onmessage = (event) => {
       try {
@@ -158,57 +150,90 @@ export function LiveQuoteProvider({ children }) {
         if (!data || !data.s) return;
 
         // Strip USDT suffix to get our symbol key
-        const rawSym   = data.s.toUpperCase();
-        const symbol   = rawSym.endsWith('USDT') ? rawSym.slice(0, -4) : rawSym;
-        const close    = parseFloat(data.c);
-        const open     = parseFloat(data.o);
-        const high     = parseFloat(data.h);
-        const low      = parseFloat(data.l);
+        const rawSym = data.s.toUpperCase();
+        const symbol = rawSym.endsWith('USDT') ? rawSym.slice(0, -4) : rawSym;
+        const close  = parseFloat(data.c);
+        const open   = parseFloat(data.o);
+        const high   = parseFloat(data.h);
+        const low    = parseFloat(data.l);
+        // Binance @miniTicker: q = quote-asset (USDT) volume, v = base-asset volume.
+        const quoteVol = parseFloat(data.q);
+        const baseVol  = parseFloat(data.v);
         const change   = open !== 0 ? ((close - open) / open) * 100 : 0;
 
-        updateQuote(symbol, { price: close, change, high, low });
+        updateQuote(symbol, {
+          price: close,
+          change,
+          high,
+          low,
+          vol:     Number.isFinite(quoteVol) ? quoteVol : null,
+          volBase: Number.isFinite(baseVol)  ? baseVol  : null,
+          stale: false,
+          marketState: 'OPEN',
+          noData: false,
+          ts: Date.now(),
+        });
       } catch {
         // ignore malformed messages
       }
     };
 
-    ws.onclose = () => {
-      wsRef.current = null;
-      // Auto-reconnect after 3s unless we intentionally closed
-      reconnTimer.current = setTimeout(() => {
-        connectWS();
-      }, 3000);
+    ws.onerror = () => {
+      try { ws.close(); } catch { /* noop */ }
     };
 
-    ws.onerror = () => {
-      ws.close();
+    ws.onclose = () => {
+      wsRef.current = null;
+      setWsStatus('disconnected');
+      scheduleReconnect();
     };
   }, [updateQuote]);
 
-  // ── Stock polling ────────────────────────────────────────────────────────────
+  // Exponential backoff: 2s, 4s, 8s … capped at 30s.
+  const scheduleReconnect = useCallback(() => {
+    if (reconnTimer.current) clearTimeout(reconnTimer.current);
+    const delay = Math.min(2000 * 2 ** reconnTries.current, 30000);
+    reconnTries.current += 1;
+    reconnTimer.current = setTimeout(() => connectWS(), delay);
+  }, [connectWS]);
+
+  // ── Stock polling (via /api/market serverless proxy) ─────────────────────────
 
   const startStockPoll = useCallback((symbol) => {
     if (stockTimers.current[symbol]) return; // already polling
 
     const apiSymbol = STOCK_API_MAP[symbol] || symbol;
+    stockFails.current[symbol] = 0;
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/market?symbol=${encodeURIComponent(apiSymbol)}`);
-        if (!res.ok) return;
+        const res = await fetch(apiUrl(`/api/market?symbol=${encodeURIComponent(apiSymbol)}`));
+        if (!res.ok) { registerFail(symbol); return; }
         const d = await res.json();
-        if (!d || d.price == null) return;
 
+        if (!d || d.price == null) {
+          registerFail(symbol);
+          return;
+        }
+
+        stockFails.current[symbol] = 0;
         const price  = parseFloat(d.price);
-        // /api/market returns the daily move as `changePercent` (accept `change` too for safety).
         const rawChange = d.change ?? d.changePercent;
         const change = rawChange != null ? parseFloat(rawChange) : null;
         const high   = d.high  != null ? parseFloat(d.high)   : null;
         const low    = d.low   != null ? parseFloat(d.low)    : null;
+        const vol    = d.volume != null ? parseFloat(d.volume) : null;
 
-        updateQuote(symbol, { price, change, high, low });
+        updateQuote(symbol, {
+          price, change, high, low,
+          vol: Number.isFinite(vol) ? vol : null,
+          stale: !!d.stale,
+          marketState: d.marketState ?? null,
+          noData: false,
+          ts: Date.now(),
+        });
       } catch {
-        // network error — silently skip
+        registerFail(symbol);
       }
     };
 
@@ -216,11 +241,26 @@ export function LiveQuoteProvider({ children }) {
     stockTimers.current[symbol] = setInterval(poll, 15000);
   }, [updateQuote]);
 
+  // After 2 consecutive failures with no prior price, surface a "no data" state
+  // so the UI can stop showing an infinite skeleton.
+  const registerFail = useCallback((symbol) => {
+    const sym = symbol.toUpperCase();
+    stockFails.current[symbol] = (stockFails.current[symbol] || 0) + 1;
+    if (stockFails.current[symbol] >= 2) {
+      setQuotes(prev => {
+        const cur = prev[sym] || {};
+        if (cur.price != null) return prev; // we already have a price; keep it
+        return { ...prev, [sym]: { ...cur, noData: true } };
+      });
+    }
+  }, []);
+
   const stopStockPoll = useCallback((symbol) => {
     if (stockTimers.current[symbol]) {
       clearInterval(stockTimers.current[symbol]);
       delete stockTimers.current[symbol];
     }
+    delete stockFails.current[symbol];
   }, []);
 
   // ── Subscribe / Unsubscribe ──────────────────────────────────────────────────
@@ -244,10 +284,9 @@ export function LiveQuoteProvider({ children }) {
 
     if (wsNeedsReconnect) {
       // Batch: wait 150ms before reconnecting in case more subscribe() calls arrive
+      reconnTries.current = 0;
       if (batchTimer.current) clearTimeout(batchTimer.current);
-      batchTimer.current = setTimeout(() => {
-        connectWS();
-      }, 150);
+      batchTimer.current = setTimeout(() => connectWS(), 150);
     }
   }, [connectWS, startStockPoll]);
 
@@ -275,10 +314,9 @@ export function LiveQuoteProvider({ children }) {
     }
 
     if (wsNeedsReconnect) {
+      reconnTries.current = 0;
       if (batchTimer.current) clearTimeout(batchTimer.current);
-      batchTimer.current = setTimeout(() => {
-        connectWS();
-      }, 150);
+      batchTimer.current = setTimeout(() => connectWS(), 150);
     }
   }, [connectWS, stopStockPoll]);
 
@@ -291,7 +329,7 @@ export function LiveQuoteProvider({ children }) {
 
       if (wsRef.current) {
         wsRef.current.onclose = null;
-        wsRef.current.close();
+        try { wsRef.current.close(); } catch { /* noop */ }
         wsRef.current = null;
       }
 
@@ -301,7 +339,7 @@ export function LiveQuoteProvider({ children }) {
   }, []);
 
   return (
-    <LiveQuoteContext.Provider value={{ quotes, subscribe, unsubscribe }}>
+    <LiveQuoteContext.Provider value={{ quotes, wsStatus, subscribe, unsubscribe }}>
       {children}
     </LiveQuoteContext.Provider>
   );
@@ -317,12 +355,25 @@ export function useQuote(symbol) {
   const quote = ctx.quotes[sym];
 
   return {
-    price:  quote?.price  ?? null,
-    change: quote?.change ?? null,
-    high:   quote?.high   ?? null,
-    low:    quote?.low    ?? null,
-    flash:  quote?.flash  ?? null,
+    price:       quote?.price       ?? null,
+    change:      quote?.change      ?? null,
+    high:        quote?.high        ?? null,
+    low:         quote?.low         ?? null,
+    vol:         quote?.vol         ?? null,   // quote-asset (USDT/$) volume for crypto, share volume for stocks
+    volBase:     quote?.volBase     ?? null,   // base-asset volume (crypto only)
+    flash:       quote?.flash       ?? null,
+    stale:       quote?.stale       ?? false,  // true when price is a last-close (market closed)
+    marketState: quote?.marketState ?? null,
+    noData:      quote?.noData      ?? false,  // true when the feed could not return any price
+    ts:          quote?.ts          ?? null,
   };
+}
+
+// ── useWsStatus hook ──────────────────────────────────────────────────────────
+// 'connecting' | 'live' | 'disconnected' — for the crypto WebSocket.
+export function useWsStatus() {
+  const ctx = useContext(LiveQuoteContext);
+  return ctx?.wsStatus ?? 'connecting';
 }
 
 export default LiveQuoteContext;

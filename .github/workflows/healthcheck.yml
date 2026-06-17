@@ -1,0 +1,42 @@
+name: Daily Data Healthcheck
+
+# Runs a daily probe of every live feed/robot and commits a dated report to reports/.
+# Crypto is 24/7; the 13:35 UTC slot lands at US market open (≈16:30 Israel) so stock
+# feeds are checked while the market is live. Also runnable on demand.
+
+on:
+  schedule:
+    - cron: '35 13 * * *'   # ~US market open (covers stocks + crypto)
+    - cron: '5 6 * * *'     # crypto-only morning check
+  workflow_dispatch: {}      # manual "Run workflow" button
+
+permissions:
+  contents: write            # allow committing the report back to the repo
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run healthcheck against production
+        env:
+          # Set this repo/org variable to your deployment URL (Settings → Variables → Actions).
+          HEALTH_BASE: ${{ vars.HEALTH_BASE || 'https://beep-ai.vercel.app' }}
+        run: node scripts/healthcheck.mjs --base "$HEALTH_BASE" || echo "::warning::healthcheck reported a critical failure"
+
+      - name: Commit report
+        run: |
+          git config user.name  "beep-ai-healthcheck[bot]"
+          git config user.email "actions@github.com"
+          git add reports/
+          if git diff --staged --quiet; then
+            echo "No new report to commit."
+          else
+            git commit -m "chore(healthcheck): daily report $(date -u +%Y-%m-%d)"
+            git push
+          fi
