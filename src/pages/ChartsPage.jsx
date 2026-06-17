@@ -91,9 +91,25 @@ function useSymbolSearch() {
   return { query, results, loading, open, search, close, setOpen };
 }
 
+const LS_CHART_SYMBOL = 'beepai_chart_sym';   // set by HomePage on every tile/search select
+
 export default function ChartsPage({ initialSymbol = null }) {
   const { alerts, editAlert, removeAlert } = useAlerts();
-  const [active,    setActive]    = useState(() => resolveSymbol(initialSymbol) || SYMBOLS[0]);
+  // Open the symbol the user picked: explicit prop first, then the last-selected symbol
+  // persisted by HomePage, then BTC. Belt-and-suspenders so the chart never defaults to
+  // Bitcoin when a stock was chosen.
+  const [active, setActive] = useState(() => {
+    let seed = initialSymbol;
+    if (!seed) { try { seed = localStorage.getItem(LS_CHART_SYMBOL); } catch { /* ignore */ } }
+    return resolveSymbol(seed) || SYMBOLS[0];
+  });
+
+  // If navigated again with a new symbol while already mounted, re-apply it.
+  useEffect(() => {
+    if (!initialSymbol) return;
+    const r = resolveSymbol(initialSymbol);
+    if (r) setActive(r);
+  }, [initialSymbol]);
   const [interval,  setInterval]  = useState('D');
   const [showAlert, setShowAlert] = useState(false);
   const containerRef = useRef(null);
