@@ -3,7 +3,9 @@
   "appName": "BEEP AI",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "url": "https://beep-ai.vercel.app",
+    "cleartext": false
   },
   "android": {
     "allowMixedContent": true,
