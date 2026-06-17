@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import RobotNavTabs from '../components/RobotNavTabs';
+import AlertChartPanel from '../components/AlertChartPanel';
+import QuickAlert from '../components/QuickAlert';
+import { useAlerts } from '../context/AlertsContext';
 import './FinvizPage.css';
 
 const PATTERNS = [
@@ -150,7 +153,7 @@ function tvSignal(score) {
 }
 
 // ── Live pattern result section ───────────────────────────────
-function LivePatternResult({ data }) {
+function LivePatternResult({ data, onSelect }) {
   if (!data) return null;
   return (
     <div className="fv-live-result">
@@ -168,7 +171,14 @@ function LivePatternResult({ data }) {
               const sig = tvSignal(s.score);
               const up = s.change >= 0;
               return (
-                <div key={s.ticker} className="fv-live-stock-row">
+                <div
+                  key={s.ticker}
+                  className="fv-live-stock-row"
+                  onClick={() => onSelect(s.ticker, s.price)}
+                  style={{ cursor: 'pointer' }}
+                  title={`פתח גרף ${s.ticker}`}
+                  role="button"
+                >
                   <span className="fv-live-ticker">{s.ticker}</span>
                   <span className="fv-live-price">${s.price.toFixed(2)}</span>
                   <span className="fv-live-change" style={{ color: up?'#4ade80':'#ef4444' }}>{up?'▲':'▼'}{Math.abs(s.change)}%</span>
@@ -186,12 +196,66 @@ function LivePatternResult({ data }) {
   );
 }
 
+// ── Per-stock chart modal — same AlertChartPanel the Gainers page uses ──────────
+function FvChartModal({ symbol, price, onClose }) {
+  const [showAlert, setShowAlert] = useState(false);
+  const { alerts } = useAlerts();
+  const pending = alerts.filter(a => !a.triggered && a.symbol === symbol.toUpperCase()).length;
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000,
+               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ position: 'relative', width: 'min(960px,96vw)', height: 'min(70vh,560px)',
+                 background: 'var(--bg-card,#1a1a26)', borderRadius: 14, overflow: 'hidden',
+                 border: '1px solid rgba(255,255,255,0.08)' }}
+      >
+        {!showAlert && (
+          <div style={{ position: 'absolute', inset: 0 }}>
+            <AlertChartPanel symbol={symbol} isCrypto={false} defaultTf="1D" />
+          </div>
+        )}
+        <button
+          onClick={onClose}
+          aria-label="סגור גרף"
+          style={{ position: 'absolute', top: 10, insetInlineEnd: 10, zIndex: 5, width: 32, height: 32,
+                   borderRadius: 8, border: 'none', background: 'rgba(0,0,0,0.55)', color: '#fff',
+                   fontSize: 16, cursor: 'pointer' }}
+        >✕</button>
+        {!showAlert && (
+          <button
+            onClick={() => setShowAlert(true)}
+            style={{ position: 'absolute', bottom: 12, insetInlineEnd: 12, zIndex: 5, padding: '8px 14px',
+                     borderRadius: 10, border: '1px solid rgba(212,175,55,0.4)', background: 'rgba(212,175,55,0.12)',
+                     color: '#D4AF37', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            🔔 <span>התראה</span>
+            {pending > 0 && (
+              <span style={{ background: '#D4AF37', color: '#000', borderRadius: 999, padding: '0 6px', fontSize: 12 }}>{pending}</span>
+            )}
+          </button>
+        )}
+        {showAlert && (
+          <QuickAlert contained symbol={symbol} currentPrice={price} onClose={() => setShowAlert(false)} />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function FinvizPage({ navigate }) {
   const [filter, setFilter]         = useState('הכל');
   const [scanning, setScanning]     = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [liveData,  setLiveData]    = useState(null);
   const [scanError, setScanError]   = useState('');
+  const [detailSym,   setDetailSym]   = useState(null);
+  const [detailPrice, setDetailPrice] = useState(null);
+
+  const openDetail = (ticker, price = null) => { setDetailSym(ticker); setDetailPrice(price); };
 
   const filters = ['הכל', 'Bullish', 'Bearish', 'Neutral'];
 
@@ -239,7 +303,7 @@ export default function FinvizPage({ navigate }) {
       </div>
 
       {/* Live scan results */}
-      <LivePatternResult data={liveData} />
+      <LivePatternResult data={liveData} onSelect={openDetail} />
 
       {/* Scan result chips */}
       {scanResult && scanResult.length > 0 && (
@@ -249,9 +313,18 @@ export default function FinvizPage({ navigate }) {
             {scanError && <span className="fv-scan-demo-label">⚠️ {scanError}</span>}
           </div>
           <div className="fv-scan-tickers">
-            {scanResult.slice(0,12).map(s => (
-              <span key={s} className="fv-scan-ticker">{s}</span>
-            ))}
+            {scanResult.slice(0,12).map(s => {
+              const clickable = s !== 'לא נמצאו מניות';
+              return (
+                <span
+                  key={s}
+                  className="fv-scan-ticker"
+                  onClick={clickable ? () => openDetail(s) : undefined}
+                  style={clickable ? { cursor: 'pointer' } : undefined}
+                  title={clickable ? `פתח גרף ${s}` : undefined}
+                >{s}</span>
+              );
+            })}
           </div>
         </div>
       )}
@@ -293,6 +366,11 @@ export default function FinvizPage({ navigate }) {
           );
         })}
       </div>
+
+      {/* Per-stock chart modal (same chart as the Gainers page) */}
+      {detailSym && (
+        <FvChartModal symbol={detailSym} price={detailPrice} onClose={() => setDetailSym(null)} />
+      )}
 
     </div>
   );
