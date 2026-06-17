@@ -42,15 +42,21 @@ async function probe({ name, group, critical = false, optional = false, run }) {
 
 // ── Public sources (always checked, no app server needed) ─────────────────────
 await probe({
-  // Mirror, not api.binance.com — the latter is HTTP 451 from cloud/CI regions (geo-block).
-  // The app's real crypto feed is a browser WebSocket (user IP); this server check uses the mirror.
-  name: 'Binance BTCUSDT (price + volume)', group: 'Crypto', critical: true,
+  // Source-agnostic: api.binance.com is HTTP 451 from cloud/CI regions, and the .vision mirror
+  // can be region-blocked too. The app's real feed is a browser WebSocket (user IP). Verify
+  // "crypto data available" via CoinGecko first, then the Binance mirror.
+  name: 'Crypto BTC (price + volume)', group: 'Crypto', critical: true,
   run: async () => {
+    const sane = (p, v) => Number.isFinite(p) && p >= 1000 && p <= 1e7 && Number.isFinite(v) && v > 0;
+    try {
+      const c = (await getJson('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin'))?.[0];
+      if (sane(c?.current_price, c?.total_volume))
+        return `BTC=$${c.current_price.toLocaleString()} · vol=$${(c.total_volume / 1e9).toFixed(2)}B (coingecko)`;
+    } catch { /* fall through */ }
     const d = await getJson('https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT');
     const price = parseFloat(d.lastPrice), qVol = parseFloat(d.quoteVolume);
-    if (!Number.isFinite(price) || price < 1000 || price > 1e7) throw new Error(`BTC price out of range: ${d.lastPrice}`);
-    if (!Number.isFinite(qVol) || qVol <= 0) throw new Error(`quoteVolume invalid: ${d.quoteVolume}`);
-    return `BTC=$${price.toLocaleString()} · vol=$${(qVol / 1e9).toFixed(2)}B`;
+    if (!sane(price, qVol)) throw new Error(`BTC price/volume out of range: ${d.lastPrice}/${d.quoteVolume}`);
+    return `BTC=$${price.toLocaleString()} · vol=$${(qVol / 1e9).toFixed(2)}B (binance-mirror)`;
   },
 });
 await probe({

@@ -16,23 +16,36 @@ async function check(name, critical, fn) {
   }
 }
 
-// Binance — crypto price + volume sanity (BTC should be a plausible number).
-// NOTE: use the data-api.binance.vision mirror, not api.binance.com — the latter returns
-// HTTP 451 from Vercel's server region (geo-block). The app's live feed is a *browser*
-// WebSocket (user IP, not blocked); this server-side check must use the reachable mirror.
+// Crypto price + volume sanity (BTC should be a plausible number).
+// Source-agnostic on purpose: api.binance.com returns HTTP 451 from cloud regions (geo-block),
+// and even the .vision mirror can be region-blocked. The app's real feed is a *browser*
+// WebSocket (user IP, never blocked); this server-side check verifies "crypto data is
+// available" via CoinGecko (reachable from Vercel) first, then the Binance mirror.
 async function checkBinance() {
+  const sane = (price, vol) =>
+    Number.isFinite(price) && price >= 1000 && price <= 10_000_000 && Number.isFinite(vol) && vol > 0;
+
+  // Primary: CoinGecko — one call gives price + 24h volume, reachable from cloud regions.
+  try {
+    const r = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin', {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (r.ok) {
+      const c = (await r.json())?.[0];
+      if (sane(c?.current_price, c?.total_volume))
+        return { value: { btc: c.current_price, quoteVolume: c.total_volume, src: 'coingecko' } };
+    }
+  } catch { /* fall through to mirror */ }
+
+  // Fallback: Binance .vision mirror.
   const r = await fetch('https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT', {
     signal: AbortSignal.timeout(8000),
   });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const d = await r.json();
-  const price = parseFloat(d.lastPrice);
-  const qVol = parseFloat(d.quoteVolume);
-  if (!Number.isFinite(price) || price < 1000 || price > 10_000_000)
-    throw new Error(`BTC price out of sane range: ${d.lastPrice}`);
-  if (!Number.isFinite(qVol) || qVol <= 0)
-    throw new Error(`BTC quote volume invalid: ${d.quoteVolume}`);
-  return { value: { btc: price, quoteVolume: qVol } };
+  const price = parseFloat(d.lastPrice), qVol = parseFloat(d.quoteVolume);
+  if (!sane(price, qVol)) throw new Error(`BTC price/volume out of range: ${d.lastPrice}/${d.quoteVolume}`);
+  return { value: { btc: price, quoteVolume: qVol, src: 'binance-mirror' } };
 }
 
 // Crypto Fear & Greed — alternative.me.
