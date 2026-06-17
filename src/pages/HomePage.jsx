@@ -213,10 +213,20 @@ function CryptoStrip({ selected, onSelect }) {
 // ── Stock strip — top gainer + QQQ + S&P + SPCX ──────────────
 const STOCK_POLL_MAP = { QQQ: 'QQQ', 'S&P': '^GSPC', SPCX: 'SPCX' };
 
-function StockMiniCard({ sym, price, change, isTop }) {
+function StockMiniCard({ sym, price, change, isTop, selected, onSelect }) {
   const up = (change ?? 0) >= 0;
+  const clickable = !!sym && typeof onSelect === 'function';
+  const activeCls = selected && sym && selected === sym ? ' hp-mini-active' : '';
   return (
-    <div className={`hp-mini-card${isTop ? ' hp-mini-card--top' : ''}`}>
+    <div
+      className={`hp-mini-card${isTop ? ' hp-mini-card--top' : ''}${activeCls}`}
+      onClick={clickable ? () => onSelect(sym) : undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={clickable ? (e => e.key === 'Enter' && onSelect(sym)) : undefined}
+      style={clickable ? { cursor: 'pointer' } : undefined}
+      title={clickable ? `הצג גרף ${sym}` : undefined}
+    >
       <span className="hp-mini-sym" style={isTop ? { color: '#f59e0b' } : undefined}>
         {isTop && sym ? '▲ ' : ''}{sym || '…'}
       </span>
@@ -230,7 +240,7 @@ function StockMiniCard({ sym, price, change, isTop }) {
   );
 }
 
-function StockStrip() {
+function StockStrip({ selected, onSelect }) {
   const [gainer, setGainer] = useState({ sym: '', price: null, change: null });
   const [stocks, setStocks] = useState({});
 
@@ -263,10 +273,10 @@ function StockStrip() {
 
   return (
     <div className="hp-crypto-strip">
-      <StockMiniCard sym={gainer.sym} price={gainer.price} change={gainer.change} isTop />
-      <StockMiniCard sym="QQQ"  price={stocks.QQQ?.price}    change={stocks.QQQ?.change} />
-      <StockMiniCard sym="S&P"  price={stocks['S&P']?.price}  change={stocks['S&P']?.change} />
-      <StockMiniCard sym="SPCX" price={stocks.SPCX?.price}   change={stocks.SPCX?.change} />
+      <StockMiniCard sym={gainer.sym} price={gainer.price} change={gainer.change} isTop selected={selected} onSelect={onSelect} />
+      <StockMiniCard sym="QQQ"  price={stocks.QQQ?.price}    change={stocks.QQQ?.change}    selected={selected} onSelect={onSelect} />
+      <StockMiniCard sym="S&P"  price={stocks['S&P']?.price}  change={stocks['S&P']?.change}  selected={selected} onSelect={onSelect} />
+      <StockMiniCard sym="SPCX" price={stocks.SPCX?.price}   change={stocks.SPCX?.change}   selected={selected} onSelect={onSelect} />
     </div>
   );
 }
@@ -327,7 +337,7 @@ export default function HomePage({ navigate }) {
       {/* ── 4 crypto mini cards ── */}
       <CryptoStrip selected={chartSymbol} onSelect={handleSymbolSelect} />
       {/* ── 4 stock mini cards ── */}
-      <StockStrip />
+      <StockStrip selected={chartSymbol} onSelect={handleSymbolSelect} />
 
       {/* ── Robots section ── */}
       <div className="hp-section-title">🤖 סקנרים &amp; רובוטים</div>
