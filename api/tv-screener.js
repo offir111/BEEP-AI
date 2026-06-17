@@ -6,7 +6,7 @@
 
 let _cache   = {};
 let _cacheTs = {};
-const CACHE_MS       = 20 * 1000;   // refresh TV data every 20s
+const CACHE_MS       = 8 * 1000;    // refresh TV data every 8s
 const STALE_MAX_MS   = 5  * 60 * 1000; // never serve stale older than 5 min
 
 const TV_URL = 'https://scanner.tradingview.com/america/scan';
@@ -28,11 +28,12 @@ const COLS = [
   'change|60',                 // 13 — 1h %
 ];
 
-// מנקה ערכי ארטיפקט של TradingView (כמו 9900 על מניות פאמפ לא נזילות).
-const cleanPct = (v) => (v != null && Math.abs(v) < 2000 ? +Number(v).toFixed(2) : null);
+// מנקה ערכי ארטיפקט של TradingView
+const cleanPct  = (v) => (v != null && Math.abs(v) < 2000 ? +Number(v).toFixed(2) : null);
+const clean5m   = (v) => (v != null && Math.abs(v) < 50   ? +Number(v).toFixed(2) : null); // 5M > 50% = anomaly
 
 const PERIOD_SORT = {
-  '1h': 'change', '1d': 'change',
+  '5m': 'change|5', '1h': 'change|60', '1d': 'change',
   '1w': 'Perf.W', '1m': 'Perf.1M', '1y': 'Perf.Y',
 };
 
@@ -41,6 +42,7 @@ const BASE = [
   { left: 'subtype', operation: 'in_range', right: ['common', 'foreign-issuer'] },
   { left: 'average_volume_10d_calc', operation: 'greater', right: 300_000 },
   { left: 'close',   operation: 'greater',  right: 2 },   // quality — no sub-$2 penny pumps
+  { left: 'change',  operation: 'less',     right: 500 },  // exclude post-event anomalies (mergers, splits)
 ];
 
 const CAP_MAP = {
@@ -83,7 +85,14 @@ const SIGNAL_CONFIG = {
 async function tvScan(filters, sortBy, sortOrder, count) {
   const res = await fetch(TV_URL, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'Origin': 'https://www.tradingview.com',
+      'Referer': 'https://www.tradingview.com/',
+      'Accept': 'application/json',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
     body: JSON.stringify({
       filter:  filters,
       options: { lang: 'en' },
@@ -112,7 +121,7 @@ async function tvScan(filters, sortBy, sortOrder, count) {
     pct_1y:     d[9] != null ? +Number(d[9]).toFixed(2)  : null,
     rel_volume: d[10] != null ? +Number(d[10]).toFixed(2) : null,
     recommend:  d[11] != null ? +Number(d[11]).toFixed(3) : null,
-    pct_5m:     cleanPct(d[12]),
+    pct_5m:     clean5m(d[12]),
     pct_1h:     cleanPct(d[13]),
   }));
 }
@@ -163,6 +172,8 @@ export default async function handler(req, res) {
     if (!sigConf) {
       quotes = quotes.map(stock => {
         let pct = stock.change_pct;
+        if (period === '5m' && stock.pct_5m != null) pct = stock.pct_5m;
+        if (period === '1h' && stock.pct_1h != null) pct = stock.pct_1h;
         if (period === '1w' && stock.pct_1w != null) pct = stock.pct_1w;
         if (period === '1m' && stock.pct_1m != null) pct = stock.pct_1m;
         if (period === '1y' && stock.pct_1y != null) pct = stock.pct_1y;
@@ -174,7 +185,7 @@ export default async function handler(req, res) {
     _cache[cacheKey]   = payload;
     _cacheTs[cacheKey] = now;
 
-    res.setHeader('Cache-Control', 's-maxage=20, stale-while-revalidate=5');
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json(payload);
 
   } catch (err) {

@@ -17,7 +17,9 @@ const CRYPTO_TABS = [
   { id: '1y',  label: '1Y' },
 ];
 const STOCK_TABS = [
-  { id: '1d', label: '1D' },   // no real 1H from TradingView scanner
+  { id: '5m', label: '5m' },   // TradingView scanner exposes change|5 (5m) + change|60 (1h)
+  { id: '1h', label: '1H' },
+  { id: '1d', label: '1D' },
   { id: '1w', label: '1W' },
   { id: '1m', label: '1M' },
   { id: '1y', label: '1Y' },
@@ -95,7 +97,7 @@ const CG_PCT_FIELD = {
   '1y':  'price_change_percentage_1y_in_currency',
 };
 // Tab id normalization across assets (crypto uses 24h/7d/30d; stocks 1d/1w/1m)
-const STOCK_FROM_CRYPTO  = { '1h': '1d', '24h': '1d', '7d': '1w', '30d': '1m', '1y': '1y' };
+const STOCK_FROM_CRYPTO  = { '5m': '5m', '1h': '1h', '24h': '1d', '7d': '1w', '30d': '1m', '1y': '1y' };
 const CRYPTO_FROM_STOCK  = { '1h': '1h', '1d': '24h', '1w': '7d', '1m': '30d', '1y': '1y' };
 
 /* ── Stocks local cache (so a display always exists) ──────────── */
