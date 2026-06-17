@@ -113,7 +113,7 @@ export default function GainersPage() {
     let cancelled = false;
     const load = async () => {
       try {
-        const r = await fetch(apiUrl('/api/tv-screener?period=1d'));
+        const r = await fetch(apiUrl(`/api/tv-screener?period=1d&_t=${Date.now()}`));
         const d = await r.json();
         if (cancelled) return;
         const prev = prevStocksRef.current;
@@ -141,7 +141,7 @@ export default function GainersPage() {
       } catch { if (!cancelled) setLoading(false); }
     };
     load();
-    const iv = setInterval(load, 15000);
+    const iv = setInterval(load, 8000);
     return () => { cancelled = true; clearInterval(iv); };
   }, [mode]);
 
@@ -180,8 +180,8 @@ export default function GainersPage() {
           <span>#</span>
           <span className="gn-h-sym">סימבול</span>
           <button className={`gn-h-sort${sortKey === 'p5m' ? ' gn-h-on' : ''}`} onClick={() => setSortKey('p5m')}>5M</button>
-          <span className="gn-h-price">מחיר</span>
-          <span>M.C</span>
+          <button className={`gn-h-sort${sortKey === 'price' ? ' gn-h-on' : ''}`} onClick={() => setSortKey('price')}>מחיר</button>
+          <button className={`gn-h-sort${sortKey === 'mc'    ? ' gn-h-on' : ''}`} onClick={() => setSortKey('mc')}>M.C</button>
           {RIGHT_COLS.map(c => (
             <button key={c.key} className={`gn-h-sort${sortKey === c.key ? ' gn-h-on' : ''}`} onClick={() => setSortKey(c.key)}>{c.label}</button>
           ))}
