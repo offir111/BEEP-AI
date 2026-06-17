@@ -12,7 +12,7 @@ import {
 const STOCK_API_MAP = {
   'S&P':    '^GSPC',
   'SP500':  '^GSPC',
-  'GOLD':   'XAUUSD=X',
+  'GOLD':   'GC=F',
   'SILVER': 'XAGUSD=X',
   'OIL':    'CL=F',
   'SPCX':   'SPCX',

@@ -299,6 +299,50 @@
   background: rgba(99,102,241,0.15);
 }
 
+/* ── Crypto strip — 4 live price cards ── */
+.hp-crypto-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.hp-mini-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 7px 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.09);
+  background: #0d0e1a;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.hp-mini-card:hover  { border-color: rgba(255,255,255,0.22); transform: translateY(-1px); }
+.hp-mini-active      { border-color: rgba(212,175,55,0.75); box-shadow: 0 0 0 1px rgba(212,175,55,0.25); }
+.hp-mini-card--top   { border-color: rgba(245,158,11,0.35); }
+
+/* flash — המחיר עצמו מאיר (לא המסגרת) */
+@keyframes hp-price-up-kf {
+  0%   { color: #4ade80; text-shadow: 0 0 10px rgba(74,222,128,0.8); }
+  60%  { color: #86efac; text-shadow: none; }
+  100% { color: #fff; }
+}
+@keyframes hp-price-dn-kf {
+  0%   { color: #f87171; text-shadow: 0 0 10px rgba(248,113,113,0.8); }
+  60%  { color: #fca5a5; text-shadow: none; }
+  100% { color: #fff; }
+}
+.hp-price-up { animation: hp-price-up-kf 1.4s ease-out; }
+.hp-price-dn { animation: hp-price-dn-kf 1.4s ease-out; }
+
+.hp-mini-sym   { font-size: 0.65rem; font-weight: 800; color: #fff; letter-spacing: 0.05em; line-height: 1; }
+.hp-mini-price { font-size: 0.95rem; font-weight: 900; color: #fff; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.hp-mini-pct   { font-size: 0.62rem; font-weight: 700; line-height: 1; }
+
 /* ── Section title ── */
 .hp-section-title {
   font-size: 0.72rem;
@@ -444,7 +488,7 @@
 /* ── Base button ── */
 .hp-stock-btn {
   position: relative;
-  padding: 11px 6px;
+  padding: 9px 6px;
   border-radius: 12px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(168,85,247,0.22);
@@ -505,12 +549,12 @@
   box-shadow: 0 0 0 1px rgba(212,175,55,0.25);
 }
 
-/* symbol + % layout inside button */
+/* symbol + price + % layout inside button */
 .hp-stock-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
 }
 
 .hp-stock-sym {
@@ -519,12 +563,36 @@
   line-height: 1;
 }
 
+/* live price line — flashes with lp-flash-up / lp-flash-down */
+.hp-stock-price {
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.82);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
 .hp-stock-pct {
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.01em;
 }
+
+/* ── Whole-button flash (כל הכפתור מאיר) ── */
+@keyframes hp-btn-up-kf {
+  0%   { border-color: rgba(74,222,128,0.95); background: rgba(74,222,128,0.18); box-shadow: 0 0 14px rgba(74,222,128,0.35); }
+  50%  { border-color: rgba(74,222,128,0.5);  background: rgba(74,222,128,0.07); box-shadow: none; }
+  100% { border-color: rgba(168,85,247,0.22); background: rgba(255,255,255,0.04); }
+}
+@keyframes hp-btn-dn-kf {
+  0%   { border-color: rgba(248,113,113,0.95); background: rgba(248,113,113,0.18); box-shadow: 0 0 14px rgba(248,113,113,0.35); }
+  50%  { border-color: rgba(248,113,113,0.5);  background: rgba(248,113,113,0.07); box-shadow: none; }
+  100% { border-color: rgba(168,85,247,0.22); background: rgba(255,255,255,0.04); }
+}
+.hp-btn-up { animation: hp-btn-up-kf 1.4s ease-out; }
+.hp-btn-dn { animation: hp-btn-dn-kf 1.4s ease-out; }
 
 /* pencil icon in edit mode */
 .hp-stock-pencil {

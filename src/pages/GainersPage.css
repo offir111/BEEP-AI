@@ -202,3 +202,23 @@
 .gn-flash-dn { animation: gn-fdn 0.7s ease-out; }
 @keyframes gn-fup { 0% { background: rgba(52,211,153,0.55); color:#fff; } 100% { background: transparent; } }
 @keyframes gn-fdn { 0%,55% { background: rgba(239,68,68,0.6); color:#fff; } 25% { background: transparent; } 100% { background: transparent; } }
+
+/* pct cell flash when value changes */
+.gn-cell-up { animation: gn-cup 0.9s ease-out; }
+.gn-cell-dn { animation: gn-cdn 0.9s ease-out; }
+@keyframes gn-cup { 0%   { background: rgba(52,211,153,0.35); border-radius:4px; } 100% { background: transparent; } }
+@keyframes gn-cdn { 0%   { background: rgba(239,68,68,0.35);  border-radius:4px; } 100% { background: transparent; } }
+
+/* last-updated footer */
+.gn-ts-bar {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 0.67rem; color: rgba(255,255,255,0.38);
+  padding: 6px 0 2px;
+  font-family: inherit;
+}
+.gn-ts-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: #34d399;
+  animation: gn-pulse 1.4s ease-in-out infinite;
+}
+.gn-ts-dot--stale { background: #f59e0b; }
+.gn-ts-warn { color: #f59e0b; font-size: 0.67rem; }

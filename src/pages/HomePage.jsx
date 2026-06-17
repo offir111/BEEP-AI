@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useAlerts } from '../context/AlertsContext';
 import ScannerWidget  from '../components/ScannerWidget';
 import MiniChartPanel from '../components/MiniChartPanel';
@@ -129,153 +129,144 @@ function RobotCard({ icon, name, desc, tag, tagColor, onClick }) {
   );
 }
 
-// ── Stock buttons ──────────────────────────────────────────────
-// Layout (4 cols × 2 rows):
-//   [edit0] [edit1] [edit2] [BTC-fixed]
-//   [edit3] [edit4] [edit5] [last-searched]
-// ──────────────────────────────────────────────────────────────
-// ברירת מחדל לכפתורי המניות (RTL: BTC קבוע מימין). edit0..edit5:
-// שורה 1: ETH · SOL · SPCX | שורה 2: GOLD · QQQ · S&P
-const DEFAULT_EDITABLE = ['ETH','SOL','SPCX','GOLD','QQQ','S&P'];
-const LS_SYMBOL_KEY    = 'beepai_chart_sym';
-const LS_LAST_KEY      = 'beepai_last_searched';
-const LS_EDITABLE_KEY  = 'beepai_editable_slots';
+// ── Crypto strip — 4 live price cards (Binance WebSocket) ──
+const LS_SYMBOL_KEY = 'beepai_chart_sym';
+const LS_LAST_KEY   = 'beepai_last_searched';
+const STRIP_SYMS    = ['BTC', 'ETH', 'SOL', 'BNB'];
+const COIN_ICON     = { BTC: '₿', ETH: 'Ξ', SOL: '◎', BNB: '⬡' };
 
-/* small inline % badge */
-function Pct({ sym }) {
+function fmtLive(p) {
+  if (p == null) return '…';
+  if (p >= 10000) return p.toLocaleString('en', { maximumFractionDigits: 0 });
+  if (p >= 1000)  return p.toLocaleString('en', { maximumFractionDigits: 1 });
+  if (p >= 100)   return p.toFixed(1);
+  if (p >= 1)     return p.toFixed(2);
+  return p.toFixed(4);
+}
+
+function MiniLiveCard({ sym, selected, onSelect, dayOpen }) {
   const ctx = useContext(LiveQuoteContext);
-  const { change, flash } = useQuote(sym);
+  const { price, flash } = useQuote(sym);
+
   useEffect(() => {
-    if (!ctx || !sym) return;
+    if (!ctx) return;
     ctx.subscribe([sym]);
     return () => ctx.unsubscribe([sym]);
   }, [sym, ctx]);
-  if (change == null) return null;
-  const up = change >= 0;
+
+  const dailyChange = (price != null && dayOpen != null && dayOpen !== 0)
+    ? ((price - dayOpen) / dayOpen) * 100
+    : null;
+
+  const up       = (dailyChange ?? 0) >= 0;
+  const priceCls = flash === 'up' ? ' hp-price-up' : flash === 'down' ? ' hp-price-dn' : '';
+  const activeCls = selected === sym ? ' hp-mini-active' : '';
+
   return (
-    <span className={`hp-stock-pct${flash === 'up' ? ' lp-flash-up' : flash === 'down' ? ' lp-flash-down' : ''}`}
-      style={{ color: up ? '#4ade80' : '#f87171' }}>
-      {up ? '+' : ''}{change.toFixed(1)}%
-    </span>
+    <div
+      className={`hp-mini-card${activeCls}`}
+      onClick={() => onSelect(sym)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => e.key === 'Enter' && onSelect(sym)}
+    >
+      <span className="hp-mini-sym">{sym}</span>
+      <span key={price} className={`hp-mini-price${priceCls}`}>${fmtLive(price)}</span>
+      {dailyChange != null && (
+        <span className="hp-mini-pct" style={{ color: up ? '#4ade80' : '#f87171' }}>
+          {up ? '+' : ''}{dailyChange.toFixed(2)}%
+        </span>
+      )}
+    </div>
   );
 }
 
-function loadEditable() {
-  try {
-    const s = JSON.parse(localStorage.getItem(LS_EDITABLE_KEY));
-    if (Array.isArray(s) && s.length === 6) return s;
-  } catch {}
-  return [...DEFAULT_EDITABLE];
-}
-
-function StockButtons({ selected, onSelect }) {
-  const [slots,      setSlots]      = useState(loadEditable);
-  const [editingIdx, setEditingIdx] = useState(null);
-  const [editVal,    setEditVal]    = useState('');
-  const editInputRef = useRef(null);
-  const pressTimer    = useRef(null);
-  const longPressed   = useRef(false);
-
-  const lastSearched = localStorage.getItem(LS_LAST_KEY) || '';
+function CryptoStrip({ selected, onSelect }) {
+  const [dayOpens, setDayOpens] = useState({});
 
   useEffect(() => {
-    if (editingIdx !== null) setTimeout(() => editInputRef.current?.focus(), 60);
-  }, [editingIdx]);
-
-  const saveSlots = (next) => { setSlots(next); localStorage.setItem(LS_EDITABLE_KEY, JSON.stringify(next)); };
-  const openEdit  = (i)    => { setEditingIdx(i); setEditVal(slots[i]); };
-  const commitEdit = () => {
-    const sym = editVal.trim().toUpperCase();
-    if (sym && editingIdx !== null) { const n=[...slots]; n[editingIdx]=sym; saveSlots(n); }
-    setEditingIdx(null); setEditVal('');
-  };
-  const startPress = (i) => {
-    longPressed.current = false;
-    clearTimeout(pressTimer.current);
-    pressTimer.current = setTimeout(() => { longPressed.current = true; openEdit(i); }, 500);
-  };
-  const endPress = () => clearTimeout(pressTimer.current);
-
-  // RTL grid — first = visual right
-  // Row1: [BTC] [edit0] [edit1] [edit2]
-  // Row2: [last][edit3] [edit4] [edit5]
-  const cells = [
-    { type:'fixed', sym:'BTC' },
-    { type:'edit', idx:0 },
-    { type:'edit', idx:1 },
-    { type:'edit', idx:2 },
-    { type:'last' },
-    { type:'edit', idx:3 },
-    { type:'edit', idx:4 },
-    { type:'edit', idx:5 },
-  ];
+    // Fetch today's daily open from Binance klines — matches TradingView's 1D %
+    Promise.all(
+      STRIP_SYMS.map(sym =>
+        fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}USDT&interval=1d&limit=1`)
+          .then(r => r.json())
+          .then(data => ({ sym, open: parseFloat(data[0][1]) }))
+          .catch(() => ({ sym, open: null }))
+      )
+    ).then(results => {
+      const opens = {};
+      results.forEach(({ sym, open }) => { opens[sym] = open; });
+      setDayOpens(opens);
+    });
+  }, []);
 
   return (
-    <div className="hp-stock-section">
-      <div className="hp-stock-grid">
-        {cells.map((cell, pos) => {
-          /* ── BTC fixed ── */
-          if (cell.type === 'fixed') return (
-            <button key="btc"
-              className={`hp-stock-btn hp-stock-btn--fixed${'BTC' === selected ? ' --active' : ''}`}
-              onClick={() => onSelect('BTC')}
-            >
-              <span className="hp-stock-sym">BTC</span>
-              <Pct sym="BTC" />
-            </button>
-          );
+    <div className="hp-crypto-strip">
+      {STRIP_SYMS.map(sym => (
+        <MiniLiveCard key={sym} sym={sym} selected={selected} onSelect={onSelect}
+          dayOpen={dayOpens[sym] ?? null} />
+      ))}
+    </div>
+  );
+}
 
-          /* ── Last searched ── */
-          if (cell.type === 'last') {
-            const sym   = lastSearched || '';
-            const empty = !sym;
-            return (
-              <button key="last"
-                className={`hp-stock-btn hp-stock-btn--last${!empty && sym===selected ? ' --active' : ''}${empty ? ' --empty' : ''}`}
-                onClick={() => !empty && onSelect(sym)}
-                disabled={empty}
-                title="מניה אחרונה שחיפשת"
-              >
-                {empty ? '—' : <><span className="hp-stock-sym">{sym}</span><Pct sym={sym} /></>}
-              </button>
-            );
-          }
+// ── Stock strip — top gainer + QQQ + S&P + SPCX ──────────────
+const STOCK_POLL_MAP = { QQQ: 'QQQ', 'S&P': '^GSPC', SPCX: 'SPCX' };
 
-          /* ── Editable slot ── */
-          const i   = cell.idx;
-          const sym = slots[i];
-          const isEditing = editingIdx === i;
+function StockMiniCard({ sym, price, change, isTop }) {
+  const up = (change ?? 0) >= 0;
+  return (
+    <div className={`hp-mini-card${isTop ? ' hp-mini-card--top' : ''}`}>
+      <span className="hp-mini-sym" style={isTop ? { color: '#f59e0b' } : undefined}>
+        {isTop && sym ? '▲ ' : ''}{sym || '…'}
+      </span>
+      <span className="hp-mini-price">{price != null ? `$${fmtLive(price)}` : '…'}</span>
+      {change != null && (
+        <span className="hp-mini-pct" style={{ color: up ? '#4ade80' : '#f87171' }}>
+          {up ? '+' : ''}{change.toFixed(2)}%
+        </span>
+      )}
+    </div>
+  );
+}
 
-          if (isEditing) return (
-            <div key={i} className="hp-stock-edit-wrap">
-              <input
-                ref={editInputRef}
-                className="hp-stock-edit-input"
-                value={editVal}
-                onChange={e => setEditVal(e.target.value.toUpperCase())}
-                onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingIdx(null); }}
-                maxLength={8}
-                placeholder={sym}
-              />
-              <button className="hp-stock-edit-ok" onClick={commitEdit}>✓</button>
-            </div>
-          );
+function StockStrip() {
+  const [gainer, setGainer] = useState({ sym: '', price: null, change: null });
+  const [stocks, setStocks] = useState({});
 
-          return (
-            <button key={i}
-              className={`hp-stock-btn${sym === selected ? ' --active' : ''}`}
-              onPointerDown={() => startPress(i)}
-              onPointerUp={endPress}
-              onPointerLeave={endPress}
-              onClick={() => { if (longPressed.current) { longPressed.current = false; return; } onSelect(sym); }}
-            >
-              <span className="hp-stock-sym">{sym}</span>
-              <Pct sym={sym} />
-            </button>
-          );
-        })}
-      </div>
-      <div className="hp-stock-hint">לעריכה — לחיצה רצופה על כפתור</div>
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const r = await fetch('/api/tv-screener?period=1d');
+        const d = await r.json();
+        if (d.quotes?.length) {
+          const t = d.quotes[0];
+          setGainer({ sym: t.symbol, price: t.price, change: t.chg1d });
+        }
+      } catch {}
+      await Promise.all(
+        Object.entries(STOCK_POLL_MAP).map(([sym, apiSym]) =>
+          fetch(`/api/market?symbol=${encodeURIComponent(apiSym)}`)
+            .then(r => r.json())
+            .then(d => {
+              if (d.price != null)
+                setStocks(prev => ({ ...prev, [sym]: { price: d.price, change: d.changePercent } }));
+            })
+            .catch(() => {})
+        )
+      );
+    };
+    load();
+    const iv = setInterval(load, 30000);
+    return () => clearInterval(iv);
+  }, []);
+
+  return (
+    <div className="hp-crypto-strip">
+      <StockMiniCard sym={gainer.sym} price={gainer.price} change={gainer.change} isTop />
+      <StockMiniCard sym="QQQ"  price={stocks.QQQ?.price}    change={stocks.QQQ?.change} />
+      <StockMiniCard sym="S&P"  price={stocks['S&P']?.price}  change={stocks['S&P']?.change} />
+      <StockMiniCard sym="SPCX" price={stocks.SPCX?.price}   change={stocks.SPCX?.change} />
     </div>
   );
 }
@@ -333,8 +324,10 @@ export default function HomePage({ navigate }) {
       {/* ── Mini chart panel ── */}
       <MiniChartPanel navigate={navigate} symbol={chartSymbol} />
 
-      {/* ── 12 Stock buttons ── */}
-      <StockButtons selected={chartSymbol} onSelect={handleSymbolSelect} />
+      {/* ── 4 crypto mini cards ── */}
+      <CryptoStrip selected={chartSymbol} onSelect={handleSymbolSelect} />
+      {/* ── 4 stock mini cards ── */}
+      <StockStrip />
 
       {/* ── Robots section ── */}
       <div className="hp-section-title">🤖 סקנרים &amp; רובוטים</div>

@@ -6,7 +6,8 @@
 
 let _cache   = {};
 let _cacheTs = {};
-const CACHE_MS = 60 * 1000;
+const CACHE_MS       = 20 * 1000;   // refresh TV data every 20s
+const STALE_MAX_MS   = 5  * 60 * 1000; // never serve stale older than 5 min
 
 const TV_URL = 'https://scanner.tradingview.com/america/scan';
 
@@ -129,7 +130,7 @@ export default async function handler(req, res) {
   const now = Date.now();
 
   if (_cache[cacheKey] && now - (_cacheTs[cacheKey] || 0) < CACHE_MS) {
-    return res.status(200).json({ ..._cache[cacheKey], fromCache: true });
+    return res.status(200).json({ ..._cache[cacheKey], fromCache: true, ts: _cacheTs[cacheKey] });
   }
 
   try {
@@ -169,16 +170,19 @@ export default async function handler(req, res) {
       });
     }
 
-    const payload = { quotes, count: quotes.length, cap, period, signal };
+    const payload = { quotes, count: quotes.length, cap, period, signal, ts: now };
     _cache[cacheKey]   = payload;
     _cacheTs[cacheKey] = now;
 
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
+    res.setHeader('Cache-Control', 's-maxage=20, stale-while-revalidate=5');
     return res.status(200).json(payload);
 
   } catch (err) {
     console.error('[tv-screener]', err.message);
-    if (_cache[cacheKey]) return res.status(200).json({ ..._cache[cacheKey], stale: true });
+    const age = now - (_cacheTs[cacheKey] || 0);
+    if (_cache[cacheKey] && age < STALE_MAX_MS) {
+      return res.status(200).json({ ..._cache[cacheKey], stale: true, ts: _cacheTs[cacheKey] });
+    }
     return res.status(500).json({ error: err.message, quotes: [], count: 0 });
   }
 }

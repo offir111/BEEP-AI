@@ -50,9 +50,14 @@ export default async function handler(req, res) {
     const data = await r.json();
     const meta = data?.chart?.result?.[0]?.meta;
     if (!meta) return null;
+    const price = meta.regularMarketPrice ?? null;
+    const prev  = meta.previousClose ?? null;   // yesterday's close, not 5-day chart start
+    const changePercent = (price != null && prev != null && prev !== 0)
+      ? ((price - prev) / prev) * 100
+      : null;
     return {
-      price: meta.regularMarketPrice ?? meta.previousClose ?? null,
-      changePercent: null,
+      price,
+      changePercent,
       name: meta.shortName ?? symbol,
     };
   };
