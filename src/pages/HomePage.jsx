@@ -4,6 +4,7 @@ import ScannerWidget  from '../components/ScannerWidget';
 import MiniChartPanel from '../components/MiniChartPanel';
 import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import FngIndicator from '../components/FngIndicator';
+import { apiUrl } from '../utils/apiBase';
 import './HomePage.css';
 import '../components/LivePrice.css';
 
@@ -144,9 +145,9 @@ function fmtLive(p) {
   return p.toFixed(4);
 }
 
-function MiniLiveCard({ sym, selected, onSelect, dayOpen }) {
+function MiniLiveCard({ sym, selected, onSelect, dayOpen, fbPrice, fbChange }) {
   const ctx = useContext(LiveQuoteContext);
-  const { price, flash } = useQuote(sym);
+  const { price: wsPrice, flash } = useQuote(sym);
 
   useEffect(() => {
     if (!ctx) return;
@@ -154,9 +155,13 @@ function MiniLiveCard({ sym, selected, onSelect, dayOpen }) {
     return () => ctx.unsubscribe([sym]);
   }, [sym, ctx]);
 
+  // WebSocket is the real-time primary; the server proxy fills in when the browser
+  // can't reach Binance (region block) so the tile never goes blank.
+  const price = wsPrice ?? fbPrice ?? null;
+
   const dailyChange = (price != null && dayOpen != null && dayOpen !== 0)
     ? ((price - dayOpen) / dayOpen) * 100
-    : null;
+    : (fbChange ?? null);
 
   const up       = (dailyChange ?? 0) >= 0;
   const priceCls = flash === 'up' ? ' hp-price-up' : flash === 'down' ? ' hp-price-dn' : '';
@@ -183,9 +188,11 @@ function MiniLiveCard({ sym, selected, onSelect, dayOpen }) {
 
 function CryptoStrip({ selected, onSelect }) {
   const [dayOpens, setDayOpens] = useState({});
+  const [fb, setFb] = useState({});   // server-proxy fallback: { sym: { price, open, changePct } }
 
   useEffect(() => {
-    // Fetch today's daily open from Binance klines — matches TradingView's 1D %
+    // Fetch today's daily open from Binance klines — matches TradingView's 1D %.
+    // (Direct Binance; may be region-blocked — the proxy below covers that case.)
     Promise.all(
       STRIP_SYMS.map(sym =>
         fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}USDT&interval=1d&limit=1`)
@@ -197,14 +204,31 @@ function CryptoStrip({ selected, onSelect }) {
       const opens = {};
       results.forEach(({ sym, open }) => { opens[sym] = open; });
       setDayOpens(opens);
-    });
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    // Server-side fallback (reachable when the browser can't hit Binance directly).
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const r = await fetch(apiUrl(`/api/crypto-price?symbols=${STRIP_SYMS.join(',')}`));
+        const d = await r.json();
+        if (!cancelled && d?.prices) setFb(d.prices);
+      } catch { /* keep last */ }
+    };
+    poll();
+    const iv = setInterval(poll, 5000);
+    return () => { cancelled = true; clearInterval(iv); };
   }, []);
 
   return (
     <div className="hp-crypto-strip">
       {STRIP_SYMS.map(sym => (
         <MiniLiveCard key={sym} sym={sym} selected={selected} onSelect={onSelect}
-          dayOpen={dayOpens[sym] ?? null} />
+          dayOpen={dayOpens[sym] ?? fb[sym]?.open ?? null}
+          fbPrice={fb[sym]?.price ?? null}
+          fbChange={fb[sym]?.changePct ?? null} />
       ))}
     </div>
   );

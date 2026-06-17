@@ -33,6 +33,28 @@ const INTERVALS = [
   {id:'M',label:'1M'},{id:'Y',label:'1Y'},
 ];
 
+const CRYPTO_BINANCE = { BTC:'BTCUSDT', ETH:'ETHUSDT', SOL:'SOLUSDT', BNB:'BNBUSDT', XRP:'XRPUSDT' };
+
+/* Resolve an incoming symbol string (from a home tile / mini chart) → an `active` entry.
+   Handles crypto, the S&P alias, known SYMBOLS, and arbitrary stock tickers (e.g. QQQ, SPCX,
+   a live gainer like ICCM) as custom entries the canvas chart can fetch via /api/candles. */
+function resolveSymbol(symStr) {
+  if (!symStr) return null;
+  const up = String(symStr).toUpperCase();
+  const found = SYMBOLS.find(s =>
+    s.priceApi.toUpperCase() === up ||
+    s.id === up ||
+    (s.binance && s.binance.replace('USDT', '') === up)
+  );
+  if (found) return found;
+  if (up === 'S&P' || up === 'SP500' || up === 'SPX')
+    return SYMBOLS.find(s => s.priceApi === '^GSPC') || null;
+  if (CRYPTO_BINANCE[up])
+    return { id: up + 'USD', label: up, exchange: 'BINANCE', binance: CRYPTO_BINANCE[up], priceApi: up, isCustom: true };
+  // Arbitrary US stock ticker — canvas chart fetches it from /api/candles (Yahoo).
+  return { id: up, label: up, exchange: 'NASDAQ', binance: null, priceApi: symStr, isCustom: true };
+}
+
 function buildTVUrl(sym, exchange, interval) {
   return `https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${exchange}%3A${sym}&interval=${interval}&hidesidetoolbar=0&symboledit=1&saveimage=1&toolbarbg=12121a&theme=dark&style=1&timezone=Asia%2FJerusalem&withdateranges=1&locale=he_IL`;
 }
@@ -69,9 +91,9 @@ function useSymbolSearch() {
   return { query, results, loading, open, search, close, setOpen };
 }
 
-export default function ChartsPage() {
+export default function ChartsPage({ initialSymbol = null }) {
   const { alerts, editAlert, removeAlert } = useAlerts();
-  const [active,    setActive]    = useState(SYMBOLS[0]);
+  const [active,    setActive]    = useState(() => resolveSymbol(initialSymbol) || SYMBOLS[0]);
   const [interval,  setInterval]  = useState('D');
   const [showAlert, setShowAlert] = useState(false);
   const containerRef = useRef(null);

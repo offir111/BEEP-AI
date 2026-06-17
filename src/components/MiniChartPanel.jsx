@@ -68,8 +68,8 @@ export default function MiniChartPanel({ navigate, symbol = 'BTC' }) {
 
   return (
     <div className="mcp-wrap" role="button" tabIndex={0}
-      onClick={() => navigate('charts')}
-      onKeyDown={(e) => e.key === 'Enter' && navigate('charts')}
+      onClick={() => navigate('charts', { symbol })}
+      onKeyDown={(e) => e.key === 'Enter' && navigate('charts', { symbol })}
       aria-label={`פתח גרף ${symbol} מלא`}
     >
       {/* TradingView iframe — pointer-events disabled so overlay captures click */}

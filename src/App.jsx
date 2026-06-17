@@ -100,30 +100,34 @@ function AppInner() {
   const [page, setPage] = useState('home');
   const [navHistory, setNavHistory] = useState(['home']);
   const [homeKey, setHomeKey] = useState(0);   // bump → remount HomePage (closes scanner/bubbles)
+  const [pageParams, setPageParams] = useState(null);  // optional route params (e.g. { symbol })
 
   const logout = () => {
     localStorage.removeItem('beepai_session');
     setSession(null);
   };
 
-  // navigate: deep-link, adds to history (back button works)
-  const navigate = (p) => {
+  // navigate: deep-link, adds to history (back button works). Optional params (e.g. { symbol }).
+  const navigate = (p, params = null) => {
     const target = VALID_PAGES.includes(p) ? p : '404';
     if (target === 'home') setHomeKey(k => k + 1);   // logo/home → always reset home view
+    setPageParams(params);
     setPage(target);
     setNavHistory(prev => [...prev, target]);
     window.scrollTo(0, 0);
   };
 
-  // navigatePrimary: top-level NavBar click — resets history stack
+  // navigatePrimary: top-level NavBar click — resets history stack and params
   const navigatePrimary = (p) => {
     const target = VALID_PAGES.includes(p) ? p : '404';
+    setPageParams(null);
     setPage(target);
     setNavHistory(['home', target]);
     window.scrollTo(0, 0);
   };
 
   const goBack = () => {
+    setPageParams(null);
     if (navHistory.length > 1) {
       const prev = navHistory[navHistory.length - 2];
       setNavHistory(h => h.slice(0, -1));
@@ -148,10 +152,10 @@ function AppInner() {
       <Header onLogout={logout} username={session.username} isAdmin={session.isAdmin} navigate={navigate} page={page} />
       <NavBar page={page} navigate={navigatePrimary} />
       <AlertBanner />
-      <PageTopBar page={page} onBack={goBack} onClose={() => { setPage('home'); setNavHistory(['home']); window.scrollTo(0,0); }} />
+      <PageTopBar page={page} onBack={goBack} onClose={() => { setPageParams(null); setPage('home'); setNavHistory(['home']); window.scrollTo(0,0); }} />
       <main className="app-main">
         {page === 'home'      && <HomePage   key={homeKey} navigate={navigate} />}
-        {page === 'charts'    && <ChartsPage />}
+        {page === 'charts'    && <ChartsPage initialSymbol={pageParams?.symbol} />}
         {page === 'crypto'    && <CryptoPage />}
         {page === 'news'      && <NewsPage   />}
         {page === 'alerts'    && <AlertsPage />}
