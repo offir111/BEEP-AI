@@ -1,0 +1,145 @@
+/* ── ProfilePage ──────────────────────────────────────────── */
+.pf-wrap {
+  direction: rtl;
+  max-width: var(--page-max, 960px);
+  margin: 0 auto;
+  padding: 16px 12px 48px;
+}
+
+/* ── User identity ── */
+.pf-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 20px 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pf-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #1a1a26;
+  background: linear-gradient(135deg, var(--accent-gold), #f5d676);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.35);
+}
+
+.pf-name {
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+}
+
+.pf-login {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+/* ── Section title ── */
+.pf-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  margin: 22px 4px 14px;
+}
+
+/* ── Tile grid: 6 per row, RTL (first = rightmost) ── */
+.pf-grid {
+  direction: rtl;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.pf-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  aspect-ratio: 1 / 1;
+  padding: 6px 4px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  transition: transform 0.12s ease, filter 0.12s ease;
+  overflow: visible;   /* כדי שהבאדג' בפינה לא ייחתך */
+}
+.pf-tile:hover   { filter: brightness(1.12); }
+.pf-tile:active  { transform: scale(0.96); }
+
+/* Color states by daily change */
+.pf-tile--up {
+  background: linear-gradient(160deg, rgba(34, 197, 94, 0.28), rgba(34, 197, 94, 0.10));
+  border-color: rgba(34, 197, 94, 0.45);
+}
+.pf-tile--down {
+  background: linear-gradient(160deg, rgba(239, 68, 68, 0.28), rgba(239, 68, 68, 0.10));
+  border-color: rgba(239, 68, 68, 0.45);
+}
+.pf-tile--flat {
+  background: var(--bg-card);
+  border-color: var(--border);
+}
+
+.pf-tile-sym {
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.pf-tile-price {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  direction: ltr;
+}
+
+.pf-tile-change {
+  font-size: 0.8rem;
+  font-weight: 700;
+  direction: ltr;
+}
+.pf-tile--up   .pf-tile-change { color: #4ade80; }
+.pf-tile--down .pf-tile-change { color: #f87171; }
+.pf-tile--flat .pf-tile-change { color: var(--text-muted); }
+
+/* Alert-count badge (small circle, top-left corner) */
+.pf-tile-badge {
+  position: absolute;
+  /* פינה ימנית-עליונה, רובו בחוץ (כ-20% בלבד בתוך הקוביה) — לא מסתיר את שם המניה */
+  top: -11px;
+  right: -11px;
+  left: auto;
+  z-index: 5;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #1a1a26;
+  background: var(--accent-gold);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Responsive: keep 6 columns but shrink text on narrow phones ── */
+@media (max-width: 480px) {
+  .pf-tile-sym    { font-size: 0.86rem; }
+  .pf-tile-price  { font-size: 0.6rem; }
+  .pf-tile-change { font-size: 0.68rem; }
+  .pf-grid        { gap: 5px; }
+}

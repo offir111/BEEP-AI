@@ -1,0 +1,90 @@
+/* ── Flash keyframes — 3-blink trading terminal style ─────────────────────── */
+@keyframes lp-flash-up {
+  0%   { color: #4ade80; text-shadow: 0 0 8px rgba(74,222,128,0.7); }
+  18%  { color: #e8e8e8; text-shadow: none; }
+  36%  { color: #4ade80; text-shadow: 0 0 8px rgba(74,222,128,0.7); }
+  54%  { color: #e8e8e8; text-shadow: none; }
+  72%  { color: #4ade80; text-shadow: 0 0 5px rgba(74,222,128,0.4); }
+  100% { color: #e8e8e8; text-shadow: none; }
+}
+
+@keyframes lp-flash-down {
+  0%   { color: #f87171; text-shadow: 0 0 8px rgba(248,113,113,0.7); }
+  18%  { color: #e8e8e8; text-shadow: none; }
+  36%  { color: #f87171; text-shadow: 0 0 8px rgba(248,113,113,0.7); }
+  54%  { color: #e8e8e8; text-shadow: none; }
+  72%  { color: #f87171; text-shadow: 0 0 5px rgba(248,113,113,0.4); }
+  100% { color: #e8e8e8; text-shadow: none; }
+}
+
+/* ── Flash utility classes — no forwards so element returns to natural color ── */
+.lp-flash-up {
+  animation: lp-flash-up 1.4s ease-out;
+}
+
+.lp-flash-down {
+  animation: lp-flash-down 1.4s ease-out;
+}
+
+/* ── Root wrapper ──────────────────────────────────────────────────────────── */
+.lp-root {
+  display:     inline-flex;
+  align-items: baseline;
+  gap:         0.35em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* ── Price ─────────────────────────────────────────────────────────────────── */
+.lp-price {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.lp-prefix {
+  font-weight: 400;
+  opacity:     0.75;
+  margin-right: 0.05em;
+}
+
+.lp-loading {
+  opacity: 0.4;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+/* ── Change % ──────────────────────────────────────────────────────────────── */
+.lp-change {
+  font-size:          0.85em;
+  font-variant-numeric: tabular-nums;
+  font-weight:        500;
+}
+
+.lp-change--up {
+  color: #4ade80;
+}
+
+.lp-change--down {
+  color: #f87171;
+}
+
+/* ── High / Low ────────────────────────────────────────────────────────────── */
+.lp-hl {
+  display:     inline-flex;
+  align-items: baseline;
+  gap:         0.25em;
+  font-size:   0.78em;
+  opacity:     0.7;
+}
+
+.lp-high {
+  color: #4ade80;
+}
+
+.lp-low {
+  color: #f87171;
+}
+
+.lp-sep {
+  opacity: 0.5;
+}

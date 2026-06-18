@@ -1,0 +1,56 @@
+.ab-container {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  width: min(380px, 92vw);
+}
+
+.ab-toast {
+  background: linear-gradient(135deg, #1a1a26, #12121a);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: all;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+  animation: ab-in 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+.ab-toast--above { border: 2px solid #D4AF37; box-shadow: 0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(212,175,55,0.25); }
+.ab-toast--below { border: 2px solid #ef4444; box-shadow: 0 8px 32px rgba(0,0,0,0.7), 0 0 20px rgba(239,68,68,0.25); }
+
+@keyframes ab-in {
+  from { opacity:0; transform: translateY(-24px) scale(0.9); }
+  to   { opacity:1; transform: translateY(0)      scale(1);   }
+}
+
+.ab-bell {
+  font-size: 1.6rem;
+  animation: ring 0.5s ease infinite alternate;
+  flex-shrink: 0;
+}
+@keyframes ring {
+  from { transform: rotate(-18deg); }
+  to   { transform: rotate(18deg); }
+}
+
+.ab-body { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.ab-sym  { font-size: 0.95rem; font-weight: 700; color: #fff; }
+.ab-msg  { font-size: 0.78rem; color: rgba(255,255,255,0.65); }
+
+.ab-close {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.85rem;
+  padding: 4px 7px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.ab-close:hover { color: #fff; }

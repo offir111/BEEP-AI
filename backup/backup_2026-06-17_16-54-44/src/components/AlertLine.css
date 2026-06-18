@@ -1,0 +1,87 @@
+.alert-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: 20;
+  transform-origin: center;
+  transition: none;
+  user-select: none;
+}
+
+/* The horizontal line */
+.alert-line__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: var(--lc, #D4AF37);
+  opacity: 0.85;
+  pointer-events: none;
+  box-shadow: 0 0 4px var(--lc, #D4AF37);
+}
+
+.alert-line:hover .alert-line__bar {
+  height: 2px;
+  opacity: 1;
+}
+
+/* Left label */
+.alert-line__label-left {
+  position: absolute;
+  left: 8px;
+  background: rgba(10,10,15,0.88);
+  border: 1px solid var(--lc, #D4AF37);
+  border-radius: 4px;
+  padding: 2px 7px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+.alert-line__dir   { color: var(--lc, #D4AF37); font-weight: 700; }
+.alert-line__price { color: #fff; font-weight: 600; font-variant-numeric: tabular-nums; direction: ltr; }
+.alert-line__note  { color: rgba(255,255,255,0.5); font-size: 0.65rem; }
+
+/* Drag handle */
+.alert-line__handle {
+  position: absolute;
+  right: 36px;
+  background: rgba(10,10,15,0.85);
+  border: 1px solid var(--lc, #D4AF37);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 1rem;
+  color: var(--lc, #D4AF37);
+  cursor: ns-resize;
+  opacity: 0;
+  transition: opacity 0.15s;
+  backdrop-filter: blur(4px);
+}
+.alert-line:hover .alert-line__handle { opacity: 1; }
+
+/* Delete button */
+.alert-line__del {
+  position: absolute;
+  right: 8px;
+  background: rgba(10,10,15,0.85);
+  border: 1px solid rgba(239,68,68,0.4);
+  border-radius: 4px;
+  color: rgba(239,68,68,0.7);
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+.alert-line:hover .alert-line__del { opacity: 1; }
+.alert-line__del:hover { color: #ef4444; border-color: #ef4444; }

@@ -1,0 +1,109 @@
+/* BitcoinCandleWidget.css ─────────────────────────────────────
+   Horizontal S-tube liquid animation — v3
+   Full-width SVG card, no external HTML panels.
+   Background: purple-to-amber gradient (beep-ai palette).
+   ──────────────────────────────────────────────────────────── */
+
+.bcw-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border-radius: var(--radius-lg, 16px);
+  border: 1px solid rgba(180, 140, 220, 0.22);
+  background: linear-gradient(
+    135deg,
+    rgba(72,  38, 110, 0.52) 0%,
+    rgba(100, 65,  30, 0.38) 52%,
+    rgba(65,  45,  18, 0.28) 100%
+  );
+  cursor: pointer;
+  overflow: hidden;
+  line-height: 0;
+  transition:
+    border-color 0.22s ease,
+    box-shadow   0.22s ease,
+    transform    0.12s ease;
+}
+
+/* Inner shimmer */
+.bcw-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    108deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.022) 50%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.bcw-wrap:hover {
+  border-color: rgba(212, 175, 55, 0.42);
+  box-shadow:
+    0 6px 36px rgba(120, 60, 180, 0.15),
+    0 2px 14px rgba(212, 175, 55, 0.10);
+  transform: translateY(-1px);
+}
+
+.bcw-wrap:active {
+  transform: translateY(0);
+}
+
+/* SVG fills the full card */
+.bcw-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ── Hero-inline mode: no own card background ──────────────────
+   When widget sits inside hp-btc-hero, it has no separate card.
+   ──────────────────────────────────────────────────────────── */
+.bcw-wrap--hero {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  flex-shrink: 0;
+  width: 48%;
+  max-width: 260px;
+}
+.bcw-wrap--hero::before { display: none; }
+.bcw-wrap--hero:hover   { border: none; box-shadow: none; transform: none; opacity: 0.88; }
+
+/* ── Full-hero overlay mode ─────────────────────────────────────
+   Ball SVG covers the ENTIRE hero card.
+   Background transparent — hero card background shows through.
+   ──────────────────────────────────────────────────────────── */
+.bcw-wrap--overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 20px;   /* match hero border-radius */
+  overflow: hidden;
+  z-index: 2;            /* sits above price text */
+  cursor: pointer;
+  line-height: 0;
+  padding: 0;
+}
+.bcw-wrap--overlay::before { display: none; }
+.bcw-wrap--overlay:hover   { border: none; box-shadow: none; transform: none; }
+
+/* When in overlay mode the SVG fills the button completely */
+.bcw-wrap--overlay .bcw-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── 3-D spin for settled ball ──────────────────────────────── */
+@keyframes bcw-spin3d {
+  from { transform: rotateY(0deg);   }
+  to   { transform: rotateY(360deg); }
+}
