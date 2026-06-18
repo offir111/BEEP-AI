@@ -25,15 +25,28 @@ const BUB_SIZES = [
 ];
 const OP_CHOICES = [0.2, 0.3, 0.4];         // random per-bubble brightness (up to 40%)
 
-// One full cycle, 1 tick = 1s. Value = how many bubbles are shown that second.
-// Staggered IN (+1,+2,+1,+3,+rest) → hold 5s → staggered OUT (reverse) → 3s gap so the
-// 3s fade-out fully finishes (they vanish completely) before the next staggered entry.
-const SCHEDULE = [
-  1, 3, 4, 7, 20,       // staggered fade-in
-  20, 20, 20, 20, 20,   // hold all visible (~5s)
-  7, 4, 3, 1, 0,        // staggered fade-out (reverse of the entry)
-  0, 0, 0,              // gap — let the 3s fade-out finish before looping
-];
+// Entry keeps repeating the +1,+2,+1,+3 rhythm until all 20 are in (no "+rest" dump).
+const UP_PATTERN = [1, 2, 1, 3];
+const UP = (() => {
+  const seq = []; let cur = 0, i = 0;
+  while (cur < 20) { cur = Math.min(20, cur + UP_PATTERN[i % UP_PATTERN.length]); seq.push(cur); i++; }
+  return seq;                                         // [1,3,4,7,8,10,11,14,15,17,18,20]
+})();
+const DOWN = [...UP.slice(0, -1)].reverse().concat(0); // fade-out = the entry reversed
+// One full cycle, 1 tick = 1s: staggered in → hold ~5s → staggered out → 3s gap before looping.
+const SCHEDULE = [...UP, 20, 20, 20, 20, 20, ...DOWN, 0, 0, 0];
+
+// Forbidden zone = the orb/rings in the panel centre; bubbles start ~1cm outside it.
+function randPos() {
+  for (let k = 0; k < 40; k++) {
+    const x = 4 + Math.random() * 86;                  // 4..90 %
+    const y = 4 + Math.random() * 86;
+    const dx = (x - 50) / 18, dy = (y - 47) / 23;      // central ellipse (orb + margin)
+    if (dx * dx + dy * dy >= 1) return { x: Math.round(x), y: Math.round(y) };
+  }
+  return { x: Math.random() < 0.5 ? 7 : 90, y: 6 + Math.round(Math.random() * 84) };
+}
+const BIG_MOVE = new Set([4, 9, 14]);                  // 3 balls drift a full ~4cm, slowly
 
 function ScannerBubblesBg() {
   const [bubbles, setBubbles]   = useState([]);
@@ -48,17 +61,20 @@ function ScannerBubblesBg() {
         const d = await r.json();
         const rows = (d.rows || []).filter(x => x && Number.isFinite(x.p1h));
         rows.sort((a, b) => Math.abs(b.p1h) - Math.abs(a.p1h));   // biggest 1H movers first
-        const built = rows.slice(0, 20).map((row, i) => ({
-          sym: row.sym,
-          pct: row.p1h,
-          size: BUB_SIZES[i],
-          baseOp: OP_CHOICES[Math.floor(Math.random() * OP_CHOICES.length)],  // 20/30/40% random
-          x: 6 + Math.round(Math.random() * 80),   // % position across the whole panel
-          y: 6 + Math.round(Math.random() * 78),
-          dur: 9 + Math.round(Math.random() * 6),  // drift duration (s)
-          delay: Math.round(Math.random() * 4),
-          variant: i % 3,
-        }));
+        const built = rows.slice(0, 20).map((row, i) => {
+          const pos = randPos();                         // avoids the central orb zone
+          const big = BIG_MOVE.has(i);
+          return {
+            sym: row.sym,
+            pct: row.p1h,
+            size: BUB_SIZES[i],
+            baseOp: OP_CHOICES[Math.floor(Math.random() * OP_CHOICES.length)],  // 20/30/40% random
+            x: pos.x, y: pos.y,
+            dur: big ? 18 + Math.round(Math.random() * 6) : 11 + Math.round(Math.random() * 5),  // big = slower
+            delay: Math.round(Math.random() * 4),
+            anim: big ? `sw-bub-big-${i % 3}` : `sw-bub-float-${i % 3}`,   // 3 balls drift far
+          };
+        });
         if (!cancelled) setBubbles(built);
       } catch { /* no preview if unreachable */ }
     })();
@@ -93,7 +109,7 @@ function ScannerBubblesBg() {
               left: `${b.x}%`, top: `${b.y}%`,
               width: b.size, height: b.size,
               opacity: i < revealed ? b.baseOp : 0,   // staggered fade in/out; random brightness
-              animation: `sw-bub-float-${b.variant} ${b.dur}s ease-in-out ${b.delay}s infinite`,
+              animation: `${b.anim} ${b.dur}s ease-in-out ${b.delay}s infinite`,
             }}
           >
             <span className="sw-bub-sym" style={{ fontSize: Math.max(8, b.size * 0.26) }}>{b.sym}</span>
@@ -161,10 +177,12 @@ export default function ScannerWidget({ onSearch }) {
         @keyframes sw-spinCCW { to { transform: rotate(-360deg); } }
         @keyframes sw-orb     { 0%,100%{transform:scale(1)}50%{transform:scale(1.1)} }
         @keyframes sw-fadein  { from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)} }
-        @keyframes sw-bub-float-0 { 0%{transform:translate(0,0)} 50%{transform:translate(26px,-30px)} 100%{transform:translate(0,0)} }
-        @keyframes sw-bub-float-1 { 0%{transform:translate(0,0)} 50%{transform:translate(-30px,22px)} 100%{transform:translate(0,0)} }
-        @keyframes sw-bub-float-2 { 0%{transform:translate(0,0)} 50%{transform:translate(20px,28px)} 100%{transform:translate(0,0)} }
-        @keyframes sw-bub-pulse   { 0%,100%{opacity:0.2} 50%{opacity:0.5} }
+        @keyframes sw-bub-float-0 { 0%{transform:translate(0,0)} 50%{transform:translate(52px,-60px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-float-1 { 0%{transform:translate(0,0)} 50%{transform:translate(-58px,44px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-float-2 { 0%{transform:translate(0,0)} 50%{transform:translate(40px,56px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-big-0   { 0%{transform:translate(0,0)} 50%{transform:translate(130px,-100px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-big-1   { 0%{transform:translate(0,0)} 50%{transform:translate(-120px,112px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-big-2   { 0%{transform:translate(0,0)} 50%{transform:translate(96px,134px)} 100%{transform:translate(0,0)} }
       `}</style>
 
       {mode === 'anim' && (
