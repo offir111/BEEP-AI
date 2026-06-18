@@ -9,9 +9,76 @@
 import { useState, useEffect, useRef } from 'react';
 import './ScannerWidget.css';
 import BubbleChart from './BubbleChart';
+import { apiUrl } from '../utils/apiBase';
 
 const BAR_GRAD = 'linear-gradient(90deg,#1e90ff 0%,#1565c0 55%,#071e45 100%)';
 const CLIMB_MS = 9750;
+
+// ── Ambient preview: 7 faint BLUE 1H-crypto bubbles drifting behind the orb ──
+// A subtle hint of "what's behind the scanner". Real 1H movers, blue-filtered (not
+// their own colors), ~20% opacity; only the single biggest mover pulses up to ~50%.
+// Fades in 3s after entering. Sits behind the animation (z-index 0) — never hides it.
+const BUB_SIZES = [76, 70, 50, 46, 32, 30, 28];   // 2 large · 2 medium · 3 small
+
+function ScannerBubblesBg() {
+  const [bubbles, setBubbles] = useState([]);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const t = setTimeout(() => { if (!cancelled) setVisible(true); }, 3000);  // fade in after 3s
+    (async () => {
+      try {
+        const r = await fetch(apiUrl('/api/crypto-gainers'));
+        const d = await r.json();
+        const rows = (d.rows || []).filter(x => x && Number.isFinite(x.p1h));
+        rows.sort((a, b) => Math.abs(b.p1h) - Math.abs(a.p1h));   // biggest 1H movers first
+        const built = rows.slice(0, 7).map((row, i) => ({
+          sym: row.sym,
+          pct: row.p1h,
+          size: BUB_SIZES[i],
+          isTop: i === 0,                          // single biggest mover → pulses brighter
+          x: 6 + Math.round(Math.random() * 80),   // % position across the whole panel
+          y: 6 + Math.round(Math.random() * 78),
+          dur: 9 + Math.round(Math.random() * 6),  // drift duration (s)
+          delay: Math.round(Math.random() * 4),
+          variant: i % 3,
+        }));
+        if (!cancelled) setBubbles(built);
+      } catch { /* no preview if unreachable */ }
+    })();
+    return () => { cancelled = true; clearTimeout(t); };
+  }, []);
+
+  if (!bubbles.length) return null;
+
+  return (
+    <div className="sw-bubbles-bg" style={{ opacity: visible ? 1 : 0 }} aria-hidden="true">
+      {bubbles.map((b, i) => {
+        const up = b.pct >= 0;
+        return (
+          <div
+            key={`${b.sym}-${i}`}
+            className={`sw-bub${b.isTop ? ' sw-bub--top' : ''}`}
+            style={{
+              left: `${b.x}%`, top: `${b.y}%`,
+              width: b.size, height: b.size,
+              opacity: b.isTop ? undefined : 0.2,    // top uses the pulse animation instead
+              animation: b.isTop
+                ? `sw-bub-float-${b.variant} ${b.dur}s ease-in-out ${b.delay}s infinite, sw-bub-pulse 5s ease-in-out infinite`
+                : `sw-bub-float-${b.variant} ${b.dur}s ease-in-out ${b.delay}s infinite`,
+            }}
+          >
+            <span className="sw-bub-sym" style={{ fontSize: Math.max(8, b.size * 0.26) }}>{b.sym}</span>
+            <span className="sw-bub-pct" style={{ fontSize: Math.max(6, b.size * 0.18) }}>
+              {up ? '+' : ''}{b.pct.toFixed(1)}%
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 const LABELS = [
   'מתחבר למקורות נתונים',
@@ -67,11 +134,18 @@ export default function ScannerWidget({ onSearch }) {
         @keyframes sw-spinCCW { to { transform: rotate(-360deg); } }
         @keyframes sw-orb     { 0%,100%{transform:scale(1)}50%{transform:scale(1.1)} }
         @keyframes sw-fadein  { from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)} }
+        @keyframes sw-bub-float-0 { 0%{transform:translate(0,0)} 50%{transform:translate(26px,-30px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-float-1 { 0%{transform:translate(0,0)} 50%{transform:translate(-30px,22px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-float-2 { 0%{transform:translate(0,0)} 50%{transform:translate(20px,28px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-pulse   { 0%,100%{opacity:0.2} 50%{opacity:0.5} }
       `}</style>
 
       {mode === 'anim' && (
         /* ══ ANIMATION MODE ══════════════════════════════════════ */
         <button className="sw-anim-btn" onClick={() => setMode('bubbles')} aria-label="פתח מפת בועות קריפטו">
+
+          {/* Ambient 1H-crypto preview — behind the animation */}
+          <ScannerBubblesBg />
 
           <div className="sw-top">
             <span className="sw-title">סריקת AI מתבצעת</span>
