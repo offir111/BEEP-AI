@@ -23,14 +23,16 @@ const BUB_SIZES = [
   76, 70, 50, 46,
   34, 32, 30, 30, 28, 28, 26, 32, 28, 30, 26, 34, 28, 30, 26, 32,
 ];
+const OP_CHOICES  = [0.2, 0.3, 0.4];        // random per-bubble brightness (up to 40%)
+const REVEAL_STEPS = [1, 3, 4, 7, 20];      // cumulative count shown each 1s: +1,+2,+1,+3,+rest
 
 function ScannerBubblesBg() {
-  const [bubbles, setBubbles] = useState([]);
-  const [visible, setVisible] = useState(false);
+  const [bubbles, setBubbles]   = useState([]);
+  const [revealed, setRevealed] = useState(0);   // how many bubbles are currently shown
 
+  // Fetch the 1H movers once.
   useEffect(() => {
     let cancelled = false;
-    const t = setTimeout(() => { if (!cancelled) setVisible(true); }, 3000);  // fade in after 3s
     (async () => {
       try {
         const r = await fetch(apiUrl('/api/crypto-gainers'));
@@ -41,7 +43,7 @@ function ScannerBubblesBg() {
           sym: row.sym,
           pct: row.p1h,
           size: BUB_SIZES[i],
-          isTop: i === 0,                          // single biggest mover → pulses brighter
+          baseOp: OP_CHOICES[Math.floor(Math.random() * OP_CHOICES.length)],  // 20/30/40% random
           x: 6 + Math.round(Math.random() * 80),   // % position across the whole panel
           y: 6 + Math.round(Math.random() * 78),
           dur: 9 + Math.round(Math.random() * 6),  // drift duration (s)
@@ -51,26 +53,44 @@ function ScannerBubblesBg() {
         if (!cancelled) setBubbles(built);
       } catch { /* no preview if unreachable */ }
     })();
-    return () => { cancelled = true; clearTimeout(t); };
+    return () => { cancelled = true; };
   }, []);
+
+  // Looping fade cycle: all visible (5s) → fade out ALL → reveal +1,+2,+1,+3,+rest (1s each) → repeat.
+  useEffect(() => {
+    if (!bubbles.length) return;
+    let alive = true;
+    const timers = [];
+    const at = (fn, ms) => { const t = setTimeout(() => { if (alive) fn(); }, ms); timers.push(t); };
+    const steps = REVEAL_STEPS.map(n => Math.min(n, bubbles.length));
+
+    const cycle = () => {
+      at(() => {
+        setRevealed(0);   // fade out all — they disappear completely
+        steps.forEach((count, idx) => at(() => setRevealed(count), 1000 * (idx + 1)));   // staggered return
+        at(cycle, 1000 * steps.length);   // next cycle once all are back
+      }, 5000);           // hold all-visible for 5s
+    };
+
+    at(() => { setRevealed(bubbles.length); cycle(); }, 3000);   // initial appearance after 3s
+    return () => { alive = false; timers.forEach(clearTimeout); };
+  }, [bubbles.length]);
 
   if (!bubbles.length) return null;
 
   return (
-    <div className="sw-bubbles-bg" style={{ opacity: visible ? 1 : 0 }} aria-hidden="true">
+    <div className="sw-bubbles-bg" aria-hidden="true">
       {bubbles.map((b, i) => {
         const up = b.pct >= 0;
         return (
           <div
             key={`${b.sym}-${i}`}
-            className={`sw-bub${b.isTop ? ' sw-bub--top' : ''}`}
+            className="sw-bub"
             style={{
               left: `${b.x}%`, top: `${b.y}%`,
               width: b.size, height: b.size,
-              opacity: b.isTop ? undefined : 0.2,    // top uses the pulse animation instead
-              animation: b.isTop
-                ? `sw-bub-float-${b.variant} ${b.dur}s ease-in-out ${b.delay}s infinite, sw-bub-pulse 5s ease-in-out infinite`
-                : `sw-bub-float-${b.variant} ${b.dur}s ease-in-out ${b.delay}s infinite`,
+              opacity: i < revealed ? b.baseOp : 0,   // staggered fade in/out; random brightness
+              animation: `sw-bub-float-${b.variant} ${b.dur}s ease-in-out ${b.delay}s infinite`,
             }}
           >
             <span className="sw-bub-sym" style={{ fontSize: Math.max(8, b.size * 0.26) }}>{b.sym}</span>
