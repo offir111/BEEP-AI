@@ -33,20 +33,37 @@ const UP = (() => {
   return seq;                                         // [1,3,4,7,8,10,11,14,15,17,18,20]
 })();
 const DOWN = [...UP.slice(0, -1)].reverse().concat(0); // fade-out = the entry reversed
-// One full cycle, 1 tick = 1s: staggered in → hold ~5s → staggered out → 3s gap before looping.
-const SCHEDULE = [...UP, 20, 20, 20, 20, 20, ...DOWN, 0, 0, 0];
+// No gap at the end: the staggered fade-out overlaps the next staggered fade-in (3s fades),
+// so as the last bubble leaves a new one is already entering → the panel is never empty.
+const SCHEDULE = [...UP, 20, 20, 20, 20, 20, ...DOWN];
 
-// Forbidden zone = the orb/rings in the panel centre; bubbles start ~1cm outside it.
-function randPos() {
-  for (let k = 0; k < 40; k++) {
+// The central blue orb is forbidden — bubbles approach to ~1cm but never sit under it.
+function randPos(outer) {
+  for (let k = 0; k < 50; k++) {
     const x = 4 + Math.random() * 86;                  // 4..90 %
     const y = 4 + Math.random() * 86;
-    const dx = (x - 50) / 18, dy = (y - 47) / 23;      // central ellipse (orb + margin)
-    if (dx * dx + dy * dy >= 1) return { x: Math.round(x), y: Math.round(y) };
+    const dx = (x - 50) / 16, dy = (y - 47) / 20;      // orb exclusion ellipse
+    const r = dx * dx + dy * dy;
+    if (r < 1) continue;                               // under the orb → reject
+    if (outer && r < 3.2) continue;                    // big-drift balls start in the outer area
+    return { x: Math.round(x), y: Math.round(y) };
   }
-  return { x: Math.random() < 0.5 ? 7 : 90, y: 6 + Math.round(Math.random() * 84) };
+  return { x: Math.random() < 0.5 ? 8 : 90, y: 8 + Math.round(Math.random() * 82) };
 }
-const BIG_MOVE = new Set([4, 9, 14]);                  // 3 balls drift a full ~4cm, slowly
+const BIG_MOVE = new Set([4, 9, 14]);                  // 3 balls drift a longer, slow outer path
+
+// Fresh random layout — used on first build AND each time a bubble re-enters, so a
+// re-appearing bubble shows up in a different corner.
+function freshLayout(idx) {
+  const big = BIG_MOVE.has(idx);
+  const pos = randPos(big);
+  return {
+    x: pos.x, y: pos.y,
+    dur: big ? 18 + Math.round(Math.random() * 6) : 11 + Math.round(Math.random() * 5),
+    delay: Math.round(Math.random() * 4),
+    anim: big ? `sw-bub-big-${idx % 3}` : `sw-bub-float-${idx % 3}`,
+  };
+}
 
 function ScannerBubblesBg() {
   const [bubbles, setBubbles]   = useState([]);
@@ -61,20 +78,13 @@ function ScannerBubblesBg() {
         const d = await r.json();
         const rows = (d.rows || []).filter(x => x && Number.isFinite(x.p1h));
         rows.sort((a, b) => Math.abs(b.p1h) - Math.abs(a.p1h));   // biggest 1H movers first
-        const built = rows.slice(0, 20).map((row, i) => {
-          const pos = randPos();                         // avoids the central orb zone
-          const big = BIG_MOVE.has(i);
-          return {
-            sym: row.sym,
-            pct: row.p1h,
-            size: BUB_SIZES[i],
-            baseOp: OP_CHOICES[Math.floor(Math.random() * OP_CHOICES.length)],  // 20/30/40% random
-            x: pos.x, y: pos.y,
-            dur: big ? 18 + Math.round(Math.random() * 6) : 11 + Math.round(Math.random() * 5),  // big = slower
-            delay: Math.round(Math.random() * 4),
-            anim: big ? `sw-bub-big-${i % 3}` : `sw-bub-float-${i % 3}`,   // 3 balls drift far
-          };
-        });
+        const built = rows.slice(0, 20).map((row, i) => ({
+          sym: row.sym,
+          pct: row.p1h,
+          size: BUB_SIZES[i],
+          baseOp: OP_CHOICES[Math.floor(Math.random() * OP_CHOICES.length)],  // 20/30/40% random
+          ...freshLayout(i),
+        }));
         if (!cancelled) setBubbles(built);
       } catch { /* no preview if unreachable */ }
     })();
@@ -86,9 +96,18 @@ function ScannerBubblesBg() {
   useEffect(() => {
     if (!bubbles.length) return;
     const sched = SCHEDULE.map(v => Math.min(v, bubbles.length));
-    let tick = -1, iv;
+    let tick = -1, iv, prev = 0;
     const startT = setTimeout(() => {
-      const advance = () => { tick = (tick + 1) % sched.length; setRevealed(sched[tick]); };
+      const advance = () => {
+        tick = (tick + 1) % sched.length;
+        const next = sched[tick];
+        if (next > prev) {
+          // re-entering bubbles get a fresh position → "a new bubble in a different corner"
+          setBubbles(bs => bs.map((b, idx) => (idx >= prev && idx < next) ? { ...b, ...freshLayout(idx) } : b));
+        }
+        prev = next;
+        setRevealed(next);
+      };
       advance();                          // first reveal (1 bubble)
       iv = setInterval(advance, 1000);    // then one step per second
     }, 3000);                             // initial delay after entering the app
@@ -177,12 +196,12 @@ export default function ScannerWidget({ onSearch }) {
         @keyframes sw-spinCCW { to { transform: rotate(-360deg); } }
         @keyframes sw-orb     { 0%,100%{transform:scale(1)}50%{transform:scale(1.1)} }
         @keyframes sw-fadein  { from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)} }
-        @keyframes sw-bub-float-0 { 0%{transform:translate(0,0)} 50%{transform:translate(52px,-60px)} 100%{transform:translate(0,0)} }
-        @keyframes sw-bub-float-1 { 0%{transform:translate(0,0)} 50%{transform:translate(-58px,44px)} 100%{transform:translate(0,0)} }
-        @keyframes sw-bub-float-2 { 0%{transform:translate(0,0)} 50%{transform:translate(40px,56px)} 100%{transform:translate(0,0)} }
-        @keyframes sw-bub-big-0   { 0%{transform:translate(0,0)} 50%{transform:translate(130px,-100px)} 100%{transform:translate(0,0)} }
-        @keyframes sw-bub-big-1   { 0%{transform:translate(0,0)} 50%{transform:translate(-120px,112px)} 100%{transform:translate(0,0)} }
-        @keyframes sw-bub-big-2   { 0%{transform:translate(0,0)} 50%{transform:translate(96px,134px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-float-0 { 0%{transform:translate(0,0)} 50%{transform:translate(38px,-44px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-float-1 { 0%{transform:translate(0,0)} 50%{transform:translate(-44px,32px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-float-2 { 0%{transform:translate(0,0)} 50%{transform:translate(30px,40px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-big-0   { 0%{transform:translate(0,0)} 50%{transform:translate(88px,-66px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-big-1   { 0%{transform:translate(0,0)} 50%{transform:translate(-80px,74px)} 100%{transform:translate(0,0)} }
+        @keyframes sw-bub-big-2   { 0%{transform:translate(0,0)} 50%{transform:translate(64px,88px)} 100%{transform:translate(0,0)} }
       `}</style>
 
       {mode === 'anim' && (
