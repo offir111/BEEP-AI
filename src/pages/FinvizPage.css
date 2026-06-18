@@ -100,14 +100,38 @@
 }
 
 .fv-scan-ticker {
-  background: rgba(74,222,128,0.15);
-  color: var(--accent-green);
-  border: 1px solid rgba(74,222,128,0.3);
+  background: rgba(255,255,255,0.06);     /* clean dark chip — symbol stays readable */
+  color: #ffffff;                          /* white symbol, not green-on-green */
+  border: 1px solid rgba(255,255,255,0.18);
   border-radius: var(--radius-sm);
   padding: 3px 10px;
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
 }
+.fv-scan-ticker:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.32); }
+
+/* Criteria buttons (one per live-search criterion) */
+.fv-crit-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 2px 0 4px;
+}
+.fv-crit-btn {
+  background: var(--bg-card);
+  color: rgba(255,255,255,0.7);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.fv-crit-btn:hover { background: var(--bg-hover); color: #fff; }
+.fv-crit-btn.--on  { background: rgba(255,255,255,0.08); color: #fff; font-weight: 800; }
 
 /* Filters */
 .fv-filters {

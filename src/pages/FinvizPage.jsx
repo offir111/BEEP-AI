@@ -153,15 +153,17 @@ function tvSignal(score) {
 }
 
 // ── Live pattern result section ───────────────────────────────
-function LivePatternResult({ data, onSelect }) {
+function LivePatternResult({ data, onSelect, criterion }) {
   if (!data) return null;
+  const pats = data.patterns.filter(p => p.stocks.length > 0 && (!criterion || p.id === criterion));
+  const shown = pats.reduce((n, p) => n + p.stocks.length, 0);
   return (
     <div className="fv-live-result">
       <div className="fv-live-header">
-        <span className="fv-live-title">🎯 {data.total} מניות נמצאו — סריקה חיה</span>
+        <span className="fv-live-title">🎯 {criterion ? shown : data.total} מניות נמצאו — סריקה חיה</span>
         <span className="fv-live-time">{data.scannedAt ? new Date(data.scannedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : ''}</span>
       </div>
-      {data.patterns.map(pat => pat.stocks.length > 0 && (
+      {pats.map(pat => pat.stocks.length > 0 && (
         <div key={pat.id} className="fv-live-pat-group">
           <div className="fv-live-pat-title" style={{ color: pat.color }}>
             {pat.emoji} {pat.labelHe} — {pat.stocks.length} מניות ({pat.confidence}% ביטחון)
@@ -254,6 +256,7 @@ export default function FinvizPage({ navigate }) {
   const [scanError, setScanError]   = useState('');
   const [detailSym,   setDetailSym]   = useState(null);
   const [detailPrice, setDetailPrice] = useState(null);
+  const [criterion,   setCriterion]   = useState(null);   // selected live-search criterion (pattern id)
 
   const openDetail = (ticker, price = null) => { setDetailSym(ticker); setDetailPrice(price); };
 
@@ -302,8 +305,28 @@ export default function FinvizPage({ navigate }) {
         </button>
       </div>
 
+      {/* Criteria buttons — one per live-search criterion; click to see its stocks */}
+      {liveData?.patterns?.some(p => p.stocks.length > 0) && (
+        <div className="fv-crit-row">
+          <button
+            className={`fv-crit-btn${!criterion ? ' --on' : ''}`}
+            onClick={() => setCriterion(null)}
+          >הכל</button>
+          {liveData.patterns.filter(p => p.stocks.length > 0).map(p => (
+            <button
+              key={p.id}
+              className={`fv-crit-btn${criterion === p.id ? ' --on' : ''}`}
+              style={criterion === p.id ? { borderColor: p.color, color: p.color } : undefined}
+              onClick={() => setCriterion(p.id)}
+            >
+              {p.emoji} {p.labelHe} ({p.stocks.length})
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Live scan results */}
-      <LivePatternResult data={liveData} onSelect={openDetail} />
+      <LivePatternResult data={liveData} onSelect={openDetail} criterion={criterion} />
 
       {/* Scan result chips */}
       {scanResult && scanResult.length > 0 && (
