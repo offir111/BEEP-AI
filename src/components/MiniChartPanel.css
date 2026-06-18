@@ -58,9 +58,15 @@
 .mcp-hint {
   font-size: 0.7rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.35);
+  color: #ffffff;                 /* white text */
   pointer-events: none;
   user-select: none;
+  animation: mcp-blink 5s ease-in-out infinite;  /* one blink every 5s */
+}
+
+@keyframes mcp-blink {
+  0%, 92%, 100% { opacity: 1; }
+  96%           { opacity: 0; }
 }
 
 /* Loading skeleton */

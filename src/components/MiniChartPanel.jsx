@@ -92,7 +92,7 @@ export default function MiniChartPanel({ navigate, symbol = 'BTC' }) {
 
       {/* Transparent click overlay */}
       <div className="mcp-overlay">
-        <span className="mcp-hint">📊 {symbol} — לחץ לגרף מלא</span>
+        <span className="mcp-hint">לחץ לגרף מלא</span>
       </div>
     </div>
   );
