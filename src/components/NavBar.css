@@ -115,10 +115,10 @@
 .nav-item-mobile--on { color: var(--accent-gold); }
 
 /* ── Responsive ── */
+/* Mobile: no top nav and no bottom bar — navigation moves to the Header 3-dot menu. */
 @media (max-width: 600px) {
   .navbar--top    { display: none; }
-  .navbar--bottom { display: flex; }
-  .app-main       { padding-bottom: 70px; }
+  .navbar--bottom { display: none; }
 }
 
 /* ── Mobile drawer (BUG-01) ── */

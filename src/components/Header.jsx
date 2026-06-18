@@ -1,6 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAlerts } from '../context/AlertsContext';
 import './Header.css';
+
+// Quick-nav items for the mobile 3-dot menu (replaces the old bottom bar)
+const QUICK_NAV = [
+  { id: 'home', icon: '🏠', label: 'בית' },
+  { id: 'news', icon: '📰', label: 'חדשות' },
+];
+const ROBOT_NAV = [
+  { id: 'tgm',        label: 'TGM — סורק לידים' },
+  { id: 'model-w',    label: 'Model W' },
+  { id: 'model-bit',  label: 'Model BIT' },
+  { id: 'model-smc',  label: 'Model SMC' },
+  { id: 'finviz',     label: 'FINVIZ' },
+  { id: 'etoro',      label: 'eToro' },
+  { id: 'model-grid', label: 'Model Grid' },
+  { id: 'daily',      label: 'Daily AI' },
+  { id: 'sot',        label: 'SOT' },
+];
 
 function IsraelClock() {
   const [time, setTime] = useState('');
@@ -17,6 +34,15 @@ function IsraelClock() {
 
 export default function Header({ username, onLogout, navigate, page }) {
   const { activeCount, unseenFired } = useAlerts();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
 
   return (
     <header className="hdr">
@@ -65,6 +91,44 @@ export default function Header({ username, onLogout, navigate, page }) {
         </button>
 
         <button className="hdr-logout" onClick={onLogout} title="התנתק" aria-label="התנתק מהמערכת">✕</button>
+
+        {/* 3-dot quick menu (mobile nav — replaces the bottom bar) · left of the X */}
+        <div className="hdr-menu-wrap" ref={menuRef}>
+          <button
+            className="hdr-menu-btn"
+            onClick={() => setMenuOpen(v => !v)}
+            title="תפריט"
+            aria-label="תפריט ניווט"
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+          >⋮</button>
+
+          {menuOpen && (
+            <div className="hdr-menu-dropdown" role="menu">
+              {QUICK_NAV.map(it => (
+                <button
+                  key={it.id}
+                  className={`hdr-menu-item${page === it.id ? ' --on' : ''}`}
+                  onClick={() => { navigate(it.id); setMenuOpen(false); }}
+                  role="menuitem"
+                >
+                  <span aria-hidden="true">{it.icon}</span><span>{it.label}</span>
+                </button>
+              ))}
+              <div className="hdr-menu-sep">רובוטים</div>
+              {ROBOT_NAV.map(it => (
+                <button
+                  key={it.id}
+                  className={`hdr-menu-item${page === it.id ? ' --on' : ''}`}
+                  onClick={() => { navigate(it.id); setMenuOpen(false); }}
+                  role="menuitem"
+                >
+                  <span aria-hidden="true">🤖</span><span>{it.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
