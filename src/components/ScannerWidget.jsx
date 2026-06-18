@@ -23,8 +23,17 @@ const BUB_SIZES = [
   76, 70, 50, 46,
   34, 32, 30, 30, 28, 28, 26, 32, 28, 30, 26, 34, 28, 30, 26, 32,
 ];
-const OP_CHOICES  = [0.2, 0.3, 0.4];        // random per-bubble brightness (up to 40%)
-const REVEAL_STEPS = [1, 3, 4, 7, 20];      // cumulative count shown each 1s: +1,+2,+1,+3,+rest
+const OP_CHOICES = [0.2, 0.3, 0.4];         // random per-bubble brightness (up to 40%)
+
+// One full cycle, 1 tick = 1s. Value = how many bubbles are shown that second.
+// Staggered IN (+1,+2,+1,+3,+rest) → hold 5s → staggered OUT (reverse) → 3s gap so the
+// 3s fade-out fully finishes (they vanish completely) before the next staggered entry.
+const SCHEDULE = [
+  1, 3, 4, 7, 20,       // staggered fade-in
+  20, 20, 20, 20, 20,   // hold all visible (~5s)
+  7, 4, 3, 1, 0,        // staggered fade-out (reverse of the entry)
+  0, 0, 0,              // gap — let the 3s fade-out finish before looping
+];
 
 function ScannerBubblesBg() {
   const [bubbles, setBubbles]   = useState([]);
@@ -56,24 +65,18 @@ function ScannerBubblesBg() {
     return () => { cancelled = true; };
   }, []);
 
-  // Looping fade cycle: all visible (5s) → fade out ALL → reveal +1,+2,+1,+3,+rest (1s each) → repeat.
+  // One 1s-tick driver walks the SCHEDULE forever: staggered in → hold → staggered out → loop.
+  // Initial entry (after 3s) is the SAME staggered fade-in, not all-at-once.
   useEffect(() => {
     if (!bubbles.length) return;
-    let alive = true;
-    const timers = [];
-    const at = (fn, ms) => { const t = setTimeout(() => { if (alive) fn(); }, ms); timers.push(t); };
-    const steps = REVEAL_STEPS.map(n => Math.min(n, bubbles.length));
-
-    const cycle = () => {
-      at(() => {
-        setRevealed(0);   // fade out all — they disappear completely
-        steps.forEach((count, idx) => at(() => setRevealed(count), 1000 * (idx + 1)));   // staggered return
-        at(cycle, 1000 * steps.length);   // next cycle once all are back
-      }, 5000);           // hold all-visible for 5s
-    };
-
-    at(() => { setRevealed(bubbles.length); cycle(); }, 3000);   // initial appearance after 3s
-    return () => { alive = false; timers.forEach(clearTimeout); };
+    const sched = SCHEDULE.map(v => Math.min(v, bubbles.length));
+    let tick = -1, iv;
+    const startT = setTimeout(() => {
+      const advance = () => { tick = (tick + 1) % sched.length; setRevealed(sched[tick]); };
+      advance();                          // first reveal (1 bubble)
+      iv = setInterval(advance, 1000);    // then one step per second
+    }, 3000);                             // initial delay after entering the app
+    return () => { clearTimeout(startT); if (iv) clearInterval(iv); };
   }, [bubbles.length]);
 
   if (!bubbles.length) return null;

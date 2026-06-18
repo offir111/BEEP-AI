@@ -54,7 +54,7 @@
   box-shadow: 0 0 14px rgba(30,144,255,0.45);
   color: #e3f2fd;
   will-change: transform, opacity;
-  transition: opacity 0.8s ease;   /* smooth staggered fade in/out */
+  transition: opacity 3s ease;   /* each bubble fades in/out over 3s */
 }
 
 .sw-bub-sym { font-weight: 800; line-height: 1; letter-spacing: 0.02em; }
