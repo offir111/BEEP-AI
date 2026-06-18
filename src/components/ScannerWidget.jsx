@@ -68,6 +68,7 @@ function freshLayout(idx) {
 function ScannerBubblesBg() {
   const [bubbles, setBubbles]   = useState([]);
   const [revealed, setRevealed] = useState(0);   // how many bubbles are currently shown
+  const [highlight, setHighlight] = useState(-1); // small ball whose aperture opens to ~80%
 
   // Fetch the 1H movers once.
   useEffect(() => {
@@ -83,6 +84,7 @@ function ScannerBubblesBg() {
           pct: row.p1h,
           size: BUB_SIZES[i],
           baseOp: OP_CHOICES[Math.floor(Math.random() * OP_CHOICES.length)],  // 20/30/40% random
+          fade: i === 0 ? 5 : 3,    // the first ball fades in slowly over 5s (no jump)
           ...freshLayout(i),
         }));
         if (!cancelled) setBubbles(built);
@@ -102,8 +104,10 @@ function ScannerBubblesBg() {
         tick = (tick + 1) % sched.length;
         const next = sched[tick];
         if (next > prev) {
-          // re-entering bubbles get a fresh position → "a new bubble in a different corner"
-          setBubbles(bs => bs.map((b, idx) => (idx >= prev && idx < next) ? { ...b, ...freshLayout(idx) } : b));
+          // Re-entering bubbles get a fresh position ("a new bubble in a different corner").
+          // BUT the low-index balls (0–3) stay continuously visible across the wrap, so moving
+          // them would cause a jump — keep their position fixed; only re-roll 4+ (fully faded).
+          setBubbles(bs => bs.map((b, idx) => (idx >= 4 && idx >= prev && idx < next) ? { ...b, ...freshLayout(idx) } : b));
         }
         prev = next;
         setRevealed(next);
@@ -112,6 +116,20 @@ function ScannerBubblesBg() {
       iv = setInterval(advance, 1000);    // then one step per second
     }, 3000);                             // initial delay after entering the app
     return () => { clearTimeout(startT); if (iv) clearInterval(iv); };
+  }, [bubbles.length]);
+
+  // Roving spotlight: one small ball at a time opens its aperture up to ~80%, then the next
+  // (one finishes as the next begins), cycling through the small bubbles.
+  useEffect(() => {
+    if (bubbles.length < 6) return;
+    const smalls = bubbles.map((_, i) => i).filter(i => i >= 4);   // the small balls
+    let k = 0, iv;
+    const t = setTimeout(() => {
+      const step = () => { setHighlight(smalls[k % smalls.length]); k += 1; };
+      step();
+      iv = setInterval(step, 4000);   // ~3s fade up to 80% + brief hold, then pass to the next
+    }, 5000);
+    return () => { clearTimeout(t); if (iv) clearInterval(iv); };
   }, [bubbles.length]);
 
   if (!bubbles.length) return null;
@@ -127,7 +145,8 @@ function ScannerBubblesBg() {
             style={{
               left: `${b.x}%`, top: `${b.y}%`,
               width: b.size, height: b.size,
-              opacity: i < revealed ? b.baseOp : 0,   // staggered fade in/out; random brightness
+              opacity: i < revealed ? (i === highlight ? 0.8 : b.baseOp) : 0,   // staggered; spotlight → 80%
+              transition: `opacity ${b.fade}s ease`,   // first ball = 5s, rest = 3s
               animation: `${b.anim} ${b.dur}s ease-in-out ${b.delay}s infinite`,
             }}
           >
