@@ -487,14 +487,14 @@ export default function HomePage({ navigate }) {
       {/* ── Robots section ── */}
       <div className="hp-section-title">🤖 סקנרים &amp; רובוטים</div>
       <div className="hp-robots">
-        <RobotCard icon="🛰️" name="TGM — סורק לידים" desc="מעקב ודירוג ספקי לידים" tag="LIVE" tagColor="#22d3ee" onClick={() => navigate('tgm')} />
-        <RobotCard icon="⚙️" name="Model W"    desc="קריפטו — BTC/ETH/SOL"   tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('model-w')} />
-        <RobotCard icon="₿"  name="Model BIT"  desc="Bitcoin — 4H+1H"         tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('model-bit')} />
-        <RobotCard icon="📐" name="Model SMC"  desc="Smart Money מוסדי"       tag="אנליזה" tagColor="#a78bfa" onClick={() => navigate('model-smc')} />
-        <RobotCard icon="📊" name="FINVIZ"     desc="9 תבניות ריוורסל"        tag="סריקה" tagColor="#f59e0b" onClick={() => navigate('finviz')} />
-        <RobotCard icon="📋" name="eToro"      desc="קופי טריידינג"            tag="Demo"  tagColor="#94a3b8" onClick={() => navigate('etoro')} />
-        <RobotCard icon="📐" name="Model Grid"  desc="גריד BTC — רמות קנייה"   tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('model-grid')} />
-        <RobotCard icon="🗞️" name="Daily AI"   desc="חדשות מדורגות AI"         tag="אצור"  tagColor="#94a3b8" onClick={() => navigate('daily')} />
+        <RobotCard icon="🛰️" name="TGM"     desc="מעקב ודירוג ספקי לידים" tag="LIVE" tagColor="#22d3ee" onClick={() => navigate('tgm')} />
+        <RobotCard icon="⚙️" name="W"       desc="קריפטו — BTC/ETH/SOL"   tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('model-w')} />
+        <RobotCard icon="₿"  name="BIT"     desc="Bitcoin — 4H+1H"         tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('model-bit')} />
+        <RobotCard icon="📐" name="S.M.C"   desc="Smart Money מוסדי"       tag="אנליזה" tagColor="#a78bfa" onClick={() => navigate('model-smc')} />
+        <RobotCard icon="📊" name="FINVIZ"  desc="9 תבניות ריוורסל"        tag="סריקה" tagColor="#f59e0b" onClick={() => navigate('finviz')} />
+        <RobotCard icon="📋" name="ETORO"   desc="קופי טריידינג"            tag="Demo"  tagColor="#94a3b8" onClick={() => navigate('etoro')} />
+        <RobotCard icon="📐" name="GRID"    desc="גריד BTC — רמות קנייה"   tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('model-grid')} />
+        <RobotCard icon="🗞️" name="NEWS AI" desc="חדשות מדורגות AI"         tag="אצור"  tagColor="#94a3b8" onClick={() => navigate('daily')} />
       </div>
 
     </div>
