@@ -39,16 +39,20 @@ const SCHEDULE = [...UP, 20, 20, 20, 20, 20, ...DOWN];
 
 // The central blue orb is forbidden — bubbles approach to ~1cm but never sit under it.
 function randPos(outer) {
-  for (let k = 0; k < 50; k++) {
-    const x = 4 + Math.random() * 86;                  // 4..90 %
-    const y = 4 + Math.random() * 86;
+  for (let k = 0; k < 60; k++) {
+    // Polar, biased outward → fills the edges AND the corners (incl. the top corners).
+    const ang = Math.random() * Math.PI * 2;
+    const rad = 0.5 + Math.random() * 0.5;             // 0.5..1.0 of the half-extent → outer band
+    const x = 50 + Math.cos(ang) * rad * 48;
+    const y = 47 + Math.sin(ang) * rad * 47;
+    if (x < 3 || x > 95 || y < 3 || y > 95) continue;  // keep inside the panel
     const dx = (x - 50) / 16, dy = (y - 47) / 20;      // orb exclusion ellipse
     const r = dx * dx + dy * dy;
     if (r < 1) continue;                               // under the orb → reject
-    if (outer && r < 3.2) continue;                    // big-drift balls start in the outer area
+    if (outer && r < 3.2) continue;                    // big-drift balls even farther out
     return { x: Math.round(x), y: Math.round(y) };
   }
-  return { x: Math.random() < 0.5 ? 8 : 90, y: 8 + Math.round(Math.random() * 82) };
+  return { x: Math.random() < 0.5 ? 8 : 90, y: Math.random() < 0.5 ? 10 : 86 };
 }
 const BIG_MOVE = new Set([4, 9, 14]);                  // 3 balls drift a longer, slow outer path
 
@@ -114,7 +118,7 @@ function ScannerBubblesBg() {
       };
       advance();                          // first reveal (1 bubble)
       iv = setInterval(advance, 1000);    // then one step per second
-    }, 3000);                             // initial delay after entering the app
+    }, 2000);                             // first bubble appears ~2s after entering the app
     return () => { clearTimeout(startT); if (iv) clearInterval(iv); };
   }, [bubbles.length]);
 
@@ -254,7 +258,11 @@ function ScannerBeamCanvas({ panelRef }) {
       const smalls = bubbles.filter(b => b.r < 26);   // small stock bubbles
       const pick = (arr) => {
         const ok = arr.filter(b => pathClear(orb, b, smalls.filter(x => x.el !== b.el)));
-        return ok.length ? ok[Math.floor(Math.random() * ok.length)].el : null;
+        if (!ok.length) return null;
+        // Prefer the FAR / corner bubbles — the light beam reads more clearly there.
+        ok.sort((a, b) => Math.hypot(b.x - orb.x, b.y - orb.y) - Math.hypot(a.x - orb.x, a.y - orb.y));
+        const far = ok.slice(0, Math.max(1, Math.ceil(ok.length * 0.6)));
+        return far[Math.floor(Math.random() * far.length)].el;
       };
       const left  = smalls.filter(b => b.x < cx - 8);
       const right = smalls.filter(b => b.x > cx + 8);
