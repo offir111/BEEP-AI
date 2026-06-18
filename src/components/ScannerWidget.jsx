@@ -18,7 +18,11 @@ const CLIMB_MS = 9750;
 // A subtle hint of "what's behind the scanner". Real 1H movers, blue-filtered (not
 // their own colors), ~20% opacity; only the single biggest mover pulses up to ~50%.
 // Fades in 3s after entering. Sits behind the animation (z-index 0) — never hides it.
-const BUB_SIZES = [76, 70, 50, 46, 32, 30, 28];   // 2 large · 2 medium · 3 small
+// 20 bubbles to fill the panel: 2 large · 2 medium · the rest small (slightly varied)
+const BUB_SIZES = [
+  76, 70, 50, 46,
+  34, 32, 30, 30, 28, 28, 26, 32, 28, 30, 26, 34, 28, 30, 26, 32,
+];
 
 function ScannerBubblesBg() {
   const [bubbles, setBubbles] = useState([]);
@@ -33,7 +37,7 @@ function ScannerBubblesBg() {
         const d = await r.json();
         const rows = (d.rows || []).filter(x => x && Number.isFinite(x.p1h));
         rows.sort((a, b) => Math.abs(b.p1h) - Math.abs(a.p1h));   // biggest 1H movers first
-        const built = rows.slice(0, 7).map((row, i) => ({
+        const built = rows.slice(0, 20).map((row, i) => ({
           sym: row.sym,
           pct: row.p1h,
           size: BUB_SIZES[i],
