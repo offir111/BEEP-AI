@@ -161,6 +161,230 @@ function ScannerBubblesBg() {
   );
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+//  Scanner beam — a lighthouse cone of light from the central orb that lights up
+//  one small stock bubble at a time. Pure overlay canvas (no React re-render per
+//  frame, rAF-driven, paused when the tab is hidden). Reads live DOM positions of
+//  .sw-orb and .sw-bub so it tracks the drifting bubbles.
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── 3 easy-to-tune knobs ──────────────────────────────────────────────────────
+const BEAM_COLOR  = ['#6EC6FF', '#BFE9FF'];  // cone gradient: source → tip
+const ILLUM_MS    = 3000;                     // how long a bubble stays lit
+const CYCLE_MS    = 10000;                    // full lighthouse cycle (two sweeps + rest)
+// ──────────────────────────────────────────────────────────────────────────────
+const FADE_MS = 400;   // cone fade in/out
+const GAP_MS  = 1000;  // pause between the two sweeps
+const WIN_MS  = FADE_MS + ILLUM_MS + FADE_MS;   // one sweep window (3.8s)
+
+function rgba(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+const easeIn = x => x * x;
+function envelope(t) {                          // 0→1→0 over a sweep window
+  if (t < 0 || t > WIN_MS) return 0;
+  if (t < FADE_MS) return easeIn(t / FADE_MS);
+  if (t < FADE_MS + ILLUM_MS) return 1;
+  return 1 - easeIn((t - FADE_MS - ILLUM_MS) / FADE_MS);
+}
+
+// Half-width of the cone at fraction s along its axis (narrow at orb → wide at tip).
+const coneHalf = (s, tipR) => 5 + (Math.max(tipR * 1.25, 16) - 5) * s;
+
+// Is the straight path orb→target clear of every other bubble?
+function pathClear(o, t, others) {
+  const dx = t.x - o.x, dy = t.y - o.y;
+  const len2 = dx * dx + dy * dy || 1;
+  for (const b of others) {
+    const s = ((b.x - o.x) * dx + (b.y - o.y) * dy) / len2;
+    if (s <= 0.02 || s >= 1) continue;
+    const px = o.x + s * dx, py = o.y + s * dy;
+    const dist = Math.hypot(b.x - px, b.y - py);
+    if (dist < b.r + coneHalf(s, t.r)) return false;
+  }
+  return true;
+}
+
+function ScannerBeamCanvas({ panelRef }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const panel = panelRef.current;
+    if (!canvas || !panel) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    let raf = 0, running = true;
+    let lastCycle = -1, A = null, B = null;     // chosen target elements per cycle
+    let blockK = 1, lastActive = null;          // smooth fade-out when blocked
+
+    const sizeCanvas = () => {
+      const r = panel.getBoundingClientRect();
+      canvas.width  = Math.round(r.width * dpr);
+      canvas.height = Math.round(r.height * dpr);
+      canvas.style.width  = r.width + 'px';
+      canvas.style.height = r.height + 'px';
+    };
+    sizeCanvas();
+    const ro = new ResizeObserver(sizeCanvas);
+    ro.observe(panel);
+
+    const local = (rect, pr) => ({
+      x: rect.left - pr.left + rect.width / 2,
+      y: rect.top - pr.top + rect.height / 2,
+      r: rect.width / 2,
+    });
+
+    const readBubbles = (pr) => {
+      const out = [];
+      panel.querySelectorAll('.sw-bub').forEach(el => {
+        const op = parseFloat(el.style.opacity || '0') || 0;
+        if (op < 0.12) return;                  // skip hidden/fading bubbles
+        const b = local(el.getBoundingClientRect(), pr);
+        b.el = el;
+        out.push(b);
+      });
+      return out;
+    };
+
+    const chooseTargets = (pr, orb, bubbles) => {
+      const cx = pr.width / 2;
+      const smalls = bubbles.filter(b => b.r < 26);   // small stock bubbles
+      const pick = (arr) => {
+        const ok = arr.filter(b => pathClear(orb, b, smalls.filter(x => x.el !== b.el)));
+        return ok.length ? ok[Math.floor(Math.random() * ok.length)].el : null;
+      };
+      const left  = smalls.filter(b => b.x < cx - 8);
+      const right = smalls.filter(b => b.x > cx + 8);
+      const leftFirst = Math.random() < 0.5;
+      return { A: pick(leftFirst ? left : right), B: pick(leftFirst ? right : left) };
+    };
+
+    function drawBeam(o, t, k) {
+      const dx = t.x - o.x, dy = t.y - o.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len, uy = dy / len, px = -uy, py = ux;
+      const sH = 5, eH = Math.max(t.r * 1.25, 16);
+      const sx = o.x + ux * o.r * 0.65, sy = o.y + uy * o.r * 0.65;  // emanate from orb edge
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.filter = 'blur(5px)';
+      const g = ctx.createLinearGradient(sx, sy, t.x, t.y);
+      g.addColorStop(0, rgba(BEAM_COLOR[0], 0.42 * k));
+      g.addColorStop(1, rgba(BEAM_COLOR[1], 0.10 * k));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(sx + px * sH, sy + py * sH);
+      ctx.lineTo(sx - px * sH, sy - py * sH);
+      ctx.lineTo(t.x - px * eH, t.y - py * eH);
+      ctx.lineTo(t.x + px * eH, t.y + py * eH);
+      ctx.closePath();
+      ctx.fill();
+      // brighter narrow core
+      ctx.filter = 'blur(2px)';
+      const g2 = ctx.createLinearGradient(sx, sy, t.x, t.y);
+      g2.addColorStop(0, rgba(BEAM_COLOR[1], 0.5 * k));
+      g2.addColorStop(1, rgba(BEAM_COLOR[1], 0));
+      ctx.fillStyle = g2;
+      ctx.beginPath();
+      ctx.moveTo(sx + px * sH * 0.6, sy + py * sH * 0.6);
+      ctx.lineTo(sx - px * sH * 0.6, sy - py * sH * 0.6);
+      ctx.lineTo(t.x - px * eH * 0.5, t.y - py * eH * 0.5);
+      ctx.lineTo(t.x + px * eH * 0.5, t.y + py * eH * 0.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawGlow(t, k, now) {
+      const R = t.r * (1 + 0.03 * Math.sin(now / 350));   // ±3% breathing
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      // 3) outer glow
+      ctx.filter = 'blur(8px)';
+      let g = ctx.createRadialGradient(t.x, t.y, R * 0.4, t.x, t.y, R * 1.9);
+      g.addColorStop(0, rgba('#6EC6FF', 0.32 * k));
+      g.addColorStop(1, rgba('#6EC6FF', 0));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(t.x, t.y, R * 1.9, 0, Math.PI * 2); ctx.fill();
+      // 1) inner core
+      ctx.filter = 'blur(1px)';
+      g = ctx.createRadialGradient(t.x - R * 0.22, t.y - R * 0.22, R * 0.1, t.x, t.y, R);
+      g.addColorStop(0,   rgba('#EAF7FF', 0.85 * k));
+      g.addColorStop(0.5, rgba('#7FD4FF', 0.55 * k));
+      g.addColorStop(1,   rgba('#3BA8E0', 0.28 * k));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(t.x, t.y, R, 0, Math.PI * 2); ctx.fill();
+      // warm gold reflex at the bottom (~15%)
+      ctx.filter = 'blur(2px)';
+      g = ctx.createRadialGradient(t.x, t.y + R * 0.45, 0, t.x, t.y + R * 0.45, R * 0.85);
+      g.addColorStop(0, rgba('#FFD27A', 0.15 * k));
+      g.addColorStop(1, rgba('#FFD27A', 0));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(t.x, t.y + R * 0.4, R * 0.85, 0, Math.PI * 2); ctx.fill();
+      // 2) rim light / halo
+      ctx.filter = 'blur(1.5px)';
+      ctx.strokeStyle = rgba('#9FE3FF', 0.8 * k);
+      ctx.lineWidth = Math.max(1.5, R * 0.08);
+      ctx.beginPath(); ctx.arc(t.x, t.y, R * 0.98, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+
+    const loop = () => {
+      if (!running) return;
+      raf = requestAnimationFrame(loop);
+      const now = performance.now();
+      const cyc = Math.floor(now / CYCLE_MS);
+      const t = now % CYCLE_MS;
+
+      const pr = panel.getBoundingClientRect();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, pr.width, pr.height);
+
+      const orbEl = panel.querySelector('.sw-orb');
+      if (!orbEl || pr.width === 0) return;
+      const orb = local(orbEl.getBoundingClientRect(), pr);
+      const bubbles = readBubbles(pr);
+
+      if (cyc !== lastCycle) { lastCycle = cyc; const ch = chooseTargets(pr, orb, bubbles); A = ch.A; B = ch.B; }
+
+      // which sweep + base intensity
+      let activeEl = null, k = 0;
+      if (t < WIN_MS) { activeEl = A; k = envelope(t); }
+      else if (t >= WIN_MS + GAP_MS && t < WIN_MS + GAP_MS + WIN_MS) { activeEl = B; k = envelope(t - WIN_MS - GAP_MS); }
+
+      if (activeEl !== lastActive) { blockK = 1; lastActive = activeEl; }
+
+      if (activeEl && activeEl.isConnected && k > 0.01) {
+        const tgt = local(activeEl.getBoundingClientRect(), pr);     // live position (tracks drift)
+        const others = bubbles.filter(b => b.el !== activeEl);
+        const blocked = !pathClear(orb, tgt, others);
+        blockK += ((blocked ? 0 : 1) - blockK) * 0.14;               // soft fade-out on block
+        const kk = k * blockK;
+        if (kk > 0.01) { drawBeam(orb, tgt, kk); drawGlow(tgt, kk, now); }
+      }
+    };
+
+    const onVis = () => {
+      if (document.hidden) { running = false; if (raf) cancelAnimationFrame(raf); }
+      else if (!running)  { running = true; loop(); }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    loop();
+
+    return () => {
+      running = false;
+      if (raf) cancelAnimationFrame(raf);
+      ro.disconnect();
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [panelRef]);
+
+  return <canvas ref={canvasRef} className="sw-beam-canvas" aria-hidden="true" />;
+}
+
 const LABELS = [
   'מתחבר למקורות נתונים',
   'מושך נרות ונפח מסחר',
@@ -195,6 +419,7 @@ export default function ScannerWidget({ onSearch }) {
   const [mode,  setMode]  = useState('anim');
   const [input, setInput] = useState('');
   const inputRef = useRef(null);
+  const panelRef = useRef(null);   // scanner panel — anchor for the beam canvas
 
   useEffect(() => {
     if (mode === 'search') setTimeout(() => inputRef.current?.focus(), 80);
@@ -225,10 +450,13 @@ export default function ScannerWidget({ onSearch }) {
 
       {mode === 'anim' && (
         /* ══ ANIMATION MODE ══════════════════════════════════════ */
-        <button className="sw-anim-btn" onClick={() => setMode('bubbles')} aria-label="פתח מפת בועות קריפטו">
+        <button className="sw-anim-btn" ref={panelRef} onClick={() => setMode('bubbles')} aria-label="פתח מפת בועות קריפטו">
 
           {/* Ambient 1H-crypto preview — behind the animation */}
           <ScannerBubblesBg />
+
+          {/* Lighthouse scanner beam — lights up one bubble at a time (overlay, behind the orb) */}
+          <ScannerBeamCanvas panelRef={panelRef} />
 
           <div className="sw-top">
             <span className="sw-title">סריקת AI מתבצעת</span>

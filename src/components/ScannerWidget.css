@@ -30,6 +30,15 @@
 /* Foreground (title, rings/orb, progress) stays ABOVE the ambient bubbles */
 .sw-top, .sw-rings-area, .sw-bar-area { position: relative; z-index: 1; }
 
+/* ── Scanner beam canvas — above the bubbles, below the orb/rings ── */
+.sw-beam-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;             /* same layer as bubbles; rendered after them → paints on top */
+  pointer-events: none;
+  border-radius: 20px;
+}
+
 /* ── Ambient 1H-crypto bubble preview (behind the animation) ── */
 .sw-bubbles-bg {
   position: absolute;
