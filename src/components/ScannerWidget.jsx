@@ -457,6 +457,25 @@ function ScannerBeamCanvas({ panelRef }) {
       ctx.restore();
     }
 
+    // The orb's inner core while a bubble is inside — blurred grainy WHITE (milk/frost), not black.
+    function drawOrbInner(o, a) {                       // a: 0→1 visibility
+      const R = o.r * 0.62;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(o.x, o.y, R, 0, Math.PI * 2); ctx.clip();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.filter = 'blur(2.5px)';
+      const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, R);
+      g.addColorStop(0,   `rgba(246,251,255,${0.92 * a})`);
+      g.addColorStop(0.7, `rgba(212,229,246,${0.80 * a})`);
+      g.addColorStop(1,   `rgba(182,206,231,${0.55 * a})`);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(o.x, o.y, R, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.32 * a;                       // grain speckle over the milk
+      ctx.filter = 'blur(0.7px)';
+      ctx.drawImage(grain, o.x - R, o.y - R, R * 2, R * 2);
+      ctx.restore();
+    }
+
     const loop = () => {
       if (!running) return;
       raf = requestAnimationFrame(loop);
@@ -470,12 +489,17 @@ function ScannerBeamCanvas({ panelRef }) {
       if (!orbEl || pr.width === 0) return;
       const orb = local(orbEl.getBoundingClientRect(), pr);
       const bubbles = readBubbles(pr);
+      const svgEl = panel.querySelector('.sw-svg');
+      const wavePhase = (now / 1050) % 1;     // continuous outer→inner→beam energy pulse
 
-      // Close the orb window ~3s after the bubble slammed in → fades back to solid opaque blue.
+      // Orb inner window: ~0.5s after the slam it closes; the milky-white core fades out as the
+      // CSS orb transitions back to solid opaque blue (a short canvas fade prevents a dark flash).
       if (orbOpenUntil && now >= orbOpenUntil) {
         try { orbEl.classList.remove('sw-orb--open'); } catch { /* noop */ }
-        orbOpenUntil = 0;
+        orbOpenUntil = 0; orbFadeUntil = now + 280;
       }
+      if (orbOpenUntil) drawOrbInner(orb, 1);
+      else if (orbFadeUntil && now < orbFadeUntil) drawOrbInner(orb, (orbFadeUntil - now) / 280);
 
       // The beam waits until at least 6 bubbles exist before it ever fires.
       if (bubbles.length < 6) { k = 0; target = null; held = 0; phaseT0 = now; return; }
@@ -497,10 +521,19 @@ function ScannerBeamCanvas({ panelRef }) {
           const blocked = !pathClear(orb, tgt, bubbles.filter(b => b.el !== target));
           if (blocked) {
             k = Math.max(0, k - dt / BLOCK_FADE); held = 0;                          // shut instantly
+            if (svgEl) svgEl.classList.remove('sw-rings--dim');                      // lock lost → rings return
             if (k <= 0.04) target = farSmall(bubbles, orb, side, pr.width);          // re-fire at another far bubble
           } else {
             k = Math.min(1, k + dt / FADE_IN);
             if (k >= 0.9) held += dt;                                                // count clear time
+            // The algorithm already knows which bubble it will take: from the moment the beam
+            // locks clear on it (~3s before the suck) the rings recede behind the orb and begin
+            // transmitting the pull-wave — so the capture looks pre-planned.
+            if (held > 150) {
+              if (svgEl) svgEl.classList.add('sw-rings--dim');
+              const ba = Math.atan2(tgt.y - orb.y, tgt.x - orb.x);
+              drawGatherRings(orb, ba, Math.min(1, held / 450), wavePhase);
+            }
             if (held >= ILLUM_MS) {                                                  // locked 3s → collect into orb
               collectFrom = local(target.getBoundingClientRect(), pr);
               collectedEl = target;
@@ -510,35 +543,38 @@ function ScannerBeamCanvas({ panelRef }) {
             }
           }
           drawAt();
-          if (now - phaseT0 > MAX_SEARCH && held < 150) { phase = phase === 'searchA' ? 'gap' : 'rest'; phaseT0 = now; k = 0; target = null; }
+          if (now - phaseT0 > MAX_SEARCH && held < 150) { if (svgEl) svgEl.classList.remove('sw-rings--dim'); phase = phase === 'searchA' ? 'gap' : 'rest'; phaseT0 = now; k = 0; target = null; }
         }
       } else if (phase === 'collectA' || phase === 'collectB') {
         const e = now - phaseT0;
         const lerp = (a, b, t) => a + (b - a) * t;
         if (!collectFrom) { phase = phase === 'collectA' ? 'gap' : 'rest'; phaseT0 = now; }
         else {
-          // beam side stays fixed at the bubble's source; rings gather on the far side and pull.
+          // beam side stays fixed at the bubble's source; rings (already gathered from the search
+          // lock) keep transmitting the pull-wave on the far side until the bubble is sucked in.
           const beamAng = Math.atan2(collectFrom.y - orb.y, collectFrom.x - orb.x);
-          const total   = VIBRATE_MS + SUCK_MS;
-          const gather  = Math.min(1, e / 260);             // rings snap to the far side quickly
-          const wave    = Math.min(1, e / total);           // pull-wave travels, ends as the bubble enters
-          const svg     = panel.querySelector('.sw-svg');
+          const total   = ANTIC + SUCK_MS;
 
-          if (e < VIBRATE_MS) {
-            // ~1s before suction: rings recede + gather opposite the beam; bubble vibrates; wave begins.
-            if (svg) svg.classList.add('sw-rings--dim');
-            const amp = 1 + 2.5 * (e / VIBRATE_MS);
-            const p = {
-              x: collectFrom.x + Math.sin(now / 21) * amp + (Math.random() - 0.5) * 1.4,
-              y: collectFrom.y + Math.cos(now / 17) * amp + (Math.random() - 0.5) * 1.4,
-              r: collectFrom.r,
-            };
+          if (e < ANTIC) {
+            // shake 0.5s → tense pause 1s (held like a drawn bowstring), then it'll be sucked.
+            if (svgEl) svgEl.classList.add('sw-rings--dim');
+            let p;
+            if (e < SHAKE_MS) {
+              const amp = 1 + 3 * (e / SHAKE_MS);
+              p = {
+                x: collectFrom.x + Math.sin(now / 19) * amp + (Math.random() - 0.5) * 1.4,
+                y: collectFrom.y + Math.cos(now / 16) * amp + (Math.random() - 0.5) * 1.4,
+                r: collectFrom.r,
+              };
+            } else {
+              p = { x: collectFrom.x, y: collectFrom.y, r: collectFrom.r };   // tense, dead-still pause
+            }
             drawBeam(orb, p, 1); drawGlow(p, 1, now);
-            drawGatherRings(orb, beamAng, gather, wave);
+            drawGatherRings(orb, beamAng, 1, wavePhase);
           } else if (e < total) {
             // sucked along the beam into the orb — accelerating, shrinking, gentle inward curve;
             // the pull-wave keeps rippling through the gathered rings toward the beam.
-            const s = (e - VIBRATE_MS) / SUCK_MS, es = s * s;
+            const s = (e - ANTIC) / SUCK_MS, es = s * s;
             const dxp = orb.x - collectFrom.x, dyp = orb.y - collectFrom.y;
             const len = Math.hypot(dxp, dyp) || 1;
             const curve = Math.sin(es * Math.PI) * Math.min(len * 0.12, 18);
@@ -548,14 +584,14 @@ function ScannerBeamCanvas({ panelRef }) {
               r: collectFrom.r * (1 - es * 0.9),
             };
             drawBeam(orb, p, 1); drawGlow(p, Math.max(0.25, 1 - es * 0.25), now);
-            drawGatherRings(orb, beamAng, gather, wave);
+            drawGatherRings(orb, beamAng, 1, wavePhase);
           } else if (e < total + SLAM_MS) {
-            // the bubble enters: orb inner part goes transparent, the bubble slams the inner wall;
-            // rings return to normal the instant it's sucked in (wave finished).
-            if (svg) svg.classList.remove('sw-rings--dim');
+            // the bubble enters: orb inner part shows its blurred grainy-white core, the bubble
+            // slams the inner wall; rings return to normal the instant it's sucked in.
+            if (svgEl) svgEl.classList.remove('sw-rings--dim');
             if (!orbEl.classList.contains('sw-orb--open')) {
               try { orbEl.classList.add('sw-orb--open'); } catch { /* noop */ }
-              orbOpenUntil = now + ORB_OPEN_MS;          // ...then ~3s later it fades back to solid blue
+              orbOpenUntil = now + ORB_OPEN_MS;          // ...then ~0.5s later it fades back to solid blue
             }
             const hit = (e - total) / SLAM_MS;
             drawOrbFlash(orb, Math.min(1, hit / (IMPACT_MS / SLAM_MS)));
@@ -580,7 +616,7 @@ function ScannerBeamCanvas({ panelRef }) {
         if (collectedEl) { try { collectedEl.classList.remove('sw-bub--collected'); } catch { /* noop */ } collectedEl = null; collectFrom = null; }
         try { panel.querySelector('.sw-svg')?.classList.remove('sw-rings--dim'); } catch { /* noop */ }
         try { panel.querySelector('.sw-orb')?.classList.remove('sw-orb--open'); } catch { /* noop */ }
-        orbOpenUntil = 0;
+        orbOpenUntil = 0; orbFadeUntil = 0;
         phase = 'searchA'; target = null; k = 0; held = 0;
         loop();
       }

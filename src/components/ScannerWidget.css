@@ -135,9 +135,9 @@
   /* Deep midnight ocean gradient */
   background: radial-gradient(circle at 38% 32%, #e3f2fd, #1e90ff 38%, #0d47a1 70%);
   box-shadow: 0 0 40px 10px rgba(30, 144, 255, 0.7);
-  /* When a collected bubble slams in, the inner part goes transparent (a window into the orb);
-     ~3s later it transitions back to its solid opaque blue. */
-  transition: background 1s ease, box-shadow 1s ease;
+  /* When a collected bubble slams in, the inner part opens to a blurred grainy-white core;
+     ~0.5s later it transitions back to its solid opaque blue. */
+  transition: background 0.5s ease, box-shadow 0.5s ease;
 }
 
 /* Orb "open" — inner part transparent so the entering bubble is visible slamming the inner wall;
