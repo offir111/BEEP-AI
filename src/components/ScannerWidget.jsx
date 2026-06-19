@@ -233,15 +233,17 @@ function ScannerBeamCanvas({ panelRef }) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     let raf = 0, running = true;
-    // Searching state machine: ATTEMPTS far targets even when risky; if a bubble crosses the
-    // beam it shuts instantly and re-fires at another far bubble — until it locks one clear for
-    // 3s. phases: searchA → fadeoutA → gap → searchB → fadeoutB → rest → (loop).
-    let phase = 'searchA', phaseT0 = performance.now();
-    let sideA = 'left', sideB = 'right', target = null, k = 0, held = 0, prevNow = performance.now();
+    // "Precise stock-search" state machine. It PROBES: lights up one bubble ~1s and closes,
+    // hops to a neighbour / the opposite side / a third — quick taps (~3s cadence) that read as
+    // hunting for the right stock. After ~8–11s of probing it FOCUSES one bubble (rings gather +
+    // pull-wave) and SUCKS it in. A full capture lands on average ~every 15s.
+    // phases: probe → probeGap → … → focus → collect → (loop).
+    let phase = 'probe', phaseT0 = performance.now();
+    let target = null, k = 0, prevNow = performance.now();
+    let cycleStart = performance.now(), probeWindow = 8000 + Math.random() * 3000;
+    let lastRef = null, probeMode = 'random';
     let collectFrom = null, collectedEl = null;   // the bubble being sucked into the orb
     let orbOpenUntil = 0, orbFadeUntil = 0;        // orb inner "window" visible until / fading until ts
-    const pickSides = () => { const lf = Math.random() < 0.5; sideA = lf ? 'left' : 'right'; sideB = lf ? 'right' : 'left'; };
-    pickSides();
 
     // Frosted grain tile for the orb's inner window — the core reads as blurred grainy WHITE (not black).
     const grain = document.createElement('canvas');
@@ -294,6 +296,35 @@ function ScannerBeamCanvas({ panelRef }) {
       arr.sort((a, b) => Math.hypot(b.x - orb.x, b.y - orb.y) - Math.hypot(a.x - orb.x, a.y - orb.y));
       const far = arr.slice(0, Math.max(1, Math.ceil(arr.length * 0.6)));   // farthest 60%
       return far[Math.floor(Math.random() * far.length)].el;
+    };
+
+    // Probe picker — quick search taps. mode: 'neighbour' (near the last tap), 'opposite' (other
+    // side of the orb), or 'random' (any far-ish bubble). Returns a bubble element.
+    const PROBE_MODES = ['neighbour', 'opposite', 'random', 'neighbour'];
+    const pickProbe = (bubbles, orb, ref, mode) => {
+      if (!bubbles.length) return null;
+      let pool = bubbles;
+      if (mode === 'neighbour' && ref) {
+        pool = bubbles.slice().sort((a, b) =>
+          Math.hypot(a.x - ref.x, a.y - ref.y) - Math.hypot(b.x - ref.x, b.y - ref.y))
+          .slice(1, 5);                                  // a few closest to the last tap (skip itself)
+      } else if (mode === 'opposite' && ref) {
+        const refLeft = ref.x < orb.x;
+        pool = bubbles.filter(b => (refLeft ? b.x > orb.x : b.x < orb.x));
+      }
+      if (!pool.length) pool = bubbles;
+      return pool[Math.floor(Math.random() * pool.length)].el;
+    };
+
+    // Focus picker — the bubble it commits to and sucks; prefer a clear, far-ish path.
+    const pickFocus = (bubbles, orb) => {
+      if (!bubbles.length) return null;
+      const far = bubbles.slice().sort((a, b) =>
+        Math.hypot(b.x - orb.x, b.y - orb.y) - Math.hypot(a.x - orb.x, a.y - orb.y));
+      const clear = far.filter(b => pathClear(orb, b, bubbles.filter(x => x.el !== b.el)));
+      const src = clear.length ? clear : far;
+      const pool = src.slice(0, Math.max(1, Math.ceil(src.length * 0.6)));
+      return pool[Math.floor(Math.random() * pool.length)].el;
     };
 
     function drawBeam(o, t, k) {
@@ -366,7 +397,8 @@ function ScannerBeamCanvas({ panelRef }) {
       ctx.restore();
     }
 
-    const FADE_IN = 320, BLOCK_FADE = 70, REST_MS = 1400, MAX_SEARCH = 4500;
+    const PROBE_IN = 250, PROBE_LIT = 1000, PROBE_OUT = 250, PROBE_GAP = 1300;  // single tap ≈ 1s lit, ~3s cadence
+    const FOCUS_MS = 2500;                                                       // final lock: rings gather, then suck
     const SHAKE_MS = 500, PAUSE_MS = 1000, SUCK_MS = 2000, IMPACT_MS = 350;  // collect: shake 0.5s → tense pause 1s → suck
     const ANTIC = SHAKE_MS + PAUSE_MS;                          // anticipation before the suck (1.5s)
     const SLAM_MS = 500, ORB_OPEN_MS = 500;                     // bubble slams inner wall; orb window ~0.5s then back to normal
@@ -490,7 +522,7 @@ function ScannerBeamCanvas({ panelRef }) {
       const orb = local(orbEl.getBoundingClientRect(), pr);
       const bubbles = readBubbles(pr);
       const svgEl = panel.querySelector('.sw-svg');
-      const wavePhase = (now / 1050) % 1;     // continuous outer→inner→beam energy pulse
+      const wavePhase = (now / 3200) % 1;     // SLOW outer→inner→beam energy pulse (deliberate, not fast)
 
       // Orb inner window: ~0.5s after the slam it closes; the milky-white core fades out as the
       // CSS orb transitions back to solid opaque blue (a short canvas fade prevents a dark flash).
@@ -502,53 +534,58 @@ function ScannerBeamCanvas({ panelRef }) {
       else if (orbFadeUntil && now < orbFadeUntil) drawOrbInner(orb, (orbFadeUntil - now) / 280);
 
       // The beam waits until at least 6 bubbles exist before it ever fires.
-      if (bubbles.length < 6) { k = 0; target = null; held = 0; phaseT0 = now; return; }
+      if (bubbles.length < 6) { k = 0; target = null; phaseT0 = now; return; }
 
-      const drawAt = () => {
-        if (k > 0.01 && target && target.isConnected) {
+      if (phase === 'probe') {
+        // Quick search tap: light one bubble ~1s (fade in → hold → fade out) then close. Spinning
+        // rings stay normal during probing.
+        if (svgEl) svgEl.classList.remove('sw-rings--dim');
+        if (!target || !target.isConnected) { target = pickProbe(bubbles, orb, lastRef, probeMode); phaseT0 = now; k = 0; }
+        if (!target) { phase = 'probeGap'; phaseT0 = now; k = 0; }
+        else {
+          const e = now - phaseT0;
+          const dur = PROBE_IN + PROBE_LIT + PROBE_OUT;
+          if (e < PROBE_IN) k = e / PROBE_IN;
+          else if (e < PROBE_IN + PROBE_LIT) k = 1;
+          else k = Math.max(0, 1 - (e - PROBE_IN - PROBE_LIT) / PROBE_OUT);
           const tg = local(target.getBoundingClientRect(), pr);
           drawBeam(orb, tg, k); drawGlow(tg, k, now);
+          if (e >= dur) { lastRef = { x: tg.x, y: tg.y }; target = null; phase = 'probeGap'; phaseT0 = now; k = 0; }
         }
-      };
-
-      if (phase === 'searchA' || phase === 'searchB') {
-        const side = phase === 'searchA' ? sideA : sideB;
-        if (!target || !target.isConnected) { target = farSmall(bubbles, orb, side, pr.width); held = 0; }
-        if (!target) {
-          if (now - phaseT0 > 1200) { phase = phase === 'searchA' ? 'gap' : 'rest'; phaseT0 = now; k = 0; }   // nothing to aim at
-        } else {
-          const tgt = local(target.getBoundingClientRect(), pr);
-          const blocked = !pathClear(orb, tgt, bubbles.filter(b => b.el !== target));
-          if (blocked) {
-            k = Math.max(0, k - dt / BLOCK_FADE); held = 0;                          // shut instantly
-            if (svgEl) svgEl.classList.remove('sw-rings--dim');                      // lock lost → rings return
-            if (k <= 0.04) target = farSmall(bubbles, orb, side, pr.width);          // re-fire at another far bubble
+      } else if (phase === 'probeGap') {
+        // Dark pause between taps. When the probing window is up → commit to a focus + suck.
+        if (now - phaseT0 >= PROBE_GAP) {
+          if (now - cycleStart >= probeWindow) {
+            target = pickFocus(bubbles, orb);
+            phase = target ? 'focus' : 'probe'; phaseT0 = now; k = 0;
           } else {
-            k = Math.min(1, k + dt / FADE_IN);
-            if (k >= 0.9) held += dt;                                                // count clear time
-            // The algorithm already knows which bubble it will take: from the moment the beam
-            // locks clear on it (~3s before the suck) the rings recede behind the orb and begin
-            // transmitting the pull-wave — so the capture looks pre-planned.
-            if (held > 150) {
-              if (svgEl) svgEl.classList.add('sw-rings--dim');
-              const ba = Math.atan2(tgt.y - orb.y, tgt.x - orb.x);
-              drawGatherRings(orb, ba, Math.min(1, held / 450), wavePhase);
-            }
-            if (held >= ILLUM_MS) {                                                  // locked 3s → collect into orb
-              collectFrom = local(target.getBoundingClientRect(), pr);
-              collectedEl = target;
-              try { target.classList.add('sw-bub--collected'); } catch { /* noop */ }
-              phase = phase === 'searchA' ? 'collectA' : 'collectB';
-              phaseT0 = now;
-            }
+            probeMode = PROBE_MODES[Math.floor(Math.random() * PROBE_MODES.length)];
+            target = null; phase = 'probe'; phaseT0 = now;
           }
-          drawAt();
-          if (now - phaseT0 > MAX_SEARCH && held < 150) { if (svgEl) svgEl.classList.remove('sw-rings--dim'); phase = phase === 'searchA' ? 'gap' : 'rest'; phaseT0 = now; k = 0; target = null; }
         }
-      } else if (phase === 'collectA' || phase === 'collectB') {
+      } else if (phase === 'focus') {
+        // Final lock — the chosen bubble. The spinning rings VANISH and the gathered rings take
+        // over, SLOWLY transmitting the pull-wave behind the orb (~2.5s), then it'll be sucked.
+        if (!target || !target.isConnected) target = pickFocus(bubbles, orb);
+        if (!target) { phase = 'probe'; phaseT0 = now; cycleStart = now; probeWindow = 8000 + Math.random() * 3000; }
+        else {
+          const e = now - phaseT0;
+          if (svgEl) svgEl.classList.add('sw-rings--dim');
+          const tg = local(target.getBoundingClientRect(), pr);
+          const ba = Math.atan2(tg.y - orb.y, tg.x - orb.x);
+          drawBeam(orb, tg, 1); drawGlow(tg, 1, now);
+          drawGatherRings(orb, ba, Math.min(1, e / 700), wavePhase);
+          if (e >= FOCUS_MS) {
+            collectFrom = local(target.getBoundingClientRect(), pr);
+            collectedEl = target;
+            try { target.classList.add('sw-bub--collected'); } catch { /* noop */ }
+            phase = 'collect'; phaseT0 = now;
+          }
+        }
+      } else if (phase === 'collect') {
         const e = now - phaseT0;
         const lerp = (a, b, t) => a + (b - a) * t;
-        if (!collectFrom) { phase = phase === 'collectA' ? 'gap' : 'rest'; phaseT0 = now; }
+        if (!collectFrom) { phase = 'probe'; phaseT0 = now; cycleStart = now; probeWindow = 8000 + Math.random() * 3000; }
         else {
           // beam side stays fixed at the bubble's source; rings (already gathered from the search
           // lock) keep transmitting the pull-wave on the far side until the bubble is sucked in.
@@ -597,15 +634,14 @@ function ScannerBeamCanvas({ panelRef }) {
             drawOrbFlash(orb, Math.min(1, hit / (IMPACT_MS / SLAM_MS)));
             drawBubbleImpact(orb, beamAng, hit);
           } else {
+            // captured → start a fresh probing cycle (next suck on average ~15s later).
             if (collectedEl) { try { collectedEl.classList.remove('sw-bub--collected'); } catch { /* noop */ } }
             collectedEl = null; collectFrom = null;
-            phase = phase === 'collectA' ? 'gap' : 'rest'; phaseT0 = now; target = null; held = 0; k = 0;
+            phase = 'probe'; phaseT0 = now; target = null; k = 0;
+            lastRef = null; probeMode = 'random';
+            cycleStart = now; probeWindow = 8000 + Math.random() * 3000;
           }
         }
-      } else if (phase === 'gap') {
-        if (now - phaseT0 >= GAP_MS) { phase = 'searchB'; phaseT0 = now; target = null; held = 0; k = 0; }
-      } else if (phase === 'rest') {
-        if (now - phaseT0 >= REST_MS) { pickSides(); phase = 'searchA'; phaseT0 = now; target = null; held = 0; k = 0; }
       }
     };
 
@@ -617,7 +653,9 @@ function ScannerBeamCanvas({ panelRef }) {
         try { panel.querySelector('.sw-svg')?.classList.remove('sw-rings--dim'); } catch { /* noop */ }
         try { panel.querySelector('.sw-orb')?.classList.remove('sw-orb--open'); } catch { /* noop */ }
         orbOpenUntil = 0; orbFadeUntil = 0;
-        phase = 'searchA'; target = null; k = 0; held = 0;
+        phase = 'probe'; target = null; k = 0;
+        lastRef = null; probeMode = 'random';
+        cycleStart = performance.now(); probeWindow = 8000 + Math.random() * 3000;
         loop();
       }
     };

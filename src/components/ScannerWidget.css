@@ -112,11 +112,12 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  transition: opacity 0.28s ease;   /* the 3 rings recede while the canvas draws the gathered/pulling rings */
+  transition: opacity 0.2s ease;   /* clean swap between the spinning rings and the gathered rings */
 }
-/* During a "collect" the real spinning rings recede (keep spinning underneath → no snap on return);
-   the canvas paints the gathered rings + the energy-pull wave on the far side of the orb. */
-.sw-svg.sw-rings--dim { opacity: 0.1; }
+/* During focus/collect the spinning rings VANISH completely; the canvas paints the gathered rings +
+   the slow energy-pull wave. The instant the bubble is sucked in, the class is removed and the
+   spinning rings return fully — a clean, complete swap. (They keep spinning underneath → no jump.) */
+.sw-svg.sw-rings--dim { opacity: 0; }
 
 /* ── Orb — perfectly centered, text positioned absolute below ── */
 .sw-orb-wrap {

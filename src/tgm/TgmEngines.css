@@ -63,6 +63,12 @@
 .tge-badge--partial { color: var(--accent-gold); background: rgba(212, 175, 55, 0.14); border: 1px solid rgba(212, 175, 55, 0.4); }
 .tge-badge--mock { color: var(--text-secondary); background: rgba(150, 150, 160, 0.12); border: 1px solid rgba(150, 150, 160, 0.3); }
 
+/* טבלת השוואת ספים */
+.tge-table--cmp th, .tge-table--cmp td { white-space: nowrap; font-size: 0.74rem; padding: 6px 8px; }
+.tge-th-grp { text-align: center; border-bottom: 2px solid rgba(74, 222, 128, 0.4); color: var(--accent-green); }
+.tge-th-grp--test { border-bottom-color: rgba(212, 175, 55, 0.5); color: var(--accent-gold); }
+.tge-verdict { font-size: 0.72rem; color: var(--text-secondary); white-space: normal; min-width: 120px; }
+
 .tge-month {
   display: flex;
   align-items: center;

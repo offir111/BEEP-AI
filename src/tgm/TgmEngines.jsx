@@ -15,6 +15,7 @@ import {
 } from './stats';
 import { loadLiveData, clearLiveData, dataMode, liveStats } from './data/dataLayer';
 import { TP_PCT, SL_PCT, WINDOW_DAYS } from './evaluator';
+import { compareThresholds, edgeVerdict } from './compare';
 import './TgmEngines.css';
 
 // חיווי מקור נתונים כן (LIVE / חלקי / MOCK).
@@ -83,6 +84,7 @@ export default function TgmEngines() {
 
   const overall = useMemo(() => computeStats(monthLeads), [monthLeads]);
   const ranking = useMemo(() => rankEngines(monthLeads), [monthLeads]);
+  const comparison = useMemo(() => (tab === 'compare' ? compareThresholds(monthLeads) : null), [monthLeads, tab]);
 
   const runToday = useCallback(async () => {
     setBusy(true);
@@ -192,6 +194,9 @@ export default function TgmEngines() {
         <button className={`tge-tab ${tab === 'dashboard' ? 'tge-tab--on' : ''}`} onClick={() => setTab('dashboard')}>
           📊 דשבורד
         </button>
+        <button className={`tge-tab ${tab === 'compare' ? 'tge-tab--on' : ''}`} onClick={() => setTab('compare')}>
+          ⚖️ חוסן 8%↔10%
+        </button>
         {ENGINES.map((e) => (
           <button
             key={e.key}
@@ -206,6 +211,8 @@ export default function TgmEngines() {
 
       {tab === 'dashboard' ? (
         <Dashboard overall={overall} ranking={ranking} monthSel={monthSel} />
+      ) : tab === 'compare' ? (
+        <ComparePanel cmp={comparison} />
       ) : (
         <EngineView engineKey={tab} leads={monthLeads} />
       )}
@@ -339,6 +346,71 @@ function EngineView({ engineKey, leads }) {
         ))}
       </div>
       {engineLeads.length > 150 && <div className="tge-more">מוצגים 150 מתוך {engineLeads.length}. כולם נכללים בסטטיסטיקה.</div>}
+    </>
+  );
+}
+
+// ── פאנל בדיקת חוסן: 8% מול 10% צד-לצד ──────────────────────────────────────
+function ComparePanel({ cmp }) {
+  if (!cmp) return null;
+  const [tpBase, tpTest] = cmp.thresholds;
+  const cell = (s) => {
+    const wr = winRateDisplay(s);
+    return (
+      <>
+        <td className={wr.dim ? 'tge-dim' : ''} style={!wr.dim ? { fontWeight: 800, color: rateColor(s.winRate) } : undefined}>{wr.text}</td>
+        <td>{s.succeeded}/{s.resolved}</td>
+        <td>{pf(s.profitFactor)}</td>
+        <td style={retColor(s.avgReturn)}>{pct(s.avgReturn, true)}</td>
+        <td>{s.maxDrawdown == null ? '—' : `${s.maxDrawdown.toFixed(1)}%`}</td>
+      </>
+    );
+  };
+  const Row = ({ icon, label, color, byTp, drop }) => {
+    const v = edgeVerdict(drop);
+    return (
+      <tr>
+        <td><span style={{ color, fontWeight: 700 }}>{icon} {label}</span></td>
+        {cell(byTp[tpBase])}
+        {cell(byTp[tpTest])}
+        <td style={{ fontWeight: 800, color: v.tone === 'good' ? 'var(--accent-green)' : v.tone === 'bad' ? 'var(--accent-red)' : 'var(--accent-gold)' }}>
+          {drop == null ? '—' : `${drop > 0 ? '−' : '+'}${Math.abs(drop).toFixed(1)}pp`}
+        </td>
+        <td className="tge-verdict">{v.text}</td>
+      </tr>
+    );
+  };
+  return (
+    <>
+      <div className="tge-section-title">⚖️ בדיקת חוסן — TP +{tpBase}% (בסיס) מול +{tpTest}% (בדיקה)</div>
+      <p className="tge-sub" style={{ marginBottom: 10 }}>
+        אותם לידים בדיוק · SL ‎−{cmp.sl}%‎ וחלון {cmp.windowDays} ימים קבועים · ה-TP <b>לא שונה</b> במערכת — זו בדיקה בלבד.
+        ירידה קטנה ⇐ edge חזק; צניחה חדה ⇐ הרווח ב-{tpBase}% היה "בקושי".
+      </p>
+      <div className="tge-table-card" style={{ overflowX: 'auto' }}>
+        <table className="tge-table tge-table--cmp">
+          <thead>
+            <tr>
+              <th rowSpan={2}>מנוע</th>
+              <th colSpan={5} className="tge-th-grp">TP +{tpBase}%</th>
+              <th colSpan={5} className="tge-th-grp tge-th-grp--test">TP +{tpTest}%</th>
+              <th rowSpan={2}>ירידה</th><th rowSpan={2}>פסק</th>
+            </tr>
+            <tr>
+              <th>הצלחה</th><th>מנצחים</th><th>PF</th><th>תשואה</th><th>DD</th>
+              <th>הצלחה</th><th>מנצחים</th><th>PF</th><th>תשואה</th><th>DD</th>
+            </tr>
+          </thead>
+          <tbody>
+            <Row icon="📊" label="כל המנועים" color="var(--accent-gold)" byTp={cmp.overall}
+                 drop={(() => { const a = cmp.overall[tpBase].winRate, b = cmp.overall[tpTest].winRate; return a != null && b != null ? Math.round((a - b) * 100) / 100 : null; })()} />
+            {cmp.perEngine.map((e) => <Row key={e.engineKey} {...e} />)}
+          </tbody>
+        </table>
+        <div className="tge-table-foot">
+          "ירידה" = הפרש ה-win-rate בנקודות אחוז (pp) מ-{tpBase}% ל-{tpTest}%. אחוז מוצג רק ל-≥{MIN_SAMPLE_FOR_RATE} טריידים שהוכרעו.
+        </div>
+      </div>
     </>
   );
 }
