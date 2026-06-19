@@ -18,24 +18,27 @@ const CLIMB_MS = 9750;
 // A subtle hint of "what's behind the scanner". Real 1H movers, blue-filtered (not
 // their own colors), ~20% opacity; only the single biggest mover pulses up to ~50%.
 // Fades in 3s after entering. Sits behind the animation (z-index 0) — never hides it.
-// 20 small bubbles. Largest = 44px ≈ 31% smaller than the 64px central orb (no big bubbles).
+// 28 small bubbles. Largest = 44px ≈ 31% smaller than the 64px central orb (no big bubbles).
+// The last 8 (idx ≥ 20) spawn on the side edges → extra distant beam targets.
+const TOTAL = 28;
 const BUB_SIZES = [
   44, 40, 34, 32,
   28, 26, 24, 24, 22, 22, 20, 26, 22, 24, 20, 28, 22, 24, 20, 26,
+  20, 22, 18, 20, 22, 18, 20, 22,            // +8 small side targets
 ];
 const OP_CHOICES = [0.2, 0.3, 0.4];         // random per-bubble brightness (up to 40%)
 
-// Entry keeps repeating the +1,+2,+1,+3 rhythm until all 20 are in (no "+rest" dump).
+// Entry keeps repeating the +1,+2,+1,+3 rhythm until all are in (no "+rest" dump).
 const UP_PATTERN = [1, 2, 1, 3];
 const UP = (() => {
   const seq = []; let cur = 0, i = 0;
-  while (cur < 20) { cur = Math.min(20, cur + UP_PATTERN[i % UP_PATTERN.length]); seq.push(cur); i++; }
-  return seq;                                         // [1,3,4,7,8,10,11,14,15,17,18,20]
+  while (cur < TOTAL) { cur = Math.min(TOTAL, cur + UP_PATTERN[i % UP_PATTERN.length]); seq.push(cur); i++; }
+  return seq;
 })();
 const DOWN = [...UP.slice(0, -1)].reverse().concat(0); // fade-out = the entry reversed
 // No gap at the end: the staggered fade-out overlaps the next staggered fade-in (3s fades),
 // so as the last bubble leaves a new one is already entering → the panel is never empty.
-const SCHEDULE = [...UP, 20, 20, 20, 20, 20, ...DOWN];
+const SCHEDULE = [...UP, TOTAL, TOTAL, TOTAL, TOTAL, TOTAL, ...DOWN];
 
 // The central blue orb is forbidden — bubbles approach to ~1cm but never sit under it.
 function randPos(outer) {
@@ -56,11 +59,20 @@ function randPos(outer) {
 }
 const BIG_MOVE = new Set([4, 9, 14]);                  // 3 balls drift a longer, slow outer path
 
+// The 8 extra bubbles (idx ≥ 20) spawn on the LEFT/RIGHT edges → distant beam targets.
+function sidePos() {
+  const left = Math.random() < 0.5;
+  return {
+    x: left ? 5 + Math.round(Math.random() * 11) : 84 + Math.round(Math.random() * 11),
+    y: 8 + Math.round(Math.random() * 80),
+  };
+}
+
 // Fresh random layout — used on first build AND each time a bubble re-enters, so a
 // re-appearing bubble shows up in a different corner.
 function freshLayout(idx) {
   const big = BIG_MOVE.has(idx);
-  const pos = randPos(big);
+  const pos = idx >= 20 ? sidePos() : randPos(big);
   return {
     x: pos.x, y: pos.y,
     dur: big ? 18 + Math.round(Math.random() * 6) : 11 + Math.round(Math.random() * 5),
@@ -83,7 +95,7 @@ function ScannerBubblesBg() {
         const d = await r.json();
         const rows = (d.rows || []).filter(x => x && Number.isFinite(x.p1h));
         rows.sort((a, b) => Math.abs(b.p1h) - Math.abs(a.p1h));   // biggest 1H movers first
-        const built = rows.slice(0, 20).map((row, i) => ({
+        const built = rows.slice(0, TOTAL).map((row, i) => ({
           sym: row.sym,
           pct: row.p1h,
           size: BUB_SIZES[i],
@@ -354,6 +366,9 @@ function ScannerBeamCanvas({ panelRef }) {
       if (!orbEl || pr.width === 0) return;
       const orb = local(orbEl.getBoundingClientRect(), pr);
       const bubbles = readBubbles(pr);
+
+      // The beam waits until at least 6 bubbles exist before it ever fires.
+      if (bubbles.length < 6) { k = 0; target = null; held = 0; phaseT0 = now; return; }
 
       const drawAt = () => {
         if (k > 0.01 && target && target.isConnected) {
