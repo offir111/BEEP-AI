@@ -557,37 +557,51 @@ function ScannerBeamCanvas({ panelRef }) {
       if (bubbles.length < 6) { k = 0; target = null; phaseT0 = now; return; }
 
       if (phase === 'probe') {
-        // Quick search tap: light one bubble ~1s (fade in → hold → fade out) then close. Spinning
-        // rings stay normal during probing.
+        // One illumination of the current step. Single events = 1 bubble (~1s); double = jump 90°
+        // to a 2nd; triple = jump 45° then 180° to a 3rd (~2s) — fast, snappy hops. Rings stay normal.
         if (svgEl) svgEl.classList.remove('sw-rings--dim');
-        if (!target || !target.isConnected) { target = pickProbe(bubbles, orb, lastRef, probeMode); phaseT0 = now; k = 0; }
+        if (!target || !target.isConnected) {
+          target = (probeStep === 0)
+            ? pickProbe(bubbles, orb, lastRef, 'random')
+            : (pickByAngle(bubbles, orb, lastRef, probeDeltas[probeStep]) || pickProbe(bubbles, orb, lastRef, 'random'));
+          phaseT0 = now; k = 0;
+        }
         if (!target) { phase = 'probeGap'; phaseT0 = now; k = 0; }
         else {
           const e = now - phaseT0;
-          const dur = PROBE_IN + PROBE_LIT + PROBE_OUT;
-          if (e < PROBE_IN) k = e / PROBE_IN;
-          else if (e < PROBE_IN + PROBE_LIT) k = 1;
-          else k = Math.max(0, 1 - (e - PROBE_IN - PROBE_LIT) / PROBE_OUT);
+          const dur = probeIn + probeLit + probeOut;
+          if (e < probeIn) k = e / probeIn;
+          else if (e < probeIn + probeLit) k = 1;
+          else k = Math.max(0, 1 - (e - probeIn - probeLit) / probeOut);
           const tg = local(target.getBoundingClientRect(), pr);
           drawBeam(orb, tg, k); drawGlow(tg, k, now);
-          if (e >= dur) { lastRef = { x: tg.x, y: tg.y }; target = null; phase = 'probeGap'; phaseT0 = now; k = 0; }
+          if (e >= dur) {
+            lastRef = { x: tg.x, y: tg.y }; target = null; k = 0;
+            probeStep += 1;
+            if (probeStep < probeDeltas.length) { phase = 'probeJump'; phaseT0 = now; }   // hop to next bubble
+            else { phase = 'probeGap'; phaseT0 = now; }                                    // pattern done
+          }
         }
+      } else if (phase === 'probeJump') {
+        // Tiny dark hop between the bubbles inside one multi-illumination pattern.
+        if (now - phaseT0 >= probeJump) { phase = 'probe'; phaseT0 = now; }
       } else if (phase === 'probeGap') {
-        // Dark pause between taps. When the probing window is up → commit to a focus + suck.
+        // Dark pause between probe events. When the probing window is up → commit to a focus + suck;
+        // otherwise re-roll the next pattern (single / double / triple) and keep hunting.
         if (now - phaseT0 >= PROBE_GAP) {
           if (now - cycleStart >= probeWindow) {
             target = pickFocus(bubbles, orb);
             phase = target ? 'focus' : 'probe'; phaseT0 = now; k = 0;
+            if (!target) startProbeEvent();
           } else {
-            probeMode = PROBE_MODES[Math.floor(Math.random() * PROBE_MODES.length)];
-            target = null; phase = 'probe'; phaseT0 = now;
+            startProbeEvent(); target = null; phase = 'probe'; phaseT0 = now;
           }
         }
       } else if (phase === 'focus') {
         // Final lock — the chosen bubble. The spinning rings VANISH and the gathered rings take
         // over, SLOWLY transmitting the pull-wave behind the orb (~2.5s), then it'll be sucked.
         if (!target || !target.isConnected) target = pickFocus(bubbles, orb);
-        if (!target) { phase = 'probe'; phaseT0 = now; cycleStart = now; probeWindow = 6000 + Math.random() * 3000; }
+        if (!target) { phase = 'probe'; phaseT0 = now; startProbeEvent(); cycleStart = now; probeWindow = 6000 + Math.random() * 3000; }
         else {
           const e = now - phaseT0;
           if (svgEl) svgEl.classList.add('sw-rings--dim');
@@ -605,7 +619,7 @@ function ScannerBeamCanvas({ panelRef }) {
       } else if (phase === 'collect') {
         const e = now - phaseT0;
         const lerp = (a, b, t) => a + (b - a) * t;
-        if (!collectFrom) { phase = 'probe'; phaseT0 = now; cycleStart = now; probeWindow = 6000 + Math.random() * 3000; }
+        if (!collectFrom) { phase = 'probe'; phaseT0 = now; startProbeEvent(); cycleStart = now; probeWindow = 6000 + Math.random() * 3000; }
         else {
           // beam side stays fixed at the bubble's source; rings (already gathered from the search
           // lock) keep transmitting the pull-wave on the far side until the bubble is sucked in.
@@ -666,7 +680,7 @@ function ScannerBeamCanvas({ panelRef }) {
         if (svgEl) svgEl.classList.remove('sw-rings--dim');
         if (now - phaseT0 >= REST_AFTER_MS) {
           phase = 'probe'; phaseT0 = now; target = null; k = 0;
-          lastRef = null; probeMode = 'random';
+          lastRef = null; startProbeEvent();
           cycleStart = now; probeWindow = 6000 + Math.random() * 3000;
         }
       }
@@ -681,7 +695,7 @@ function ScannerBeamCanvas({ panelRef }) {
         try { panel.querySelector('.sw-orb')?.classList.remove('sw-orb--open'); } catch { /* noop */ }
         orbOpenUntil = 0; orbFadeUntil = 0;
         phase = 'probe'; target = null; k = 0;
-        lastRef = null; probeMode = 'random';
+        lastRef = null; startProbeEvent();
         cycleStart = performance.now(); probeWindow = 6000 + Math.random() * 3000;
         loop();
       }
