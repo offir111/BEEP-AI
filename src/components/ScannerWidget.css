@@ -149,7 +149,9 @@
 .sw-bar-area {
   width: 100%;
   padding: 0 4px;
+  transition: opacity 0.8s ease;   /* fades out 2s after reaching 89% */
 }
+.sw-bar-area--faded { opacity: 0; pointer-events: none; }
 
 .sw-bar-track {
   height: 8px;

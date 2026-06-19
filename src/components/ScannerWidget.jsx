@@ -446,6 +446,15 @@ export default function ScannerWidget({ onSearch }) {
   const inputRef = useRef(null);
   const panelRef = useRef(null);   // scanner panel — anchor for the beam canvas
 
+  // Once the bar reaches 89%, fade it (+ the "סורק שוק עולמי" label) out after 2s so it
+  // doesn't cover the bubble/beam animation. Replays on every page load/refresh (fresh mount).
+  const [barFaded, setBarFaded] = useState(false);
+  useEffect(() => {
+    if (prog < 89) return;
+    const t = setTimeout(() => setBarFaded(true), 2000);
+    return () => clearTimeout(t);
+  }, [prog]);
+
   useEffect(() => {
     if (mode === 'search') setTimeout(() => inputRef.current?.focus(), 80);
   }, [mode]);
@@ -530,7 +539,7 @@ export default function ScannerWidget({ onSearch }) {
           </div>
 
           {/* Progress bar */}
-          <div className="sw-bar-area">
+          <div className={`sw-bar-area${barFaded ? ' sw-bar-area--faded' : ''}`}>
             <div className="sw-bar-track">
               <div className="sw-bar-fill" style={{width:`${prog}%`, background: BAR_GRAD}}/>
             </div>
