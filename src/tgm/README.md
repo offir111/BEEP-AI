@@ -1,5 +1,17 @@
 # TGM · מערכת מנועי לידים מרובים (Multi-Engine Lead System)
 
+> ## 🔼 עדכון מרכזי (2026-06-19) — נתונים אמיתיים, תיקון look-ahead, מגמה, Paper Trading
+> שדרוג גדול מעל הגרסה המקורית (המתוארת בהמשך). מסמכי הליבה: [`BEEPBEEP_AUDIT.md`](../../BEEPBEEP_AUDIT.md), [`TGM_BREAKOUT_AUDIT.md`](../../TGM_BREAKOUT_AUDIT.md), [`TGM_UPGRADE_REPORT.md`](../../TGM_UPGRADE_REPORT.md).
+> - **נתונים אמיתיים (LIVE):** שכבת `data/` עברה ל-Yahoo דרך `/api/candles` (`liveProvider.js` + `seriesMath.js` + `universe.js`). כפתור "🔌 התחבר לנתונים חיים" + חיווי LIVE/חלקי/MOCK. MOCK נשאר כ-fallback מסומן.
+> - **תיקון look-ahead (קריטי):** הכניסה עברה ל-**open של D+1** והסימולציה ל-**חלון forward של 10 ימים** (SL נבדק לפני TP בכל יום). על נתונים אמיתיים זה הוריד את "פריצה" מ-89.9% מנופחים ל-37.6% אמיתיים.
+> - **בדיקת חוסן 8%↔10%** (`compare.js`, טאב ⚖️) — ה-TP **לא** שונה; השוואה בלבד.
+> - **מגמה שנתית** (`trend.js`, תג 🟢/🟡/🔴 + טוגל "רק מגמה עולה" + מיון).
+> - **Paper Trading חי** (`paper.js` + `api/tgm-paper*` + `api/_marketClock.js`, טאב 📝) — מעקב קדימה בזמן אמת על Upstash Redis + Vercel cron בשעות המסחר.
+> - **בדיקות:** `scripts/test-tgm-engines.mjs` (27), `test-tgm-live.mjs` (6, LIVE), `test-tgm-paper.mjs` (7).
+>
+> *הסעיפים שלהלן מתארים את התכנון המקורי; חלקם (כלל יציאה חד-יומי, "מקור MOCK בלבד") הוחלפו בעדכון הזה.*
+
+
 שדרוג לרובוט TGM של BEEP AI: שכבת מנועי לידים מודולרית, שכבת נתונים מופשטת,
 מעריך יומי (Daily Evaluator), סטטיסטיקה חודשית + דירוג מנועים, ותיקון באג קריטי
 בחישוב אחוז ההצלחה.
