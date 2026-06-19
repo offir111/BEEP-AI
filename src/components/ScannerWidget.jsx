@@ -238,6 +238,7 @@ function ScannerBeamCanvas({ panelRef }) {
     // 3s. phases: searchA → fadeoutA → gap → searchB → fadeoutB → rest → (loop).
     let phase = 'searchA', phaseT0 = performance.now();
     let sideA = 'left', sideB = 'right', target = null, k = 0, held = 0, prevNow = performance.now();
+    let collectFrom = null, collectedEl = null;   // the bubble being sucked into the orb
     const pickSides = () => { const lf = Math.random() < 0.5; sideA = lf ? 'left' : 'right'; sideB = lf ? 'right' : 'left'; };
     pickSides();
 
@@ -351,7 +352,25 @@ function ScannerBeamCanvas({ panelRef }) {
       ctx.restore();
     }
 
-    const FADE_IN = 320, BLOCK_FADE = 70, FADE_OUT = 400, REST_MS = 1400, MAX_SEARCH = 4500;
+    const FADE_IN = 320, BLOCK_FADE = 70, REST_MS = 1400, MAX_SEARCH = 4500;
+    const VIBRATE_MS = 1500, SUCK_MS = 2000, IMPACT_MS = 350;   // collect: jitter → suck → orb hit
+
+    // Orb reaction when a collected bubble enters it (resistance / soft burst).
+    function drawOrbFlash(o, s) {                                // s: 0→1
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.filter = 'blur(4px)';
+      const R = o.r * (1 + s * 1.5);
+      ctx.strokeStyle = rgba('#BFE9FF', 0.6 * (1 - s));
+      ctx.lineWidth = Math.max(2, o.r * 0.2 * (1 - s));
+      ctx.beginPath(); ctx.arc(o.x, o.y, R, 0, Math.PI * 2); ctx.stroke();
+      const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r * 1.4);
+      g.addColorStop(0, rgba('#EAF7FF', 0.55 * (1 - s)));
+      g.addColorStop(1, rgba('#6EC6FF', 0));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(o.x, o.y, o.r * 1.4, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
 
     const loop = () => {
       if (!running) return;
@@ -391,15 +410,49 @@ function ScannerBeamCanvas({ panelRef }) {
           } else {
             k = Math.min(1, k + dt / FADE_IN);
             if (k >= 0.9) held += dt;                                                // count clear time
-            if (held >= ILLUM_MS) { phase = phase === 'searchA' ? 'fadeoutA' : 'fadeoutB'; phaseT0 = now; }   // locked 3s
+            if (held >= ILLUM_MS) {                                                  // locked 3s → collect into orb
+              collectFrom = local(target.getBoundingClientRect(), pr);
+              collectedEl = target;
+              try { target.classList.add('sw-bub--collected'); } catch { /* noop */ }
+              phase = phase === 'searchA' ? 'collectA' : 'collectB';
+              phaseT0 = now;
+            }
           }
           drawAt();
           if (now - phaseT0 > MAX_SEARCH && held < 150) { phase = phase === 'searchA' ? 'gap' : 'rest'; phaseT0 = now; k = 0; target = null; }
         }
-      } else if (phase === 'fadeoutA' || phase === 'fadeoutB') {
-        k = Math.max(0, k - dt / FADE_OUT);
-        drawAt();
-        if (k <= 0.01) { phase = phase === 'fadeoutA' ? 'gap' : 'rest'; phaseT0 = now; target = null; held = 0; }
+      } else if (phase === 'collectA' || phase === 'collectB') {
+        const e = now - phaseT0;
+        const lerp = (a, b, t) => a + (b - a) * t;
+        if (!collectFrom) { phase = phase === 'collectA' ? 'gap' : 'rest'; phaseT0 = now; }
+        else if (e < VIBRATE_MS) {
+          // anticipation — vibrate in place, beam steady, full glow
+          const amp = 1 + 2.5 * (e / VIBRATE_MS);
+          const p = {
+            x: collectFrom.x + Math.sin(now / 21) * amp + (Math.random() - 0.5) * 1.4,
+            y: collectFrom.y + Math.cos(now / 17) * amp + (Math.random() - 0.5) * 1.4,
+            r: collectFrom.r,
+          };
+          drawBeam(orb, p, 1); drawGlow(p, 1, now);
+        } else if (e < VIBRATE_MS + SUCK_MS) {
+          // sucked along the beam into the orb — accelerating, shrinking, gentle inward curve
+          const s = (e - VIBRATE_MS) / SUCK_MS, es = s * s;
+          const dxp = orb.x - collectFrom.x, dyp = orb.y - collectFrom.y;
+          const len = Math.hypot(dxp, dyp) || 1;
+          const curve = Math.sin(es * Math.PI) * Math.min(len * 0.12, 18);
+          const p = {
+            x: lerp(collectFrom.x, orb.x, es) + (-dyp / len) * curve,
+            y: lerp(collectFrom.y, orb.y, es) + (dxp / len) * curve,
+            r: collectFrom.r * (1 - es * 0.9),
+          };
+          drawBeam(orb, p, 1); drawGlow(p, Math.max(0.25, 1 - es * 0.25), now);
+        } else if (e < VIBRATE_MS + SUCK_MS + IMPACT_MS) {
+          drawOrbFlash(orb, (e - VIBRATE_MS - SUCK_MS) / IMPACT_MS);   // orb reacts
+        } else {
+          if (collectedEl) { try { collectedEl.classList.remove('sw-bub--collected'); } catch { /* noop */ } }
+          collectedEl = null; collectFrom = null;
+          phase = phase === 'collectA' ? 'gap' : 'rest'; phaseT0 = now; target = null; held = 0; k = 0;
+        }
       } else if (phase === 'gap') {
         if (now - phaseT0 >= GAP_MS) { phase = 'searchB'; phaseT0 = now; target = null; held = 0; k = 0; }
       } else if (phase === 'rest') {
@@ -409,7 +462,12 @@ function ScannerBeamCanvas({ panelRef }) {
 
     const onVis = () => {
       if (document.hidden) { running = false; if (raf) cancelAnimationFrame(raf); }
-      else if (!running)  { running = true; prevNow = performance.now(); phaseT0 = performance.now(); loop(); }
+      else if (!running) {
+        running = true; prevNow = performance.now(); phaseT0 = performance.now();
+        if (collectedEl) { try { collectedEl.classList.remove('sw-bub--collected'); } catch { /* noop */ } collectedEl = null; collectFrom = null; }
+        phase = 'searchA'; target = null; k = 0; held = 0;
+        loop();
+      }
     };
     document.addEventListener('visibilitychange', onVis);
     loop();
@@ -419,6 +477,7 @@ function ScannerBeamCanvas({ panelRef }) {
       if (raf) cancelAnimationFrame(raf);
       ro.disconnect();
       document.removeEventListener('visibilitychange', onVis);
+      panel.querySelectorAll('.sw-bub--collected').forEach(el => el.classList.remove('sw-bub--collected'));
     };
   }, [panelRef]);
 

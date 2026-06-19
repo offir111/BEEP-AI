@@ -69,6 +69,9 @@
 .sw-bub-sym { font-weight: 800; line-height: 1; letter-spacing: 0.02em; }
 .sw-bub-pct { font-weight: 700; line-height: 1; opacity: 0.85; }
 
+/* While a bubble is being "collected" into the orb, the canvas draws it — hide the real one. */
+.sw-bub--collected { opacity: 0 !important; }
+
 .sw-anim-btn:hover .sw-orb {
   box-shadow: 0 0 55px 18px rgba(30, 136, 229, 0.85);
 }
