@@ -241,7 +241,19 @@ function ScannerBeamCanvas({ panelRef }) {
     let phase = 'probe', phaseT0 = performance.now();
     let target = null, k = 0, prevNow = performance.now();
     let cycleStart = performance.now(), probeWindow = 6000 + Math.random() * 3000;
-    let lastRef = null, probeMode = 'random';
+    let lastRef = null;
+    // A probe "event" lights 1/2/3 bubbles. deltas = angle (deg) of each jump from the previous
+    // bubble around the orb (null = free pick). The pattern + timings are re-rolled each event.
+    let probeDeltas = [null], probeStep = 0;
+    let probeIn = 250, probeLit = 1000, probeOut = 250, probeJump = 0;
+    const startProbeEvent = () => {
+      const roll = Math.random();
+      if (roll < 0.5)      { probeDeltas = [null];                                      probeIn = 250; probeLit = 1000; probeOut = 250; probeJump = 0; }   // single, ~1s
+      else if (roll < 0.8) { probeDeltas = [null, Math.random() < 0.5 ? 90 : -90];      probeIn = 140; probeLit = 540;  probeOut = 140; probeJump = 110; }  // double: jump 90°
+      else                 { probeDeltas = [null, Math.random() < 0.5 ? -45 : 45, 180]; probeIn = 110; probeLit = 430;  probeOut = 110; probeJump = 90; }   // triple: 45° then 180°, ~2s
+      probeStep = 0;
+    };
+    startProbeEvent();
     let collectFrom = null, collectedEl = null;   // the bubble being sucked into the orb
     let orbOpenUntil = 0, orbFadeUntil = 0;        // orb inner "window" visible until / fading until ts
 
@@ -300,7 +312,6 @@ function ScannerBeamCanvas({ panelRef }) {
 
     // Probe picker — quick search taps. mode: 'neighbour' (near the last tap), 'opposite' (other
     // side of the orb), or 'random' (any far-ish bubble). Returns a bubble element.
-    const PROBE_MODES = ['neighbour', 'opposite', 'random', 'neighbour'];
     const pickProbe = (bubbles, orb, ref, mode) => {
       if (!bubbles.length) return null;
       let pool = bubbles;
@@ -314,6 +325,21 @@ function ScannerBeamCanvas({ panelRef }) {
       }
       if (!pool.length) pool = bubbles;
       return pool[Math.floor(Math.random() * pool.length)].el;
+    };
+
+    // Angle picker — within a multi-bubble pattern, jump to the bubble whose angle around the orb
+    // is closest to (previous bubble's angle + deltaDeg). Used for the 45°/90°/180° hops.
+    const pickByAngle = (bubbles, orb, fromPos, deltaDeg) => {
+      if (!bubbles.length || !fromPos) return null;
+      const want = Math.atan2(fromPos.y - orb.y, fromPos.x - orb.x) + (deltaDeg * Math.PI) / 180;
+      let best = null, bestD = Infinity;
+      for (const b of bubbles) {
+        if (Math.hypot(b.x - fromPos.x, b.y - fromPos.y) < 6) continue;     // skip the same bubble
+        const ang = Math.atan2(b.y - orb.y, b.x - orb.x);
+        const d = Math.abs(((ang - want + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI);
+        if (d < bestD) { bestD = d; best = b; }
+      }
+      return best ? best.el : null;
     };
 
     // Focus picker — the bubble it commits to and sucks; prefer a clear, far-ish path.
@@ -397,7 +423,7 @@ function ScannerBeamCanvas({ panelRef }) {
       ctx.restore();
     }
 
-    const PROBE_IN = 250, PROBE_LIT = 1000, PROBE_OUT = 250, PROBE_GAP = 1300;  // single tap ≈ 1s lit, ~3s cadence
+    const PROBE_GAP = 1100;                                                      // dark pause between probe events
     const FOCUS_MS = 2500;                                                       // final lock: rings gather, then suck
     const REST_AFTER_MS = 3000;                                                  // after a capture: rings just spin ~3s, no beams
     const SHAKE_MS = 500, PAUSE_MS = 1000, SUCK_MS = 2000, IMPACT_MS = 350;  // collect: shake 0.5s → tense pause 1s → suck
@@ -518,14 +544,14 @@ function ScannerBeamCanvas({ panelRef }) {
       const svgEl = panel.querySelector('.sw-svg');
       const wavePhase = (now / 3200) % 1;     // SLOW outer→inner→beam energy pulse (deliberate, not fast)
 
-      // Orb inner window: ~0.5s after the slam it closes; the milky-white core fades out as the
-      // CSS orb transitions back to solid opaque blue (a short canvas fade prevents a dark flash).
+      // Orb inner window: the fast slam holds ~0.5s, then the white flash fades out over 3s while
+      // the CSS orb centre fades back to solid opaque blue in sync → natural motion, no jump.
       if (orbOpenUntil && now >= orbOpenUntil) {
         try { orbEl.classList.remove('sw-orb--open'); } catch { /* noop */ }
-        orbOpenUntil = 0; orbFadeUntil = now + 280;
+        orbOpenUntil = 0; orbFadeUntil = now + 3000;
       }
       if (orbOpenUntil) drawOrbInner(orb, 1);
-      else if (orbFadeUntil && now < orbFadeUntil) drawOrbInner(orb, (orbFadeUntil - now) / 280);
+      else if (orbFadeUntil && now < orbFadeUntil) drawOrbInner(orb, (orbFadeUntil - now) / 3000);
 
       // The beam waits until at least 6 bubbles exist before it ever fires.
       if (bubbles.length < 6) { k = 0; target = null; phaseT0 = now; return; }

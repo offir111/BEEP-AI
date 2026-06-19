@@ -18,6 +18,10 @@
     {
       "path": "/api/tgm-cron",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/tgm-paper-cron",
+      "schedule": "*/15 13-21 * * 1-5"
     }
   ]
 }

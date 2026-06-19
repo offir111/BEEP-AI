@@ -17,6 +17,7 @@ import { loadLiveData, clearLiveData, dataMode, liveStats } from './data/dataLay
 import { TP_PCT, SL_PCT, WINDOW_DAYS } from './evaluator';
 import { compareThresholds, edgeVerdict } from './compare';
 import { TREND_TIERS } from './trend';
+import { fetchPaper, triggerPaperCron } from './paper';
 import './TgmEngines.css';
 
 // חיווי מקור נתונים כן (LIVE / חלקי / MOCK).
@@ -198,6 +199,9 @@ export default function TgmEngines() {
         <button className={`tge-tab ${tab === 'compare' ? 'tge-tab--on' : ''}`} onClick={() => setTab('compare')}>
           ⚖️ חוסן 8%↔10%
         </button>
+        <button className={`tge-tab ${tab === 'paper' ? 'tge-tab--on' : ''}`} onClick={() => setTab('paper')}>
+          📝 Paper Trading חי
+        </button>
         {ENGINES.map((e) => (
           <button
             key={e.key}
@@ -214,6 +218,8 @@ export default function TgmEngines() {
         <Dashboard overall={overall} ranking={ranking} monthSel={monthSel} />
       ) : tab === 'compare' ? (
         <ComparePanel cmp={comparison} />
+      ) : tab === 'paper' ? (
+        <PaperPanel />
       ) : (
         <EngineView engineKey={tab} leads={monthLeads} />
       )}
@@ -464,6 +470,147 @@ function ComparePanel({ cmp }) {
         </div>
       </div>
     </>
+  );
+}
+
+// ── פאנל Paper Trading חי (LIVE PAPER) ──────────────────────────────────────
+function PaperPanel() {
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+
+  const refresh = useCallback(async () => {
+    const d = await fetchPaper();
+    setData(d);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 60000); // רענון כל דקה
+    return () => clearInterval(t);
+  }, [refresh]);
+
+  const runNow = useCallback(async () => {
+    setBusy(true);
+    setNote('⏳ מפעיל סבב Paper Trading (סורק את השוק ומעדכן פוזיציות)…');
+    const r = await triggerPaperCron(true);
+    if (r.ok) setNote(`✓ סבב הושלם — נפתחו ${r.opened ?? 0}, נסגרו ${r.closed ?? 0}, עודכנו ${r.updated ?? 0}.`);
+    else setNote(`⚠️ ${r.reason || r.error || 'הסבב לא רץ'}`);
+    await refresh();
+    setBusy(false);
+  }, [refresh]);
+
+  if (!data) return <div className="tge-empty">⏳ טוען track record…</div>;
+
+  const clock = data.clock || {};
+  const clockLine = (
+    <div className="tge-paper-clock">
+      🕐 שוק ארה"ב: <b>{clock.session === 'regular' ? '🟢 פתוח' : clock.session === 'closed' ? '🔴 סגור' : `🟡 ${clock.session}`}</b>
+      {' · '}{clock.etDate} {clock.etTime} ET ({clock.weekday})
+    </div>
+  );
+
+  if (!data.configured) {
+    return (
+      <div className="tge-paper">
+        <div className="tge-section-title">📝 Paper Trading חי — track record קדימה (LIVE PAPER)</div>
+        {clockLine}
+        <div className="tge-paper-setup">
+          <p><b>המנגנון בנוי ומוכן, וממתין לאחסון ענן.</b> כדי להתחיל מעקב חי:</p>
+          <ol>
+            <li>הגדר ב-Vercel את משתני הסביבה <code>UPSTASH_REDIS_REST_URL</code> ו-<code>UPSTASH_REDIS_REST_TOKEN</code> (אותו Upstash שכבר משמש את שאר הרובוטים).</li>
+            <li>ה-cron <code>/api/tgm-paper-cron</code> כבר רשום ב-<code>vercel.json</code> — ירוץ אוטומטית בשעות המסחר (כל 15 דק׳, ימים א׳–ה׳), <b>גם כשהמחשב סגור</b>.</li>
+            <li>בפתיחת המסחר הוא פותח פוזיציות וירטואליות מסיגנלים אמיתיים, ועוקב חי עד TP +8% / SL −4% או תום חלון 10 ימים.</li>
+          </ol>
+          <p className="tge-dim">סיבה נוכחית: {data.reason}</p>
+        </div>
+        <PaperDisclaimer />
+      </div>
+    );
+  }
+
+  const s = data.summary || {};
+  const open = data.open || [];
+  const closed = data.closed || [];
+  const wrText = s.resolved === 0 ? 'אין מספיק נתונים' : s.sampleTooSmall ? 'מדגם קטן מדי' : `${s.winRate.toFixed(1)}%`;
+
+  return (
+    <div className="tge-paper">
+      <div className="tge-section-title">📝 Paper Trading חי — LIVE PAPER {s.startedEtDate ? `· מאז ${s.startedEtDate}` : ''}</div>
+      {clockLine}
+
+      <div className="tge-controls" style={{ marginTop: 8 }}>
+        <button className="tge-btn" onClick={refresh} disabled={busy}>🔄 רענן</button>
+        <button className="tge-btn tge-btn--live" onClick={runNow} disabled={busy}>▶️ פתח/עדכן עכשיו</button>
+      </div>
+      {note && <div className="tge-status">{note}</div>}
+
+      <div className="tge-kpis">
+        <Kpi label="שווי פורטפוליו" value={`$${(s.portfolioValue ?? 0).toLocaleString()}`} strong />
+        <Kpi label="רווח/הפסד ממומש" value={`$${(s.realizedUsd ?? 0).toLocaleString()}`} />
+        <Kpi label="לא ממומש (פתוחות)" value={`$${(s.unrealizedUsd ?? 0).toLocaleString()}`} />
+        <Kpi label="אחוז הצלחה (חי)" value={wrText} dim={s.sampleTooSmall} strong />
+        <Kpi label="פתוחות / סגורות" value={`${s.openCount ?? 0} / ${s.closedCount ?? 0}`} />
+        <Kpi label="Profit Factor" value={pf(s.profitFactor)} />
+      </div>
+
+      <div className="tge-section-title">📈 פוזיציות פתוחות ({open.length})</div>
+      <div className="tge-leads">
+        {open.length === 0 && <div className="tge-empty">אין פוזיציות פתוחות כרגע.</div>}
+        {open.map((o) => (
+          <div key={o.id} className="tge-lead tge-lead--open">
+            <div className="tge-lead-top">
+              <span className="tge-lead-sym">{o.symbol}</span>
+              {o.name && <span className="tge-lead-co">{o.name}</span>}
+              <span className="tge-chip tge-chip--live-paper">LIVE PAPER</span>
+            </div>
+            <div className="tge-lead-reason">{o.reason}</div>
+            <div className="tge-lead-row">
+              <span>כניסה <b>${r2(o.entry)}</b></span>
+              <span>נוכחי <b>${r2(o.lastPrice)}</b></span>
+              <span style={retColor(o.lastPnlPct)}>{pct(o.lastPnlPct, true)}</span>
+              <span className="tge-lead-exit">TP ${r2(o.tp)} / SL ${r2(o.sl)}</span>
+              <span className="tge-lead-date">יום {o.daysHeld ?? 0}/10</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="tge-section-title">📋 track record (נסגרו: {closed.length})</div>
+      <div className="tge-leads">
+        {closed.length === 0 && <div className="tge-empty">עדיין לא נסגרו פוזיציות.</div>}
+        {closed.slice(0, 100).map((c) => (
+          <div key={c.id + c.closedAt} className={`tge-lead tge-lead--${c.status}`}>
+            <div className="tge-lead-top">
+              <span className="tge-lead-sym">{c.symbol}</span>
+              {c.name && <span className="tge-lead-co">{c.name}</span>}
+              <span className={`tge-chip tge-chip--${c.status}`}>{c.status === 'win' ? '✓ הצליח' : '✕ נכשל'}</span>
+            </div>
+            <div className="tge-lead-row">
+              <span>כניסה <b>${r2(c.entry)}</b></span>
+              <span>יציאה <b>${r2(c.exitPrice)}</b></span>
+              <span style={retColor(c.pnlPct)}>{pct(c.pnlPct, true)}</span>
+              <span style={retColor(c.pnlUsd)}>${r2(c.pnlUsd)}</span>
+              <span className="tge-lead-exit">{c.exitReason === 'TP' ? 'TP +8%' : c.exitReason === 'SL' ? 'SL −4%' : 'תום חלון'}</span>
+              <span className="tge-lead-date">{c.daysHeld}י׳ · {c.closedEtDate}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <PaperDisclaimer />
+    </div>
+  );
+}
+
+function PaperDisclaimer() {
+  return (
+    <div className="tge-disclaimer">
+      ⚠️ <b>Paper Trading (מסחר נייר, אפס כסף).</b> מתעלם מ-slippage, spread, מילוי חלקי וזמינות מניה — לכן
+      התוצאות אופטימיות מול כסף אמיתי, אך הרבה יותר כנות מ-backtest (זהו מעקב <b>קדימה</b> בזמן אמת).
+      מחיר הכניסה "בפתיחה" מבוסס על המחיר בטיק ה-cron הראשון אחרי הפתיחה ולא תמיד בר-השגה במציאות.
+      גודל פוזיציה אחיד $5,000 מתוך פורטפוליו וירטואלי $100K. כל מספר LIVE PAPER נצבר מאז התאריך המצוין.
+    </div>
   );
 }
 
