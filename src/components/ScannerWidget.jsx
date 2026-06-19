@@ -404,20 +404,21 @@ function ScannerBeamCanvas({ panelRef }) {
     const ANTIC = SHAKE_MS + PAUSE_MS;                          // anticipation before the suck (1.5s)
     const SLAM_MS = 500, ORB_OPEN_MS = 500;                     // bubble slams inner wall; orb window ~0.5s then back to normal
 
-    // Orb reaction when a collected bubble enters it (resistance / soft burst).
+    // Orb reaction when a collected bubble enters it — a SOFT, contained flash kept INSIDE the orb
+    // (no burst beyond it) so the orb stays normal and the semi-transparent centre filters it blue.
     function drawOrbFlash(o, s) {                                // s: 0→1
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.filter = 'blur(4px)';
-      const R = o.r * (1 + s * 1.5);
-      ctx.strokeStyle = rgba('#BFE9FF', 0.6 * (1 - s));
-      ctx.lineWidth = Math.max(2, o.r * 0.2 * (1 - s));
+      ctx.filter = 'blur(3px)';
+      const R = o.r * (0.5 + s * 0.4);                          // stays within the orb radius
+      ctx.strokeStyle = rgba('#BFE9FF', 0.3 * (1 - s));
+      ctx.lineWidth = Math.max(1.5, o.r * 0.12 * (1 - s));
       ctx.beginPath(); ctx.arc(o.x, o.y, R, 0, Math.PI * 2); ctx.stroke();
-      const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r * 1.4);
-      g.addColorStop(0, rgba('#EAF7FF', 0.55 * (1 - s)));
+      const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r * 0.78);
+      g.addColorStop(0, rgba('#EAF7FF', 0.3 * (1 - s)));
       g.addColorStop(1, rgba('#6EC6FF', 0));
       ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(o.x, o.y, o.r * 1.4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(o.x, o.y, o.r * 0.78, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
 
@@ -481,7 +482,8 @@ function ScannerBeamCanvas({ panelRef }) {
       ctx.restore();
     }
 
-    // The orb's inner core while a bubble is inside — blurred grainy WHITE (milk/frost), not black.
+    // The orb's inner core while a bubble is inside — a soft blurred grainy WHITE flash. It's drawn
+    // BEHIND the orb, which is now only ~30% transparent → the orb tints it blue (no tint drawn here).
     function drawOrbInner(o, a) {                       // a: 0→1 visibility
       const R = o.r * 0.62;
       ctx.save();
@@ -489,25 +491,14 @@ function ScannerBeamCanvas({ panelRef }) {
       ctx.globalCompositeOperation = 'source-over';
       ctx.filter = 'blur(2.5px)';
       const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, R);
-      g.addColorStop(0,   `rgba(246,251,255,${0.92 * a})`);
-      g.addColorStop(0.7, `rgba(212,229,246,${0.80 * a})`);
-      g.addColorStop(1,   `rgba(182,206,231,${0.55 * a})`);
+      g.addColorStop(0,   `rgba(246,251,255,${0.85 * a})`);
+      g.addColorStop(0.7, `rgba(212,229,246,${0.7 * a})`);
+      g.addColorStop(1,   `rgba(182,206,231,${0.45 * a})`);
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(o.x, o.y, R, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 0.32 * a;                       // grain speckle over the milk
+      ctx.globalAlpha = 0.26 * a;                       // grain speckle over the milk
       ctx.filter = 'blur(0.7px)';
       ctx.drawImage(grain, o.x - R, o.y - R, R * 2, R * 2);
-      // ~50% blue filter in the orb's own hue over the white — so the reflection reads as something
-      // happening INSIDE the orb (natural, magnified, deep), not an out-of-place plain white.
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.filter = 'blur(2px)';
-      const b = ctx.createRadialGradient(o.x - R * 0.25, o.y - R * 0.25, R * 0.1, o.x, o.y, R);
-      b.addColorStop(0,   `rgba(110,198,255,${0.34 * a})`);   // light blue highlight
-      b.addColorStop(0.6, `rgba(30,144,255,${0.5 * a})`);     // orb blue, ~50%
-      b.addColorStop(1,   `rgba(13,71,161,${0.6 * a})`);      // deep orb blue at the wall
-      ctx.fillStyle = b;
-      ctx.beginPath(); ctx.arc(o.x, o.y, R, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
 
