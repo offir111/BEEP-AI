@@ -16,6 +16,7 @@ import {
 import { loadLiveData, clearLiveData, dataMode, liveStats } from './data/dataLayer';
 import { TP_PCT, SL_PCT, WINDOW_DAYS } from './evaluator';
 import { compareThresholds, edgeVerdict } from './compare';
+import { TREND_TIERS } from './trend';
 import './TgmEngines.css';
 
 // חיווי מקור נתונים כן (LIVE / חלקי / MOCK).
@@ -293,15 +294,35 @@ function Dashboard({ overall, ranking, monthSel }) {
   );
 }
 
+const TREND_ORDER = { green: 3, yellow: 2, red: 1, unknown: 0 };
+
 // ── תצוגת מנוע בודד: סטטיסטיקה + לידים יומיים צבעוניים ──────────────────────
 function EngineView({ engineKey, leads }) {
   const eng = ENGINES.find((e) => e.key === engineKey);
-  const engineLeads = useMemo(
-    () => leads.filter((l) => l.engineKey === engineKey).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)),
+  const [greenOnly, setGreenOnly] = useState(false);  // טוגל "רק מגמה עולה 🟢"
+  const [sortByTrend, setSortByTrend] = useState(false); // מיון לפי איכות מגמה
+
+  const allEngineLeads = useMemo(
+    () => leads.filter((l) => l.engineKey === engineKey),
     [leads, engineKey]
   );
-  const stats = useMemo(() => computeStats(engineLeads), [engineLeads]);
+  // הסטטיסטיקה נשארת על כל הלידים (הפילטר משפיע רק על התצוגה, לא על המדדים).
+  const stats = useMemo(() => computeStats(allEngineLeads), [allEngineLeads]);
   const wr = winRateDisplay(stats);
+
+  const greenCount = useMemo(() => allEngineLeads.filter((l) => l.trend?.tier === 'green').length, [allEngineLeads]);
+
+  const engineLeads = useMemo(() => {
+    let rows = greenOnly ? allEngineLeads.filter((l) => l.trend?.tier === 'green') : [...allEngineLeads];
+    rows.sort((a, b) => {
+      if (sortByTrend) {
+        const d = (TREND_ORDER[b.trend?.tier] ?? 0) - (TREND_ORDER[a.trend?.tier] ?? 0);
+        if (d !== 0) return d;
+      }
+      return (b.timestamp || 0) - (a.timestamp || 0);
+    });
+    return rows;
+  }, [allEngineLeads, greenOnly, sortByTrend]);
 
   return (
     <>
@@ -323,14 +344,36 @@ function EngineView({ engineKey, leads }) {
         <Kpi label="Max Drawdown" value={stats.maxDrawdown == null ? '—' : `${stats.maxDrawdown.toFixed(2)}%`} />
       </div>
 
-      <div className="tge-section-title">📋 לידים יומיים ({engineLeads.length})</div>
+      <div className="tge-section-title">📋 לידים יומיים ({engineLeads.length}{greenOnly ? ` / ${allEngineLeads.length}` : ''})</div>
+
+      {/* בקרת מגמה: טוגל "רק מגמה עולה 🟢" + מיון לפי איכות מגמה */}
+      <div className="tge-trend-controls">
+        <button
+          className={`tge-toggle ${greenOnly ? 'tge-toggle--on' : ''}`}
+          onClick={() => setGreenOnly((v) => !v)}
+          title="הצג רק לידים שסווגו 'מגמה שנתית עולה — תיקון בריא'"
+        >
+          🟢 רק מגמה עולה {greenOnly ? '✓' : ''} <span className="tge-toggle-count">({greenCount})</span>
+        </button>
+        <button
+          className={`tge-toggle ${sortByTrend ? 'tge-toggle--on' : ''}`}
+          onClick={() => setSortByTrend((v) => !v)}
+          title="מיין מהמגמה החזקה (🟢) לחלשה (🔴)"
+        >
+          ↕️ מיין לפי איכות מגמה {sortByTrend ? '✓' : ''}
+        </button>
+      </div>
+
       <div className="tge-leads">
-        {engineLeads.length === 0 && <div className="tge-empty">אין לידים למנוע זה בחודש הנבחר.</div>}
+        {engineLeads.length === 0 && (
+          <div className="tge-empty">{greenOnly ? 'אין לידים במגמה עולה 🟢 למנוע זה בחודש הנבחר.' : 'אין לידים למנוע זה בחודש הנבחר.'}</div>
+        )}
         {engineLeads.slice(0, 150).map((l) => (
           <div key={l.id} className={`tge-lead tge-lead--${l.status}`}>
             <div className="tge-lead-top">
               <span className="tge-lead-sym">{l.symbol}</span>
               {l.meta?.name && <span className="tge-lead-co">{l.meta.name}</span>}
+              <TrendChip trend={l.trend} />
               <StatusChip lead={l} />
             </div>
             <div className="tge-lead-reason">{l.reason}</div>
@@ -341,6 +384,15 @@ function EngineView({ engineKey, leads }) {
               <span className="tge-lead-exit">{exitReasonLabel(l.exitReason)}</span>
               <span className="tge-lead-date">{fmtDay(l.timestamp)}</span>
             </div>
+            {l.trend?.metrics && (
+              <div className="tge-lead-trend">
+                {TREND_TIERS[l.trend.tier]?.emoji} {l.trend.label}
+                {l.trend.source === 'mock' && <span className="tge-mock-tag"> (MOCK)</span>}
+                {' · '}תשואה שנתית {pct(l.trend.metrics.annualReturnPct, true)}
+                {' · '}מרחק משיא {pct(l.trend.metrics.drawdownFromHighPct)}
+                {l.trend.metrics.sma50 != null && <> {' · '}SMA50 ${l.trend.metrics.sma50} / SMA200 ${l.trend.metrics.sma200}</>}
+              </div>
+            )}
             {l.status === 'error' && <div className="tge-lead-err">⚠️ {l.error}</div>}
           </div>
         ))}
@@ -427,7 +479,22 @@ function Kpi({ label, value, dim, strong }) {
 function StatusChip({ lead }) {
   if (lead.status === 'win') return <span className="tge-chip tge-chip--win">✓ הצליח</span>;
   if (lead.status === 'loss') return <span className="tge-chip tge-chip--loss">✕ נכשל</span>;
+  if (lead.status === 'open') return <span className="tge-chip tge-chip--open" title={lead.error}>⏳ פתוח</span>;
   return <span className="tge-chip tge-chip--err" title={lead.error}>⚠️ שגיאה</span>;
+}
+
+// תג מגמה שנתית 🟢/🟡/🔴 + תווית קצרה. מסומן (MOCK) אם המקור אינו חי.
+function TrendChip({ trend }) {
+  if (!trend) return null;
+  const t = TREND_TIERS[trend.tier] || TREND_TIERS.unknown;
+  const title = trend.metrics
+    ? `${trend.label} · תשואה שנתית ${trend.metrics.annualReturnPct}% · מרחק משיא ${trend.metrics.drawdownFromHighPct}%${trend.source === 'mock' ? ' · נתוני MOCK' : ''}`
+    : trend.label;
+  return (
+    <span className={`tge-chip tge-trend-chip tge-trend--${trend.tier}`} title={title}>
+      {t.emoji} {t.short}{trend.source === 'mock' ? <span className="tge-mock-tag"> (MOCK)</span> : ''}
+    </span>
+  );
 }
 
 function exitReasonLabel(r) {

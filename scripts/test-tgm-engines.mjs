@@ -124,5 +124,26 @@ ok('השוואת ספים מחזירה תוצאות לשני הספים', res8 >
 ok('win-rate ב-10% ≤ win-rate ב-8% (יעד גבוה יותר = קשה יותר)', (w10 / res10) <= (w8 / res8) + 1e-9,
    `8%=${(100 * w8 / res8).toFixed(1)}% 10%=${(100 * w10 / res10).toFixed(1)}%`);
 
+// ── 6) גבולות סיווג המגמה (משימה 3) ──
+const mkSeries = ({ first, last, sma50, sma200, high52w, low52w }) => {
+  const closes = Array.from({ length: 252 }, (_, i) => first + (last - first) * (i / 251));
+  return { closes, highs: closes.map(() => high52w), lows: closes.map(() => low52w), lastClose: last,
+    sma50, sma200, high52w, low52w, source: 'mock' };
+};
+// 🟢 תיקון בריא: מעל SMA200, SMA50>SMA200, תשואה +25%, תיקון −12% מהשיא.
+const green = trend.classifyTrend(mkSeries({ first: 100, last: 125, sma50: 120, sma200: 110, high52w: 142, low52w: 90 }));
+ok('🟢 מגמה עולה + תיקון בריא', green.tier === 'green', `${green.tier} · ${green.label}`);
+// 🔴 קריסה: תשואה שנתית −60%.
+const red = trend.classifyTrend(mkSeries({ first: 100, last: 40, sma50: 45, sma200: 70, high52w: 110, low52w: 38 }));
+ok('🔴 מתאוששת מקריסה (תשואה < −50%)', red.tier === 'red', `${red.tier} · ${red.label}`);
+// 🔴 עמוק מתחת ל-SMA200.
+const red2 = trend.classifyTrend(mkSeries({ first: 100, last: 80, sma50: 85, sma200: 100, high52w: 120, low52w: 70 }));
+ok('🔴 מחיר עמוק מתחת ל-SMA200', red2.tier === 'red', `priceVsSma200=${red2.metrics?.priceVsSma200Pct}%`);
+// 🟡 ניטרלי: עלייה קלה אך תיקון רדוד מדי (−2%).
+const yellow = trend.classifyTrend(mkSeries({ first: 100, last: 124, sma50: 120, sma200: 110, high52w: 126.5, low52w: 95 }));
+ok('🟡 ניטרלי (תיקון רדוד מדי ל-🟢)', yellow.tier === 'yellow', `dd=${yellow.metrics?.drawdownFromHighPct}%`);
+// מקור מסומן
+ok('מקור הסיווג מועבר (mock)', green.source === 'mock' && red.source === 'mock');
+
 console.log(`\n${fail === 0 ? '✅' : '❌'} ${pass} עברו, ${fail} נכשלו`);
 process.exit(fail === 0 ? 0 : 1);

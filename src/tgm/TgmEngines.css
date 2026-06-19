@@ -259,6 +259,29 @@
 .tge-chip--win { color: var(--accent-green); background: rgba(74, 222, 128, 0.12); }
 .tge-chip--loss { color: var(--accent-red); background: rgba(239, 68, 68, 0.12); }
 .tge-chip--err { color: var(--accent-gold); background: rgba(212, 175, 55, 0.14); }
+.tge-chip--open { color: #60a5fa; background: rgba(96, 165, 250, 0.14); }
+
+/* תג מגמה שנתית */
+.tge-trend-chip { margin-inline-start: auto; }
+.tge-trend-chip + .tge-chip { margin-inline-start: 6px; }
+.tge-trend--green { color: var(--accent-green); background: rgba(74, 222, 128, 0.12); }
+.tge-trend--yellow { color: var(--accent-gold); background: rgba(212, 175, 55, 0.14); }
+.tge-trend--red { color: var(--accent-red); background: rgba(239, 68, 68, 0.12); }
+.tge-trend--unknown { color: var(--text-secondary); background: rgba(150, 150, 160, 0.12); }
+.tge-mock-tag { font-size: 0.62rem; opacity: 0.7; font-weight: 600; }
+.tge-lead-trend { font-size: 0.7rem; color: var(--text-secondary); margin-top: 6px; line-height: 1.5; }
+
+/* בקרת מגמה (טוגלים) */
+.tge-trend-controls { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 10px; }
+.tge-toggle {
+  font-size: 0.74rem; font-weight: 700; color: var(--text-primary);
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.tge-toggle:hover { border-color: var(--accent-green); }
+.tge-toggle--on { border-color: var(--accent-green); color: var(--accent-green); background: rgba(74, 222, 128, 0.08); }
+.tge-toggle-count { opacity: 0.7; font-weight: 600; }
 
 .tge-empty, .tge-more {
   font-size: 0.78rem;
