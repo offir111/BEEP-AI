@@ -27,7 +27,6 @@ export function computeStats(leads) {
   const wins = leads.filter((l) => l.status === 'win');
   const losses = leads.filter((l) => l.status === 'loss');
   const errored = leads.filter((l) => l.status === 'error').length;
-  const pending = leads.filter((l) => l.status === 'open').length; // ליד טרי — חלון forward טרם נסגר
   const resolvedLeads = [...wins, ...losses];
   const resolved = resolvedLeads.length;
 
@@ -55,7 +54,6 @@ export function computeStats(leads) {
     succeeded: wins.length,
     failed: losses.length,
     errored,
-    pending,
     resolved,
     winRate,
     sampleTooSmall,

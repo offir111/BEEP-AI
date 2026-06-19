@@ -36,10 +36,8 @@ export function scanUniverse(dateMs, source, signalType, fn) {
           signalType,
           timestamp: ts,
           reason: verdict.reason,
-          // entry כאן הוא רק עוגן (close של יום הסיגנל). הכניסה האמיתית נקבעת ע"י
-          // המעריך = open של יום המסחר הבא (D+1), כדי למנוע look-ahead.
-          entry: bar.close,
-          meta: { ...verdict.meta, name: stock.name, sector: stock.sector, signalClose: bar.close, source: bar._source },
+          entry: bar.open, // כניסה במחיר הפתיחה של יום הסיגנל; יציאה עד סגירת היום
+          meta: { ...verdict.meta, name: stock.name, sector: stock.sector },
         })
       );
     }

@@ -13,18 +13,9 @@ import {
   monthLabel,
   MIN_SAMPLE_FOR_RATE,
 } from './stats';
-import { loadLiveData, clearLiveData, dataMode, liveStats } from './data/dataLayer';
-import { TP_PCT, SL_PCT, WINDOW_DAYS } from './evaluator';
+import { dataProviderName } from './data/dataLayer';
+import { TP_PCT, SL_PCT } from './evaluator';
 import './TgmEngines.css';
-
-// חיווי מקור נתונים כן (LIVE / חלקי / MOCK).
-function DataModeBadge({ mode, info }) {
-  if (mode === 'live')
-    return <span className="tge-badge tge-badge--live" title={`נטענו ${info.liveSymbols}/${info.total} סימבולים מ-Yahoo`}>🟢 LIVE · נתונים אמיתיים</span>;
-  if (mode === 'partial')
-    return <span className="tge-badge tge-badge--partial" title={`${info.liveSymbols}/${info.total} חי, השאר DEMO`}>🟡 חלקי · {info.liveSymbols}/{info.total} חי</span>;
-  return <span className="tge-badge tge-badge--mock" title="נתוני דמו דטרמיניסטיים — לחץ 'התחבר לנתונים חיים'">⚪ MOCK · נתוני דמו</span>;
-}
 
 const r2 = (n) => (n == null ? null : Math.round(n * 100) / 100);
 
@@ -55,8 +46,6 @@ export default function TgmEngines() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [monthSel, setMonthSel] = useState(null); // {year,month,key}
-  const [mode, setMode] = useState(dataMode());    // 'live' | 'partial' | 'mock'
-  const [info, setInfo] = useState(liveStats());
 
   // טעינה ראשונית — אם ריק, זורע היסטוריה כדי שיהיה מה להציג.
   useEffect(() => {
@@ -116,39 +105,6 @@ export default function TgmEngines() {
     setStatus('כל לידי המנועים נמחקו.');
   }, []);
 
-  // ── חיבור לנתונים אמיתיים (LIVE): מושך נרות מ-Yahoo דרך /api/candles, ואז ──
-  // מחשב מחדש את כל ההיסטוריה על הנתונים האמיתיים. שקיפות: חיווי מתעדכן ל-LIVE/חלקי.
-  const connectLive = useCallback(async () => {
-    setBusy(true);
-    setStatus('🔌 מתחבר לנתונים אמיתיים (Yahoo /api/candles)… מושך סדרה שנתית לכל סימבול.');
-    try {
-      const res = await loadLiveData({
-        onProgress: (done, total) => setStatus(`📡 מושך נתונים אמיתיים… ${done}/${total} סימבולים`),
-      });
-      setMode(dataMode());
-      setInfo(liveStats());
-      setStatus(`✓ חוברו ${res.ok}/${res.total} סימבולים חי. מחשב מחדש היסטוריה על נתונים אמיתיים…`);
-      clearLeads();
-      const merged = seedHistory(40);
-      setLeads(merged);
-      setStatus(`✅ ${res.ok}/${res.total} סימבולים LIVE · ${merged.length} לידים חושבו מחדש על נתונים אמיתיים (forward window ${WINDOW_DAYS} ימים).`);
-    } catch (e) {
-      setStatus(`⚠️ חיבור הנתונים נכשל: ${e.message}. נשאר על MOCK.`);
-    } finally {
-      setBusy(false);
-    }
-  }, []);
-
-  const backToMock = useCallback(() => {
-    clearLiveData();
-    setMode(dataMode());
-    setInfo(liveStats());
-    clearLeads();
-    const merged = seedHistory(40);
-    setLeads(merged);
-    setStatus('↩︎ חזרה לנתוני MOCK (דמו). הלידים חושבו מחדש.');
-  }, []);
-
   return (
     <div className="tge-wrap" dir="rtl">
       {/* כותרת */}
@@ -156,17 +112,14 @@ export default function TgmEngines() {
         <div>
           <h3 className="tge-title">🧪 מעבדת מנועי לידים</h3>
           <p className="tge-sub">
-            {ENGINES.length} מנועים עצמאיים · סימולציית forward {WINDOW_DAYS} ימים (TP +{TP_PCT}% / SL −{SL_PCT}%) · כניסה ב-D+1 (ללא look-ahead) ·{' '}
-            <DataModeBadge mode={mode} info={info} />
+            {ENGINES.length} מנועים עצמאיים · הערכה יומית אוטומטית (TP +{TP_PCT}% / SL −{SL_PCT}%) · מקור נתונים:{' '}
+            <b>{dataProviderName === 'mock' ? 'MOCK (דמו)' : dataProviderName}</b>
           </p>
         </div>
       </div>
 
       {/* בקרה */}
       <div className="tge-controls">
-        {mode === 'mock'
-          ? <button className="tge-btn tge-btn--live" onClick={connectLive} disabled={busy}>🔌 התחבר לנתונים חיים</button>
-          : <button className="tge-btn" onClick={backToMock} disabled={busy}>↩︎ חזרה ל-MOCK</button>}
         <button className="tge-btn tge-btn--gold" onClick={runToday} disabled={busy}>🔄 הרץ סבב יומי</button>
         <button className="tge-btn" onClick={reseed} disabled={busy}>📅 זרע היסטוריה חודשית</button>
         <button className="tge-btn tge-btn--danger" onClick={wipe} disabled={busy}>🗑️ נקה</button>

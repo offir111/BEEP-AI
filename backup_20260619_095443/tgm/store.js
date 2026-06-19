@@ -2,8 +2,7 @@
 // כל ליד נשמר כרשומה מובנית עם מזהה יציב (engineKey|symbol|day) למניעת כפילויות.
 
 import { ENGINES } from './engines';
-import { evaluateLead, WINDOW_DAYS } from './evaluator';
-import { classifyLeadTrend } from './trend';
+import { evaluateLead } from './evaluator';
 
 const STORAGE_KEY = 'tgm_engine_leads_v1';
 
@@ -28,7 +27,11 @@ export function saveLeads(leads) {
 }
 
 export function clearLeads() {
-  try { localStorage.removeItem(STORAGE_KEY); } catch { /* noop */ }
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* noop */
+  }
 }
 
 function leadId(engineKey, symbol, timestamp) {
@@ -36,8 +39,8 @@ function leadId(engineKey, symbol, timestamp) {
 }
 
 // ── יצירה + הערכה ──────────────────────────────────────────────────────────
-// מריץ את כל המנועים עבור יום נתון, מעריך כל ליד (forward window) ומסווג מגמה.
-export function generateRound(dateMs, cfg = {}) {
+// מריץ את כל המנועים עבור יום נתון, מעריך כל ליד, ומחזיר רשומות מובנות.
+export function generateRound(dateMs) {
   const records = [];
   for (const eng of ENGINES) {
     let leads = [];
@@ -48,8 +51,7 @@ export function generateRound(dateMs, cfg = {}) {
       continue;
     }
     for (const lead of leads) {
-      const evaluated = evaluateLead(lead, cfg);
-      const trend = classifyLeadTrend(evaluated.symbol, evaluated.timestamp); // 🟢/🟡/🔴 + מקור
+      const evaluated = evaluateLead(lead);
       records.push({
         id: leadId(eng.key, evaluated.symbol, evaluated.timestamp),
         engineKey: eng.key,
@@ -63,10 +65,7 @@ export function generateRound(dateMs, cfg = {}) {
         pnlPct: evaluated.pnlPct,
         status: evaluated.status,
         exitReason: evaluated.exitReason,
-        daysHeld: evaluated.daysHeld,
         error: evaluated.error,
-        dataSource: evaluated.dataSource,   // 'live' | 'mock' — שקיפות מקור
-        trend,                               // { tier, label, source, metrics }
         meta: evaluated.meta,
         evaluatedAt: evaluated.evaluatedAt,
       });
@@ -85,39 +84,30 @@ export function mergeAndSave(existing, fresh) {
 }
 
 // סבב יומי בודד (היום שניתן) → ממוזג ונשמר.
-export function runDailyRound(dateMs, cfg = {}) {
-  const fresh = generateRound(dateMs, cfg);
+export function runDailyRound(dateMs) {
+  const fresh = generateRound(dateMs);
   return mergeAndSave(loadLeads(), fresh);
 }
 
-// ── זריעת היסטוריה ──────────────────────────────────────────────────────────
-// זורע `days` ימי מסחר, כשהיום *האחרון* שנזרע הוא `WINDOW_DAYS` ימי מסחר לפני היום —
-// כך לכל ליד שנזרע יש חלון forward מלא להכרעה (אחרת הלידים האחרונים נשארים 'open').
-export function seedHistory(days = 40, { endMs = Date.now(), offsetTradingDays = WINDOW_DAYS } = {}) {
+// ── זריעת היסטוריה: N ימי מסחר אחרונים (מדלג סופ״ש) ──────────────────────────
+// בונה היסטוריה כדי שיהיה מדגם מספק לסטטיסטיקה החודשית ולדירוג המנועים.
+export function seedHistory(days = 30, endMs = Date.now()) {
   const existing = loadLeads();
   const all = [];
-
-  // קודם דלג `offsetTradingDays` ימי מסחר אחורה מהיום (כדי להשאיר חלון forward).
   let cursor = new Date(endMs);
-  let skipped = 0, guard = 0;
-  while (skipped < offsetTradingDays && guard < offsetTradingDays * 2 + 10) {
-    guard++;
-    const dow = cursor.getUTCDay();
-    if (dow !== 0 && dow !== 6) skipped++;
-    cursor = new Date(cursor.getTime() - 86400000);
-  }
-
-  // עכשיו זרע `days` ימי מסחר אחורה.
-  let added = 0; guard = 0;
-  while (added < days && guard < days * 2 + 20) {
+  let added = 0;
+  // הולך אחורה עד שנאספו `days` ימי מסחר.
+  let guard = 0;
+  while (added < days && guard < days * 2 + 10) {
     guard++;
     const dow = cursor.getUTCDay();
     if (dow !== 0 && dow !== 6) {
+      // לא שבת/ראשון
       const ts = Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), cursor.getUTCDate());
       all.push(...generateRound(ts));
       added++;
     }
-    cursor = new Date(cursor.getTime() - 86400000);
+    cursor = new Date(cursor.getTime() - 24 * 60 * 60 * 1000);
   }
   return mergeAndSave(existing, all);
 }

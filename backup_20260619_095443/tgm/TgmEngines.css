@@ -51,17 +51,6 @@
 .tge-btn--gold:hover:not(:disabled) { filter: brightness(1.08); }
 .tge-btn--danger { color: var(--accent-red); border-color: rgba(239, 68, 68, 0.4); }
 .tge-btn--danger:hover:not(:disabled) { border-color: var(--accent-red); }
-.tge-btn--live { color: var(--accent-green); border-color: rgba(74, 222, 128, 0.5); font-weight: 800; }
-.tge-btn--live:hover:not(:disabled) { border-color: var(--accent-green); background: rgba(74, 222, 128, 0.08); }
-
-/* חיווי מקור נתונים (LIVE / חלקי / MOCK) */
-.tge-badge {
-  display: inline-block; padding: 2px 8px; border-radius: 999px;
-  font-size: 0.72rem; font-weight: 800; white-space: nowrap; vertical-align: middle;
-}
-.tge-badge--live { color: var(--accent-green); background: rgba(74, 222, 128, 0.14); border: 1px solid rgba(74, 222, 128, 0.4); }
-.tge-badge--partial { color: var(--accent-gold); background: rgba(212, 175, 55, 0.14); border: 1px solid rgba(212, 175, 55, 0.4); }
-.tge-badge--mock { color: var(--text-secondary); background: rgba(150, 150, 160, 0.12); border: 1px solid rgba(150, 150, 160, 0.3); }
 
 .tge-month {
   display: flex;
