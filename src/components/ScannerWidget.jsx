@@ -470,6 +470,20 @@ export default function ScannerWidget({ onSearch }) {
     return () => clearTimeout(t);
   }, [prog]);
 
+  // Title "סריקת AI מתבצעת": fully shown during the scan; once the bar fades it disappears,
+  // then blinks back for 2s every 10s. Resets on every page load/refresh (fresh mount).
+  const [titleOn, setTitleOn] = useState(true);
+  useEffect(() => {
+    if (!barFaded) { setTitleOn(true); return; }
+    setTitleOn(false);                                   // disappears with the bar
+    let hideT;
+    const iv = setInterval(() => {                       // every 10s → show for 2s
+      setTitleOn(true);
+      hideT = setTimeout(() => setTitleOn(false), 2000);
+    }, 10000);
+    return () => { clearInterval(iv); clearTimeout(hideT); };
+  }, [barFaded]);
+
   useEffect(() => {
     if (mode === 'search') setTimeout(() => inputRef.current?.focus(), 80);
   }, [mode]);
@@ -508,7 +522,7 @@ export default function ScannerWidget({ onSearch }) {
           <ScannerBeamCanvas panelRef={panelRef} />
 
           <div className="sw-top">
-            <span className={`sw-title${barFaded ? ' sw-title--faded' : ''}`}>סריקת AI מתבצעת</span>
+            <span className={`sw-title${titleOn ? '' : ' sw-title--hidden'}`}>סריקת AI מתבצעת</span>
           </div>
 
           {/* Spinning rings + orb — 210×210 container */}
