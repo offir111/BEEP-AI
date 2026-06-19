@@ -239,9 +239,22 @@ function ScannerBeamCanvas({ panelRef }) {
     let phase = 'searchA', phaseT0 = performance.now();
     let sideA = 'left', sideB = 'right', target = null, k = 0, held = 0, prevNow = performance.now();
     let collectFrom = null, collectedEl = null;   // the bubble being sucked into the orb
-    let orbOpenUntil = 0;                          // orb shows its transparent inner "window" until this ts
+    let orbOpenUntil = 0, orbFadeUntil = 0;        // orb inner "window" visible until / fading until ts
     const pickSides = () => { const lf = Math.random() < 0.5; sideA = lf ? 'left' : 'right'; sideB = lf ? 'right' : 'left'; };
     pickSides();
+
+    // Frosted grain tile for the orb's inner window — the core reads as blurred grainy WHITE (not black).
+    const grain = document.createElement('canvas');
+    grain.width = grain.height = 72;
+    {
+      const gx = grain.getContext('2d');
+      const img = gx.createImageData(72, 72);
+      for (let i = 0; i < img.data.length; i += 4) {
+        const v = 150 + Math.floor(Math.random() * 105);   // light grey → white speckle
+        img.data[i] = v; img.data[i + 1] = v; img.data[i + 2] = v; img.data[i + 3] = 255;
+      }
+      gx.putImageData(img, 0, 0);
+    }
 
     const sizeCanvas = () => {
       const r = panel.getBoundingClientRect();
@@ -354,8 +367,9 @@ function ScannerBeamCanvas({ panelRef }) {
     }
 
     const FADE_IN = 320, BLOCK_FADE = 70, REST_MS = 1400, MAX_SEARCH = 4500;
-    const VIBRATE_MS = 1000, SUCK_MS = 2000, IMPACT_MS = 350;   // collect: jitter → suck → orb hit
-    const SLAM_MS = 650, ORB_OPEN_MS = 3000;                    // bubble slams inner wall; orb window stays open 3s
+    const SHAKE_MS = 500, PAUSE_MS = 1000, SUCK_MS = 2000, IMPACT_MS = 350;  // collect: shake 0.5s → tense pause 1s → suck
+    const ANTIC = SHAKE_MS + PAUSE_MS;                          // anticipation before the suck (1.5s)
+    const SLAM_MS = 500, ORB_OPEN_MS = 500;                     // bubble slams inner wall; orb window ~0.5s then back to normal
 
     // Orb reaction when a collected bubble enters it (resistance / soft burst).
     function drawOrbFlash(o, s) {                                // s: 0→1
