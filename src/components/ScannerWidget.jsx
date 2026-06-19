@@ -18,10 +18,10 @@ const CLIMB_MS = 9750;
 // A subtle hint of "what's behind the scanner". Real 1H movers, blue-filtered (not
 // their own colors), ~20% opacity; only the single biggest mover pulses up to ~50%.
 // Fades in 3s after entering. Sits behind the animation (z-index 0) — never hides it.
-// 20 bubbles to fill the panel: 2 large · 2 medium · the rest small (slightly varied)
+// 20 small bubbles. Largest = 44px ≈ 31% smaller than the 64px central orb (no big bubbles).
 const BUB_SIZES = [
-  76, 70, 50, 46,
-  34, 32, 30, 30, 28, 28, 26, 32, 28, 30, 26, 34, 28, 30, 26, 32,
+  44, 40, 34, 32,
+  28, 26, 24, 24, 22, 22, 20, 26, 22, 24, 20, 28, 22, 24, 20, 26,
 ];
 const OP_CHOICES = [0.2, 0.3, 0.4];         // random per-bubble brightness (up to 40%)
 
@@ -88,7 +88,7 @@ function ScannerBubblesBg() {
           pct: row.p1h,
           size: BUB_SIZES[i],
           baseOp: OP_CHOICES[Math.floor(Math.random() * OP_CHOICES.length)],  // 20/30/40% random
-          fade: i === 0 ? 5 : 3,    // the first ball fades in slowly over 5s (no jump)
+          fade: i === 0 ? 1.8 : 3,  // first ball fades in fast (~1.8s, no jump)
           ...freshLayout(i),
         }));
         if (!cancelled) setBubbles(built);
@@ -118,7 +118,7 @@ function ScannerBubblesBg() {
       };
       advance();                          // first reveal (1 bubble)
       iv = setInterval(advance, 1000);    // then one step per second
-    }, 2000);                             // first bubble appears ~2s after entering the app
+    }, 600);                              // first bubble appears fast after entering the app
     return () => { clearTimeout(startT); if (iv) clearInterval(iv); };
   }, [bubbles.length]);
 
@@ -221,8 +221,13 @@ function ScannerBeamCanvas({ panelRef }) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     let raf = 0, running = true;
-    let lastCycle = -1, A = null, B = null;     // chosen target elements per cycle
-    let blockK = 1, lastActive = null;          // smooth fade-out when blocked
+    // Searching state machine: ATTEMPTS far targets even when risky; if a bubble crosses the
+    // beam it shuts instantly and re-fires at another far bubble — until it locks one clear for
+    // 3s. phases: searchA → fadeoutA → gap → searchB → fadeoutB → rest → (loop).
+    let phase = 'searchA', phaseT0 = performance.now();
+    let sideA = 'left', sideB = 'right', target = null, k = 0, held = 0, prevNow = performance.now();
+    const pickSides = () => { const lf = Math.random() < 0.5; sideA = lf ? 'left' : 'right'; sideB = lf ? 'right' : 'left'; };
+    pickSides();
 
     const sizeCanvas = () => {
       const r = panel.getBoundingClientRect();
@@ -253,21 +258,15 @@ function ScannerBeamCanvas({ panelRef }) {
       return out;
     };
 
-    const chooseTargets = (pr, orb, bubbles) => {
-      const cx = pr.width / 2;
-      const smalls = bubbles.filter(b => b.r < 26);   // small stock bubbles
-      const pick = (arr) => {
-        const ok = arr.filter(b => pathClear(orb, b, smalls.filter(x => x.el !== b.el)));
-        if (!ok.length) return null;
-        // Prefer the FAR / corner bubbles — the light beam reads more clearly there.
-        ok.sort((a, b) => Math.hypot(b.x - orb.x, b.y - orb.y) - Math.hypot(a.x - orb.x, a.y - orb.y));
-        const far = ok.slice(0, Math.max(1, Math.ceil(ok.length * 0.6)));
-        return far[Math.floor(Math.random() * far.length)].el;
-      };
-      const left  = smalls.filter(b => b.x < cx - 8);
-      const right = smalls.filter(b => b.x > cx + 8);
-      const leftFirst = Math.random() < 0.5;
-      return { A: pick(leftFirst ? left : right), B: pick(leftFirst ? right : left) };
+    // Pick a FAR small bubble on a side — NO clear-path pre-filter, so it deliberately
+    // attempts risky far targets; the per-frame block check handles the instant re-fire.
+    const farSmall = (bubbles, orb, side, w) => {
+      const cx = w / 2;
+      const arr = bubbles.filter(b => (side === 'left' ? b.x < cx - 6 : b.x > cx + 6));
+      if (!arr.length) return null;
+      arr.sort((a, b) => Math.hypot(b.x - orb.x, b.y - orb.y) - Math.hypot(a.x - orb.x, a.y - orb.y));
+      const far = arr.slice(0, Math.max(1, Math.ceil(arr.length * 0.6)));   // farthest 60%
+      return far[Math.floor(Math.random() * far.length)].el;
     };
 
     function drawBeam(o, t, k) {
@@ -340,44 +339,62 @@ function ScannerBeamCanvas({ panelRef }) {
       ctx.restore();
     }
 
+    const FADE_IN = 320, BLOCK_FADE = 70, FADE_OUT = 400, REST_MS = 1400, MAX_SEARCH = 4500;
+
     const loop = () => {
       if (!running) return;
       raf = requestAnimationFrame(loop);
       const now = performance.now();
-      const cyc = Math.floor(now / CYCLE_MS);
-      const t = now % CYCLE_MS;
+      const dt = Math.min(now - prevNow, 50); prevNow = now;
 
       const pr = panel.getBoundingClientRect();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, pr.width, pr.height);
-
       const orbEl = panel.querySelector('.sw-orb');
       if (!orbEl || pr.width === 0) return;
       const orb = local(orbEl.getBoundingClientRect(), pr);
       const bubbles = readBubbles(pr);
 
-      if (cyc !== lastCycle) { lastCycle = cyc; const ch = chooseTargets(pr, orb, bubbles); A = ch.A; B = ch.B; }
+      const drawAt = () => {
+        if (k > 0.01 && target && target.isConnected) {
+          const tg = local(target.getBoundingClientRect(), pr);
+          drawBeam(orb, tg, k); drawGlow(tg, k, now);
+        }
+      };
 
-      // which sweep + base intensity
-      let activeEl = null, k = 0;
-      if (t < WIN_MS) { activeEl = A; k = envelope(t); }
-      else if (t >= WIN_MS + GAP_MS && t < WIN_MS + GAP_MS + WIN_MS) { activeEl = B; k = envelope(t - WIN_MS - GAP_MS); }
-
-      if (activeEl !== lastActive) { blockK = 1; lastActive = activeEl; }
-
-      if (activeEl && activeEl.isConnected && k > 0.01) {
-        const tgt = local(activeEl.getBoundingClientRect(), pr);     // live position (tracks drift)
-        const others = bubbles.filter(b => b.el !== activeEl);
-        const blocked = !pathClear(orb, tgt, others);
-        blockK += ((blocked ? 0 : 1) - blockK) * 0.14;               // soft fade-out on block
-        const kk = k * blockK;
-        if (kk > 0.01) { drawBeam(orb, tgt, kk); drawGlow(tgt, kk, now); }
+      if (phase === 'searchA' || phase === 'searchB') {
+        const side = phase === 'searchA' ? sideA : sideB;
+        if (!target || !target.isConnected) { target = farSmall(bubbles, orb, side, pr.width); held = 0; }
+        if (!target) {
+          if (now - phaseT0 > 1200) { phase = phase === 'searchA' ? 'gap' : 'rest'; phaseT0 = now; k = 0; }   // nothing to aim at
+        } else {
+          const tgt = local(target.getBoundingClientRect(), pr);
+          const blocked = !pathClear(orb, tgt, bubbles.filter(b => b.el !== target));
+          if (blocked) {
+            k = Math.max(0, k - dt / BLOCK_FADE); held = 0;                          // shut instantly
+            if (k <= 0.04) target = farSmall(bubbles, orb, side, pr.width);          // re-fire at another far bubble
+          } else {
+            k = Math.min(1, k + dt / FADE_IN);
+            if (k >= 0.9) held += dt;                                                // count clear time
+            if (held >= ILLUM_MS) { phase = phase === 'searchA' ? 'fadeoutA' : 'fadeoutB'; phaseT0 = now; }   // locked 3s
+          }
+          drawAt();
+          if (now - phaseT0 > MAX_SEARCH && held < 150) { phase = phase === 'searchA' ? 'gap' : 'rest'; phaseT0 = now; k = 0; target = null; }
+        }
+      } else if (phase === 'fadeoutA' || phase === 'fadeoutB') {
+        k = Math.max(0, k - dt / FADE_OUT);
+        drawAt();
+        if (k <= 0.01) { phase = phase === 'fadeoutA' ? 'gap' : 'rest'; phaseT0 = now; target = null; held = 0; }
+      } else if (phase === 'gap') {
+        if (now - phaseT0 >= GAP_MS) { phase = 'searchB'; phaseT0 = now; target = null; held = 0; k = 0; }
+      } else if (phase === 'rest') {
+        if (now - phaseT0 >= REST_MS) { pickSides(); phase = 'searchA'; phaseT0 = now; target = null; held = 0; k = 0; }
       }
     };
 
     const onVis = () => {
       if (document.hidden) { running = false; if (raf) cancelAnimationFrame(raf); }
-      else if (!running)  { running = true; loop(); }
+      else if (!running)  { running = true; prevNow = performance.now(); phaseT0 = performance.now(); loop(); }
     };
     document.addEventListener('visibilitychange', onVis);
     loop();
