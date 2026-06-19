@@ -353,7 +353,7 @@ function ScannerBeamCanvas({ panelRef }) {
     }
 
     const FADE_IN = 320, BLOCK_FADE = 70, REST_MS = 1400, MAX_SEARCH = 4500;
-    const VIBRATE_MS = 1500, SUCK_MS = 2000, IMPACT_MS = 350;   // collect: jitter → suck → orb hit
+    const VIBRATE_MS = 1000, SUCK_MS = 2000, IMPACT_MS = 350;   // collect: jitter → suck → orb hit
 
     // Orb reaction when a collected bubble enters it (resistance / soft burst).
     function drawOrbFlash(o, s) {                                // s: 0→1
