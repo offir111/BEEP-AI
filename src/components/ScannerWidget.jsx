@@ -508,7 +508,7 @@ export default function ScannerWidget({ onSearch }) {
           <ScannerBeamCanvas panelRef={panelRef} />
 
           <div className="sw-top">
-            <span className="sw-title">סריקת AI מתבצעת</span>
+            <span className={`sw-title${barFaded ? ' sw-title--faded' : ''}`}>סריקת AI מתבצעת</span>
           </div>
 
           {/* Spinning rings + orb — 210×210 container */}

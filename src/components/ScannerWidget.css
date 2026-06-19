@@ -85,7 +85,9 @@
   font-size: 18px;
   font-weight: 800;
   color: #ffffff;
+  transition: opacity 0.8s ease;   /* dims to 30% when the bar fades, so bubbles show through */
 }
+.sw-title--faded { opacity: 0.3; }
 
 /* ── Rings area ─────────────────────────────────────────────── */
 .sw-rings-area {
