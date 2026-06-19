@@ -240,7 +240,7 @@ function ScannerBeamCanvas({ panelRef }) {
     // phases: probe → probeGap → … → focus → collect → (loop).
     let phase = 'probe', phaseT0 = performance.now();
     let target = null, k = 0, prevNow = performance.now();
-    let cycleStart = performance.now(), probeWindow = 8000 + Math.random() * 3000;
+    let cycleStart = performance.now(), probeWindow = 6000 + Math.random() * 3000;
     let lastRef = null, probeMode = 'random';
     let collectFrom = null, collectedEl = null;   // the bubble being sucked into the orb
     let orbOpenUntil = 0, orbFadeUntil = 0;        // orb inner "window" visible until / fading until ts
@@ -399,6 +399,7 @@ function ScannerBeamCanvas({ panelRef }) {
 
     const PROBE_IN = 250, PROBE_LIT = 1000, PROBE_OUT = 250, PROBE_GAP = 1300;  // single tap ≈ 1s lit, ~3s cadence
     const FOCUS_MS = 2500;                                                       // final lock: rings gather, then suck
+    const REST_AFTER_MS = 3000;                                                  // after a capture: rings just spin ~3s, no beams
     const SHAKE_MS = 500, PAUSE_MS = 1000, SUCK_MS = 2000, IMPACT_MS = 350;  // collect: shake 0.5s → tense pause 1s → suck
     const ANTIC = SHAKE_MS + PAUSE_MS;                          // anticipation before the suck (1.5s)
     const SLAM_MS = 500, ORB_OPEN_MS = 500;                     // bubble slams inner wall; orb window ~0.5s then back to normal
@@ -445,15 +446,6 @@ function ScannerBeamCanvas({ panelRef }) {
         ctx.arc(o.x, o.y, r, far - half, far + half);
         ctx.stroke();
       });
-      // the wave "reaches the beam" — a bright tick fires on the beam side at the very end
-      if (wave > 0.72) {
-        const t = (wave - 0.72) / 0.28;
-        ctx.strokeStyle = rgba('#BFE9FF', 0.55 * t * gather);
-        ctx.lineWidth = 3 * scale;
-        ctx.beginPath();
-        ctx.arc(o.x, o.y, radii[2] * 0.92, beamAng - 0.45, beamAng + 0.45);
-        ctx.stroke();
-      }
       ctx.restore();
     }
 
@@ -505,6 +497,17 @@ function ScannerBeamCanvas({ panelRef }) {
       ctx.globalAlpha = 0.32 * a;                       // grain speckle over the milk
       ctx.filter = 'blur(0.7px)';
       ctx.drawImage(grain, o.x - R, o.y - R, R * 2, R * 2);
+      // ~50% blue filter in the orb's own hue over the white — so the reflection reads as something
+      // happening INSIDE the orb (natural, magnified, deep), not an out-of-place plain white.
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.filter = 'blur(2px)';
+      const b = ctx.createRadialGradient(o.x - R * 0.25, o.y - R * 0.25, R * 0.1, o.x, o.y, R);
+      b.addColorStop(0,   `rgba(110,198,255,${0.34 * a})`);   // light blue highlight
+      b.addColorStop(0.6, `rgba(30,144,255,${0.5 * a})`);     // orb blue, ~50%
+      b.addColorStop(1,   `rgba(13,71,161,${0.6 * a})`);      // deep orb blue at the wall
+      ctx.fillStyle = b;
+      ctx.beginPath(); ctx.arc(o.x, o.y, R, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
 
@@ -567,7 +570,7 @@ function ScannerBeamCanvas({ panelRef }) {
         // Final lock — the chosen bubble. The spinning rings VANISH and the gathered rings take
         // over, SLOWLY transmitting the pull-wave behind the orb (~2.5s), then it'll be sucked.
         if (!target || !target.isConnected) target = pickFocus(bubbles, orb);
-        if (!target) { phase = 'probe'; phaseT0 = now; cycleStart = now; probeWindow = 8000 + Math.random() * 3000; }
+        if (!target) { phase = 'probe'; phaseT0 = now; cycleStart = now; probeWindow = 6000 + Math.random() * 3000; }
         else {
           const e = now - phaseT0;
           if (svgEl) svgEl.classList.add('sw-rings--dim');
@@ -585,7 +588,7 @@ function ScannerBeamCanvas({ panelRef }) {
       } else if (phase === 'collect') {
         const e = now - phaseT0;
         const lerp = (a, b, t) => a + (b - a) * t;
-        if (!collectFrom) { phase = 'probe'; phaseT0 = now; cycleStart = now; probeWindow = 8000 + Math.random() * 3000; }
+        if (!collectFrom) { phase = 'probe'; phaseT0 = now; cycleStart = now; probeWindow = 6000 + Math.random() * 3000; }
         else {
           // beam side stays fixed at the bubble's source; rings (already gathered from the search
           // lock) keep transmitting the pull-wave on the far side until the bubble is sucked in.
@@ -634,13 +637,20 @@ function ScannerBeamCanvas({ panelRef }) {
             drawOrbFlash(orb, Math.min(1, hit / (IMPACT_MS / SLAM_MS)));
             drawBubbleImpact(orb, beamAng, hit);
           } else {
-            // captured → start a fresh probing cycle (next suck on average ~15s later).
+            // captured → rest: rings spin quietly with NO beam for ~3s before searching again.
             if (collectedEl) { try { collectedEl.classList.remove('sw-bub--collected'); } catch { /* noop */ } }
             collectedEl = null; collectFrom = null;
-            phase = 'probe'; phaseT0 = now; target = null; k = 0;
-            lastRef = null; probeMode = 'random';
-            cycleStart = now; probeWindow = 8000 + Math.random() * 3000;
+            phase = 'rest'; phaseT0 = now; target = null; k = 0;
           }
+        }
+      } else if (phase === 'rest') {
+        // The bubble is now inside the orb. Let the rings just spin (no beams) ~3s; then it
+        // re-organises and starts hunting the next stock with the illuminating beam.
+        if (svgEl) svgEl.classList.remove('sw-rings--dim');
+        if (now - phaseT0 >= REST_AFTER_MS) {
+          phase = 'probe'; phaseT0 = now; target = null; k = 0;
+          lastRef = null; probeMode = 'random';
+          cycleStart = now; probeWindow = 6000 + Math.random() * 3000;
         }
       }
     };
@@ -655,7 +665,7 @@ function ScannerBeamCanvas({ panelRef }) {
         orbOpenUntil = 0; orbFadeUntil = 0;
         phase = 'probe'; target = null; k = 0;
         lastRef = null; probeMode = 'random';
-        cycleStart = performance.now(); probeWindow = 8000 + Math.random() * 3000;
+        cycleStart = performance.now(); probeWindow = 6000 + Math.random() * 3000;
         loop();
       }
     };
