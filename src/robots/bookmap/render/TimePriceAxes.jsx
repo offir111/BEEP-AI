@@ -13,7 +13,7 @@ function fmtPrice(p) {
 export function drawAxes(ctx, { W, H, pMin, pMax, rowToPrice }) {
   if (!(pMax > pMin)) return;
   const lines = 8;
-  ctx.font = '10px Inter, sans-serif';
+  ctx.font = 'bold 11px Inter, sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
   for (let i = 0; i <= lines; i++) {
@@ -22,11 +22,17 @@ export function drawAxes(ctx, { W, H, pMin, pMax, rowToPrice }) {
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(W, y);
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
     ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.fillStyle = 'rgba(160,160,176,0.75)';
-    ctx.fillText(fmtPrice(price), W - 4, y + 7);
+    // White, bold, with a dark outline so prices stay readable over the heatmap.
+    const label = fmtPrice(price);
+    const ty = y + 6;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.strokeText(label, W - 4, ty);
+    ctx.fillStyle = 'rgba(255,255,255,0.98)';
+    ctx.fillText(label, W - 4, ty);
   }
 }
 
