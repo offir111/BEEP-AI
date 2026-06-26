@@ -85,12 +85,15 @@ export default function HeatmapCanvas({
         genRef.current = hm.generation;
       }
 
-      if (running && toggles.heatmap) {
-        const book = getBook && getBook();
-        if (book && book.ready && !book.isStale()) {
-          const mid = book.mid();
-          if (mid) {
-            hm.maybeRecenter(mid);             // may bump generation → handled next tick
+      if (!running) return;
+      const book = getBook && getBook();
+      if (book && book.ready && !book.isStale()) {
+        const mid = book.mid();
+        if (mid) {
+          // Maintain the price→Y window ALWAYS (even with the heatmap toggled
+          // off) so bubbles / BBO / icebergs stay correctly positioned.
+          hm.maybeRecenter(mid);               // may bump generation → handled next tick
+          if (toggles.heatmap) {
             hm.pushColumn(book);
             _scrollAndDrawColumn(off, hm, W, H, dpr);
           }
@@ -119,6 +122,10 @@ export default function HeatmapCanvas({
           ctx.drawImage(off, 0, 0, off.width, off.height, 0, 0, W, H);
         }
 
+        // ── SINGLE shared price→Y mapping ──────────────────────────────
+        // Heatmap base (via priceToRow), BBO, bubbles, iceberg/stop markers and
+        // the price line ALL derive their Y from this one yOf + the heatmap
+        // engine's range, so a bubble at price P sits exactly on P's heat band.
         const pMin = hm.pMin, pMax = hm.pMax;
         const span = pMax - pMin;
         const yOf = (price) => span > 0 ? ((pMax - price) / span) * H : -1;
