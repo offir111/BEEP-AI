@@ -149,6 +149,12 @@ function AppInner() {
     }} />;
   }
 
+  // BOOK MAP robot renders full-bleed with its own single top bar (no shared
+  // Header/NavBar/PageTopBar). See src/robots/bookmap/INTEGRATION.md.
+  if (page === 'bookmap') {
+    return <BookmapRobot navigate={navigate} />;
+  }
+
   return (
     <div className="app">
       <Header onLogout={logout} username={session.username} isAdmin={session.isAdmin} navigate={navigate} page={page} />
@@ -175,7 +181,6 @@ function AppInner() {
         {page === 'profile'    && <ProfilePage username={session.username} loginAt={session.loginAt} />}
         {page === 'gainers'    && <GainersPage />}
         {page === 'tgm'        && <TgmPage navigate={navigate} />}
-        {page === 'bookmap'    && <BookmapRobot navigate={navigate} />}
         {page === '404'       && <NotFoundPage navigate={navigate} />}
       </main>
     </div>

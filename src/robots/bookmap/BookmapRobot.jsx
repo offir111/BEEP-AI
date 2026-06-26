@@ -12,7 +12,6 @@
  * in INTEGRATION.md (route + home card).
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
-import RobotNavTabs from '../../components/RobotNavTabs';
 
 import BinanceDepthFeed from './data/BinanceDepthFeed';
 import BinanceTradesFeed from './data/BinanceTradesFeed';
@@ -34,7 +33,8 @@ import DOMPanel from './render/DOMPanel';
 import PulseFeed from './render/PulseFeed';
 import SymbolPicker from './controls/SymbolPicker';
 import ZoomControls from './controls/ZoomControls';
-import IndicatorToggles from './controls/IndicatorToggles';
+import RobotMenu from './controls/RobotMenu';
+import IndicatorMenu from './controls/IndicatorMenu';
 import ReplayControls from './controls/ReplayControls';
 
 import './styles/bookmap.css';
@@ -342,31 +342,23 @@ export default function BookmapRobot({ navigate }) {
 
   return (
     <div className="bm-root" dir="rtl">
-      <RobotNavTabs currentPage="bookmap" navigate={navigate} />
-
-      {/* ── Header ── */}
-      <div className="bm-header">
-        <div className="bm-title">BOOK MAP</div>
+      {/* ── Single top bar (replaces the old X-row + robots row + header + controls row) ── */}
+      <div className="bm-topbar">
+        <button className="bm-close" onClick={() => navigate('home')} aria-label="סגור">✕</button>
+        <RobotMenu navigate={navigate} />
+        <IndicatorMenu toggles={toggles} onToggle={(k) => setToggles(t => ({ ...t, [k]: !t[k] }))} />
+        <ZoomControls zoomMult={zoomMult} onChange={setZoomMult} />
         <SymbolPicker symbol={symbol} onChange={(s) => { if (!inReplayRef.current) setSymbol(s); }} />
         <div className={`bm-status bm-status--${statusInfo.cls}`}>{statusInfo.dot} {statusInfo.text}</div>
-        <div className="bm-readout">
-          <span className="bm-readout-price">{fmtPrice(readout.price)}</span>
-          <span className="bm-readout-spread">
-            Spread: {readout.spread != null && readout.spread >= 0 ? fmtPrice(readout.spread) : '—'}
-          </span>
-        </div>
+        <div className="bm-price-big">{fmtPrice(readout.price)}</div>
+        <div className="bm-spread">Spr {readout.spread != null && readout.spread >= 0 ? fmtPrice(readout.spread) : '—'}</div>
+        <div className="bm-topbar-spacer" />
         <button className={`bm-rec ${recording ? 'bm-rec--on' : ''}`} onClick={toggleRecord} disabled={!isCrypto}>
-          {recording ? `⏺️ מקליט… ${recCount}` : '⏺️ הקלטה'}
+          {recording ? `⏺️ ${recCount}` : '⏺️ הקלטה'}
         </button>
         {recCount > 0 && !recording && !replay.active && (
           <button className="bm-rec" onClick={enterReplay}>⏵ שחזור ({recCount})</button>
         )}
-      </div>
-
-      {/* ── Controls — sticky row directly under the header (always visible) ── */}
-      <div className="bm-controls">
-        <IndicatorToggles toggles={toggles} onToggle={(k) => setToggles(t => ({ ...t, [k]: !t[k] }))} />
-        <ZoomControls zoomMult={zoomMult} onChange={setZoomMult} />
       </div>
 
       {!isCrypto && (
