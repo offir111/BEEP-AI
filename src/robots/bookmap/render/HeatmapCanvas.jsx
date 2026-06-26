@@ -171,7 +171,8 @@ export default function HeatmapCanvas({
         const [cr, cg, cb] = heatRGB(t);
         const idx = (r * maxCols + x) * 4;
         d[idx] = cr; d[idx + 1] = cg; d[idx + 2] = cb;
-        d[idx + 3] = Math.min(255, 60 + t * 195);   // faint→opaque with intensity
+        // Cap alpha at ~0.7 so candles & bubbles read clearly above the map.
+        d[idx + 3] = Math.min(180, 28 + t * 168);
       }
     }
     octx.putImageData(img, 0, 0);
