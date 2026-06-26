@@ -1,51 +1,53 @@
 /**
  * HeatmapCanvas — the Bookmap-style chart surface. One <canvas>, one rAF loop.
  *
- * Layers (bottom → top):
- *   1. Liquidity heatmap — an offscreen buffer that scrolls left; each column is
- *      a real order-book depth snapshot (HeatmapEngine). Scroll-blit keeps it
- *      cheap (only the newest column is rasterised each cadence tick).
- *   2. BBO ribbon, Volume bubbles, Iceberg/Stop markers, current-price line.
- *   3. Price axis labels.
+ * Layers (bottom → top), ALL sharing one price→Y mapping + time axis:
+ *   1. Liquidity heatmap (HeatmapEngine grid, re-mapped to the live range)
+ *   2. Candlesticks (CandleEngine)
+ *   3. BBO ribbon, Volume bubbles (3D), Iceberg/Stop markers
+ *   4. Moving price line, price axis labels
  *
- * Everything drawn is real Binance data fed through the engines. When the book
- * is stale/empty nothing is invented — the heatmap simply stops advancing and
- * the parent shows the 🔴 indicator.
+ * The price axis is stable & auto-ranging (see HeatmapEngine): the range only
+ * changes once per cadence tick, so heatmap + overlays stay pixel-aligned.
+ * Everything is real Binance data — when the book is stale nothing advances.
  */
 import { useRef, useEffect } from 'react';
 import { drawBubbles } from './VolumeBubblesLayer';
+import { drawCandles } from './CandlesLayer';
 import { drawBBO } from './BBORibbon';
 import { drawAxes } from './TimePriceAxes';
 
-// intensity 0..1 → blue → cyan → green → yellow → red
-function heatColor(t) {
+// intensity 0..1 → dark → blue → cyan → green → yellow → orange → bright red
+// (Bookmap-style palette). Returns [r,g,b] 0..255.
+function heatRGB(t) {
   t = Math.max(0, Math.min(1, t));
   let r, g, b;
-  if (t < 0.25)      { const u = t / 0.25;        r = 10;            g = 20 + u * 80;   b = 90 + u * 120; }
-  else if (t < 0.5)  { const u = (t - 0.25) / 0.25; r = 10;          g = 100 + u * 130; b = 210 - u * 160; }
-  else if (t < 0.75) { const u = (t - 0.5) / 0.25;  r = 10 + u * 230; g = 230;          b = 50 - u * 50; }
-  else               { const u = (t - 0.75) / 0.25; r = 240;         g = 230 - u * 200; b = 0; }
-  return `rgb(${r | 0},${g | 0},${b | 0})`;
+  if (t < 0.18)      { const u = t / 0.18;          r = 6 + u * 6;     g = 10 + u * 30;   b = 30 + u * 130; }
+  else if (t < 0.38) { const u = (t - 0.18) / 0.20; r = 12;            g = 40 + u * 150;  b = 160 + u * 70; }
+  else if (t < 0.58) { const u = (t - 0.38) / 0.20; r = 12 + u * 30;   g = 190 + u * 40;  b = 230 - u * 180; }
+  else if (t < 0.78) { const u = (t - 0.58) / 0.20; r = 42 + u * 200;  g = 230;           b = 50 - u * 50; }
+  else               { const u = (t - 0.78) / 0.22; r = 242;           g = 230 - u * 200; b = 0; }
+  return [r | 0, g | 0, b | 0];
 }
 
 export default function HeatmapCanvas({
   engines, getBook, getNow, running = true,
-  toggles, columnIntervalMs = 150,
+  toggles, columnIntervalMs = 200,
 }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
-  const offRef = useRef(null);        // offscreen scroll buffer
+  const offRef = useRef(null);        // small heatmap buffer (maxCols × rows)
+  const gridRef = useRef(null);
   const dimsRef = useRef({ W: 0, H: 0, dpr: 1 });
   const genRef = useRef(-1);
   const rafRef = useRef(0);
   const colTimerRef = useRef(0);
 
-  // ── Size to container (and on resize) ──
+  // ── Size to container ──
   useEffect(() => {
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
     if (!wrap || !canvas) return;
-
     const resize = () => {
       const rect = wrap.getBoundingClientRect();
       const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -56,55 +58,52 @@ export default function HeatmapCanvas({
       canvas.height = H * dpr;
       canvas.style.width = W + 'px';
       canvas.style.height = H + 'px';
-      // (Re)build offscreen buffer at device pixels.
-      const off = document.createElement('canvas');
-      off.width = W * dpr;
-      off.height = H * dpr;
-      offRef.current = off;
-      genRef.current = -1;   // force heatmap redraw baseline
     };
-
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(wrap);
     return () => ro.disconnect();
   }, []);
 
-  // ── Column cadence: push a real depth snapshot column on a fixed beat ──
+  // small offscreen at grid resolution (independent of pixel size)
+  useEffect(() => {
+    const hm = engines.heatmap;
+    const off = document.createElement('canvas');
+    off.width = hm.maxCols;
+    off.height = hm.rows;
+    offRef.current = off;
+    gridRef.current = new Float32Array(hm.maxCols * hm.rows);
+  }, [engines]);
+
+  // ── Column cadence: sample range, push column, rebuild heatmap buffer ──
   useEffect(() => {
     const tick = () => {
       const hm = engines.heatmap;
       const off = offRef.current;
-      const { W, H, dpr } = dimsRef.current;
       if (!hm || !off) return;
 
-      // Buffer was rebuilt/cleared → wipe and resync generation.
-      if (genRef.current !== hm.generation) {
-        const octx = off.getContext('2d');
-        octx.clearRect(0, 0, off.width, off.height);
+      if (genRef.current !== hm.generation) {     // symbol switch / clear
+        off.getContext('2d').clearRect(0, 0, off.width, off.height);
         genRef.current = hm.generation;
       }
-
       if (!running) return;
       const book = getBook && getBook();
       if (book && book.ready && !book.isStale()) {
         const mid = book.mid();
         if (mid) {
-          // Maintain the price→Y window ALWAYS (even with the heatmap toggled
-          // off) so bubbles / BBO / icebergs stay correctly positioned.
-          hm.maybeRecenter(mid);               // may bump generation → handled next tick
-          if (toggles.heatmap) {
-            hm.pushColumn(book);
-            _scrollAndDrawColumn(off, hm, W, H, dpr);
-          }
+          // Maintain the shared range ALWAYS (so bubbles/candles stay aligned
+          // even with the heatmap toggled off).
+          hm.recordSample(mid, getNow ? getNow() : Date.now());
+          hm.pushColumn(book);
+          if (toggles.heatmap) _renderHeatmap(off, hm);
         }
       }
     };
     colTimerRef.current = setInterval(tick, columnIntervalMs);
     return () => clearInterval(colTimerRef.current);
-  }, [engines, getBook, running, toggles.heatmap, columnIntervalMs]);
+  }, [engines, getBook, getNow, running, toggles.heatmap, columnIntervalMs]);
 
-  // ── Overlay rAF loop: blit heatmap + draw bubbles/BBO/markers/axes ──
+  // ── Overlay rAF loop ──
   useEffect(() => {
     const loop = () => {
       const canvas = canvasRef.current;
@@ -119,17 +118,16 @@ export default function HeatmapCanvas({
         ctx.fillRect(0, 0, W, H);
 
         if (toggles.heatmap) {
+          ctx.imageSmoothingEnabled = true;       // bilinear upscale → smooth map
+          ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(off, 0, 0, off.width, off.height, 0, 0, W, H);
         }
 
-        // ── SINGLE shared price→Y mapping ──────────────────────────────
-        // Heatmap base (via priceToRow), BBO, bubbles, iceberg/stop markers and
-        // the price line ALL derive their Y from this one yOf + the heatmap
-        // engine's range, so a bubble at price P sits exactly on P's heat band.
+        // ── SINGLE shared price→Y mapping for every layer ──
         const pMin = hm.pMin, pMax = hm.pMax;
         const span = pMax - pMin;
         const yOf = (price) => span > 0 ? ((pMax - price) / span) * H : -1;
-        const windowMs = engines.heatmap.maxCols * columnIntervalMs;
+        const windowMs = hm.maxCols * columnIntervalMs;
         const now = getNow ? getNow() : Date.now();
         const xOf = (ts) => W - ((now - ts) / windowMs) * W;
 
@@ -137,9 +135,10 @@ export default function HeatmapCanvas({
 
         if (span > 0) {
           if (toggles.bbo)      drawBBO(ctx, engines.bbo, { W, H, yOf, xOf, now, windowMs });
+          if (toggles.candles)  drawCandles(ctx, engines.candle, { W, H, yOf, xOf });
           if (toggles.bubbles)  drawBubbles(ctx, engines.bubbles, { W, H, yOf, xOf, now });
           if (toggles.icebergs) _drawMarkers(ctx, engines.iceberg, { W, H, yOf, now });
-          _drawPriceLine(ctx, getBook && getBook(), { W, H, yOf });
+          _drawPriceLine(ctx, engines.heatmap, { W, H, yOf, xOf, getBook });
         }
       }
       rafRef.current = requestAnimationFrame(loop);
@@ -150,28 +149,32 @@ export default function HeatmapCanvas({
 
   return <div className="bm-canvas-wrap" ref={wrapRef}><canvas ref={canvasRef} className="bm-canvas" /></div>;
 
-  // ── helpers (closures over heatColor) ──
-  function _scrollAndDrawColumn(off, hm, W, H, dpr) {
-    const octx = off.getContext('2d');
-    const colW = (W / hm.maxCols) * dpr;
-    // Scroll existing content left by one column.
-    octx.globalCompositeOperation = 'copy';
-    octx.drawImage(off, -colW, 0);
-    octx.globalCompositeOperation = 'source-over';
-    // Clear the new rightmost strip, then rasterise the newest column.
-    const xRight = off.width - colW;
-    octx.clearRect(xRight, 0, colW, off.height);
-    const col = hm.columns[hm.columns.length - 1];
-    if (!col) return;
-    const rowH = off.height / hm.rows;
+  // Rasterise the heatmap grid to the small offscreen via ImageData (palette),
+  // with a light vertical smear so the upscaled map reads as continuous.
+  function _renderHeatmap(off, hm) {
+    const grid = hm.buildGrid(gridRef.current);
+    gridRef.current = grid;
+    const { rows, maxCols } = hm;
     const norm = hm.maxIntensity || 1;
-    for (let r = 0; r < hm.rows; r++) {
-      const v = col[r];
-      if (v <= 0) continue;
-      const t = Math.pow(v / norm, 0.55);   // gamma lift so mid liquidity shows
-      octx.fillStyle = heatColor(t);
-      octx.fillRect(xRight, r * rowH, colW + 1, rowH + 1);
+    const octx = off.getContext('2d');
+    const img = octx.createImageData(maxCols, rows);
+    const d = img.data;
+    for (let x = 0; x < maxCols; x++) {
+      const base = x * rows;
+      for (let r = 0; r < rows; r++) {
+        // vertical smear: blend the cell with its neighbours (1-2-1)
+        const v = (grid[base + r] * 2 +
+                   (r > 0 ? grid[base + r - 1] : 0) +
+                   (r < rows - 1 ? grid[base + r + 1] : 0)) / 4;
+        if (v <= 0) continue;
+        const t = Math.pow(v / norm, 0.55);
+        const [cr, cg, cb] = heatRGB(t);
+        const idx = (r * maxCols + x) * 4;
+        d[idx] = cr; d[idx + 1] = cg; d[idx + 2] = cb;
+        d[idx + 3] = Math.min(255, 60 + t * 195);   // faint→opaque with intensity
+      }
     }
+    octx.putImageData(img, 0, 0);
   }
 }
 
@@ -183,7 +186,6 @@ function _drawMarkers(ctx, iceberg, { W, H, yOf, now }) {
     const alpha = Math.max(0.15, 1 - age);
     if (ev.type === 'iceberg') {
       ctx.fillStyle = `rgba(168,139,250,${alpha})`;
-      ctx.strokeStyle = `rgba(168,139,250,${alpha})`;
       ctx.beginPath();
       ctx.moveTo(W - 60, y);
       ctx.lineTo(W - 50, y - 5);
@@ -207,13 +209,28 @@ function _drawMarkers(ctx, iceberg, { W, H, yOf, now }) {
   }
 }
 
-function _drawPriceLine(ctx, book, { W, H, yOf }) {
-  if (!book || !book.ready) return;
-  const mid = book.mid();
+// Moving price line — thin bright trace of recent mid prices over time.
+function _drawPriceLine(ctx, hm, { W, H, yOf, xOf, getBook }) {
+  const samples = hm.samples;
+  if (samples && samples.length > 1) {
+    ctx.beginPath();
+    let started = false;
+    for (const s of samples) {
+      const x = xOf(s.ts), y = yOf(s.price);
+      if (y < -20 || y > H + 20) { started = false; continue; }
+      if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = 'rgba(230,230,245,0.55)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  // current-price dashed level + tag
+  const book = getBook && getBook();
+  const mid = book && book.ready ? book.mid() : null;
   if (mid == null) return;
   const y = yOf(mid);
   if (y < 0 || y > H) return;
-  ctx.strokeStyle = 'rgba(212,175,55,0.55)';
+  ctx.strokeStyle = 'rgba(212,175,55,0.6)';
   ctx.setLineDash([3, 3]);
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -221,3 +238,5 @@ function _drawPriceLine(ctx, book, { W, H, yOf }) {
   ctx.stroke();
   ctx.setLineDash([]);
 }
+
+export { heatRGB };
