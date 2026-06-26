@@ -1,20 +1,19 @@
 /**
- * ZoomControls — Nanosecond Zoom on the price axis. The slider tightens the
- * vertical price window (± fraction of mid). At maximum zoom the window is a few
- * ticks wide, so every individual liquidity/price update is visible — not an
- * average. Changing zoom re-centres the heatmap window.
+ * ZoomControls — vertical zoom on the auto-ranging price axis. The slider scales
+ * the visible band (zoom multiplier on the rolling min/max window): tighter →
+ * candles & liquidity spread out for tick-level detail; wider → more context.
  */
 const STEPS = [
-  { label: '±2%',    v: 0.02 },
-  { label: '±1%',    v: 0.01 },
-  { label: '±0.5%',  v: 0.005 },
-  { label: '±0.2%',  v: 0.002 },
-  { label: '±0.05%', v: 0.0005 },   // tick-level "nanosecond" zoom
+  { label: 'צמוד', v: 0.4 },
+  { label: '0.7×', v: 0.7 },
+  { label: '1×',   v: 1 },
+  { label: '1.6×', v: 1.6 },
+  { label: 'רחב',  v: 2.6 },
 ];
 
-export default function ZoomControls({ halfSpanPct, onChange }) {
+export default function ZoomControls({ zoomMult, onChange }) {
   const idx = STEPS.reduce((best, s, i) =>
-    Math.abs(s.v - halfSpanPct) < Math.abs(STEPS[best].v - halfSpanPct) ? i : best, 0);
+    Math.abs(s.v - zoomMult) < Math.abs(STEPS[best].v - zoomMult) ? i : best, 0);
 
   return (
     <div className="bm-zoom">

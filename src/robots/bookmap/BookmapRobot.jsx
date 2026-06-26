@@ -25,8 +25,11 @@ import VolumeBubblesEngine from './engine/VolumeBubblesEngine';
 import BBOEngine from './engine/BBOEngine';
 import IcebergStopsEngine from './engine/IcebergStopsEngine';
 import MarketPulseEngine from './engine/MarketPulseEngine';
+import CandleEngine from './engine/CandleEngine';
+import VolumeProfileEngine from './engine/VolumeProfileEngine';
 
 import HeatmapCanvas from './render/HeatmapCanvas';
+import VolumeProfilePanel from './render/VolumeProfilePanel';
 import DOMPanel from './render/DOMPanel';
 import PulseFeed from './render/PulseFeed';
 import SymbolPicker from './controls/SymbolPicker';
@@ -55,8 +58,8 @@ export default function BookmapRobot({ navigate }) {
   const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const isCrypto = /USDT$/.test(symbol);   // our picker only yields live USDT pairs
 
-  const [toggles, setToggles] = useState({ heatmap: true, bubbles: true, bbo: true, icebergs: true });
-  const [halfSpan, setHalfSpan] = useState(0.01);
+  const [toggles, setToggles] = useState({ heatmap: true, candles: true, bubbles: true, bbo: true, icebergs: true, profile: true });
+  const [zoomMult, setZoomMult] = useState(1);   // vertical zoom multiplier on the auto-range
   const [status, setStatus] = useState({ depth: 'connecting', trade: 'connecting', bbo: 'connecting' });
   const [recording, setRecording] = useState(false);
   const [recCount, setRecCount] = useState(0);
@@ -69,11 +72,13 @@ export default function BookmapRobot({ navigate }) {
   const enginesRef = useRef(null);
   if (!enginesRef.current) {
     enginesRef.current = {
-      heatmap: new HeatmapEngine({ halfSpanPct: 0.01 }),
+      heatmap: new HeatmapEngine(),
       bubbles: new VolumeBubblesEngine(),
       bbo: new BBOEngine(),
       iceberg: new IcebergStopsEngine(),
       pulse: new MarketPulseEngine(),
+      candle: new CandleEngine(),
+      profile: new VolumeProfileEngine(),
     };
   }
   const engines = enginesRef.current;
@@ -117,6 +122,8 @@ export default function BookmapRobot({ navigate }) {
   const handleTrade = useCallback((t) => {
     engines.bubbles.addTrade(t);
     engines.bbo.addTrade(t);
+    engines.candle.addTrade(t);
+    engines.profile.addTrade(t);
     const before = engines.iceberg.events.length;
     engines.iceberg.onTrade(t);
     const sweep = engines.iceberg.events.length > before &&
@@ -171,7 +178,7 @@ export default function BookmapRobot({ navigate }) {
   // (re)start feeds on symbol change; full cleanup on unmount
   useEffect(() => {
     if (inReplayRef.current) return;   // don't disturb an active replay
-    engines.heatmap.setZoom(halfSpan);
+    engines.heatmap.setZoomMult(zoomMult);
     startLive(symbol);
     return () => {
       feedsRef.current.depth?.stop();
@@ -181,8 +188,8 @@ export default function BookmapRobot({ navigate }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol]);
 
-  // Apply zoom changes to the heatmap window
-  useEffect(() => { engines.heatmap.setZoom(halfSpan); }, [engines, halfSpan]);
+  // Apply zoom multiplier to the heatmap auto-range
+  useEffect(() => { engines.heatmap.setZoomMult(zoomMult); }, [engines, zoomMult]);
 
   // Full unmount cleanup (sockets + recorder)
   useEffect(() => () => {
@@ -236,7 +243,7 @@ export default function BookmapRobot({ navigate }) {
     const ticks = replayTicksRef.current;
     const book = new OrderBookState();
     Object.values(engines).forEach(e => e.clear && e.clear());
-    engines.heatmap.setZoom(halfSpan);
+    engines.heatmap.setZoomMult(zoomMult);
     for (const tk of ticks) {
       if (tk.ts > playhead) break;
       if (tk.kind === 'snapshot') book.applySnapshot(tk.data);
@@ -246,11 +253,13 @@ export default function BookmapRobot({ navigate }) {
         engines.bbo.addTrade(tk.data);
         engines.iceberg.onTrade(tk.data);
         engines.pulse.addTrade(tk.data, false);
+        engines.candle.addTrade(tk.data);
+        engines.profile.addTrade(tk.data);
       } else if (tk.kind === 'bbo') engines.bbo.addBBO(tk.data);
     }
     replayBookRef.current = book;
     nowRef.current = playhead;
-  }, [engines, halfSpan]);
+  }, [engines, zoomMult]);
 
   const enterReplay = useCallback(async () => {
     if (!recordStore.current) return;
@@ -299,6 +308,7 @@ export default function BookmapRobot({ navigate }) {
         else if (tk.kind === 'trade') {
           engines.bubbles.addTrade(tk.data); engines.bbo.addTrade(tk.data);
           engines.iceberg.onTrade(tk.data); engines.pulse.addTrade(tk.data, false);
+          engines.candle.addTrade(tk.data); engines.profile.addTrade(tk.data);
         } else if (tk.kind === 'bbo') engines.bbo.addBBO(tk.data);
       }
       if (replayBookRef.current) engines.iceberg.onBook(replayBookRef.current);
@@ -356,7 +366,7 @@ export default function BookmapRobot({ navigate }) {
       {/* ── Controls — sticky row directly under the header (always visible) ── */}
       <div className="bm-controls">
         <IndicatorToggles toggles={toggles} onToggle={(k) => setToggles(t => ({ ...t, [k]: !t[k] }))} />
-        <ZoomControls halfSpanPct={halfSpan} onChange={setHalfSpan} />
+        <ZoomControls zoomMult={zoomMult} onChange={setZoomMult} />
       </div>
 
       {!isCrypto && (
@@ -375,6 +385,7 @@ export default function BookmapRobot({ navigate }) {
             running={isCrypto}
             toggles={toggles}
           />
+          {toggles.profile && <VolumeProfilePanel engines={engines} getBook={getBook} />}
         </div>
         <div className="bm-side">
           <DOMPanel getBook={getBook} />

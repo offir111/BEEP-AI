@@ -3,9 +3,11 @@
  */
 const ITEMS = [
   { key: 'heatmap',  label: '🌡️ Heatmap' },
+  { key: 'candles',  label: '🕯️ נרות' },
   { key: 'bubbles',  label: '🫧 בועות' },
   { key: 'bbo',      label: '📏 BBO' },
   { key: 'icebergs', label: '🧊 Iceberg/Stop' },
+  { key: 'profile',  label: '📊 Volume Profile' },
 ];
 
 export default function IndicatorToggles({ toggles, onToggle }) {
