@@ -12,9 +12,9 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 8px 4px;
+  padding: 8px 4px 14px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 .bm-title {
   font-weight: 800;
