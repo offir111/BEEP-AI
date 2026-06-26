@@ -2,7 +2,7 @@
  * /api/binance?ep=ticker/24hr | ?ep=ticker&symbols=[..]&windowSize=1h
  * Passthrough to Binance public mirror (works behind a client-side Binance block).
  */
-const ALLOWED = ['ticker/24hr', 'ticker', 'ticker/price', 'klines'];
+const ALLOWED = ['ticker/24hr', 'ticker', 'ticker/price', 'klines', 'depth', 'exchangeInfo'];
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

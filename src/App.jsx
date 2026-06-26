@@ -24,13 +24,14 @@ import MyAlertsPage      from './pages/MyAlertsPage';
 import ProfilePage       from './pages/ProfilePage';
 import GainersPage       from './pages/GainersPage';
 import TgmPage           from './pages/TgmPage';
+import BookmapRobot      from './robots/bookmap/BookmapRobot';
 import NotFoundPage      from './pages/NotFoundPage';
 import './App.css';
 
 const VALID_PAGES = [
   'home','charts','crypto','news','alerts',
   'model-w','model-bit','model-smc','model-grid',
-  'finviz','etoro','twitter','daily','sot','heatmap','myalerts','profile','gainers','tgm'
+  'finviz','etoro','twitter','daily','sot','heatmap','myalerts','profile','gainers','tgm','bookmap'
 ];
 
 // UX-07: Offline detection banner
@@ -69,6 +70,7 @@ const PAGE_TITLES = {
   profile: '👤 הפרופיל שלי',
   gainers: '🚀 GAINERS — זמן אמת',
   tgm: '🛰️ TGM — סורק לידים',
+  bookmap: '🗺️ BOOK MAP — עומק ספר חי',
 };
 
 function PageTopBar({ page, onBack, onClose }) {
@@ -173,6 +175,7 @@ function AppInner() {
         {page === 'profile'    && <ProfilePage username={session.username} loginAt={session.loginAt} />}
         {page === 'gainers'    && <GainersPage />}
         {page === 'tgm'        && <TgmPage navigate={navigate} />}
+        {page === 'bookmap'    && <BookmapRobot navigate={navigate} />}
         {page === '404'       && <NotFoundPage navigate={navigate} />}
       </main>
     </div>

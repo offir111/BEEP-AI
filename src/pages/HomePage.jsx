@@ -495,6 +495,7 @@ export default function HomePage({ navigate }) {
         <RobotCard icon="📋" name="ETORO"   desc="קופי טריידינג"            tag="Demo"  tagColor="#94a3b8" onClick={() => navigate('etoro')} />
         <RobotCard icon="📐" name="GRID"    desc="גריד BTC — רמות קנייה"   tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('model-grid')} />
         <RobotCard icon="🗞️" name="NEWS AI" desc="חדשות מדורגות AI"         tag="אצור"  tagColor="#94a3b8" onClick={() => navigate('daily')} />
+        <RobotCard icon="🗺️" name="BOOK MAP" desc="Heatmap עומק ספר חי"     tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('bookmap')} />
       </div>
 
     </div>
