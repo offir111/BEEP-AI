@@ -318,12 +318,6 @@ export default function BookmapRobot({ navigate }) {
     setReplay(r => ({ ...r, progress: p }));
   }, [rebuildTo]);
 
-  // ── Demo order (no real trading) ──
-  const onDemoOrder = useCallback((side, price) => {
-    setDemoMsg(`DEMO 🟡 ${side === 'buy' ? 'קנייה' : 'מכירה'} וירטואלית @ ${fmtPrice(price)} — לא נשלחה הוראה אמיתית`);
-    setTimeout(() => setDemoMsg(null), 3500);
-  }, []);
-
   // ── Derived UI ──
   const overall = isCrypto ? worstStatus(status.depth, status.trade, status.bbo) : 'demo';
   const book = getBook();
@@ -383,7 +377,7 @@ export default function BookmapRobot({ navigate }) {
           />
         </div>
         <div className="bm-side">
-          <DOMPanel getBook={getBook} demo={!isCrypto} onDemoOrder={onDemoOrder} />
+          <DOMPanel getBook={getBook} />
           <PulseFeed engine={engines.pulse} />
         </div>
       </div>

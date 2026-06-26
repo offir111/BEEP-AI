@@ -1,8 +1,7 @@
 /**
  * DOMPanel — live Depth of Market ladder. Shows ALL near-touch levels (top-N)
  * from the real OrderBookState: bid (green) below, ask (red) above, each with a
- * size histogram. Includes One-Click Trading buttons — clearly DEMO 🟡 (no real
- * order is ever sent).
+ * size histogram.
  */
 import { useState, useEffect } from 'react';
 
@@ -18,7 +17,7 @@ function fmtPrice(p) {
   return p.toFixed(5);
 }
 
-export default function DOMPanel({ getBook, levels = 14, demo = false, onDemoOrder }) {
+export default function DOMPanel({ getBook, levels = 14 }) {
   const [, setTick] = useState(0);
   useEffect(() => {
     const iv = setInterval(() => setTick(t => t + 1), 250);
@@ -58,12 +57,6 @@ export default function DOMPanel({ getBook, levels = 14, demo = false, onDemoOrd
             <span className="bm-dom-price">{fmtPrice(l.price)}</span>
           </div>
         ))}
-      </div>
-
-      <div className="bm-dom-trade">
-        <span className="bm-demo-tag">DEMO 🟡</span>
-        <button className="bm-buy" onClick={() => onDemoOrder && onDemoOrder('buy', book?.bestAsk())}>קנה</button>
-        <button className="bm-sell" onClick={() => onDemoOrder && onDemoOrder('sell', book?.bestBid())}>מכור</button>
       </div>
     </div>
   );

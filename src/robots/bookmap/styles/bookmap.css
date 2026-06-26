@@ -136,16 +136,6 @@
   color: var(--accent-gold); background: var(--bg-secondary);
   border-block: 1px solid var(--border);
 }
-.bm-dom-trade {
-  display: flex; align-items: center; gap: 6px; padding: 8px; border-top: 1px solid var(--border);
-}
-.bm-demo-tag { font-size: 0.62rem; font-weight: 800; color: #eab308; }
-.bm-buy, .bm-sell {
-  flex: 1; padding: 7px; border-radius: 7px; font-weight: 800; font-size: 0.8rem; color: #fff;
-}
-.bm-buy { background: #16a34a; }
-.bm-sell { background: #dc2626; }
-
 /* Pulse */
 .bm-pulse {
   border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card);
