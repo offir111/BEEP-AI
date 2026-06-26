@@ -3,18 +3,19 @@
 כל קוד הרובוט מבודד תחת `src/robots/bookmap/`. מחוץ לתיקייה נגענו **בשתי נקודות מגע** בלבד
 (+ הרחבת פרוקסי backend אחת). להסרה מלאה — מחק את התיקייה והפוך את השינויים הבאים.
 
-## 1. Route + full-bleed render — `src/App.jsx`
+## 1. Route — `src/App.jsx`
 - `import BookmapRobot from './robots/bookmap/BookmapRobot';`
-- `'bookmap'` נוסף למערך `VALID_PAGES`.
-- `bookmap: '🗺️ BOOK MAP — עומק ספר חי'` נוסף ל-`PAGE_TITLES` (כותרת ה-PageTopbar המשותפת
-  — לא בשימוש יותר בעמוד זה, ראה למטה, אך מושאר לשלמות).
-- **Full-bleed (2026-06-26):** העמוד מרונדר ללא ה-chrome המשותף (Header/NavBar/PageTopBar),
-  עם סרגל עליון יחיד משלו, דרך early-return ב-`AppInner`:
+- `'bookmap'` נוסף למערך `VALID_PAGES` ו-`PAGE_TITLES`.
+- שורת רינדור בתוך `<main className="app-main">` (כמו כל רובוט אחר):
+  `{page === 'bookmap' && <BookmapRobot navigate={navigate} />}`
+- **העמוד יושב בתוך ה-shell המשותף הסטנדרטי** (Header + NavBar + `app-main` ממורכז עם
+  max-width) — בדיוק כמו FINVIZ ושאר הרובוטים. לא נגענו ב-Header/NavBar.
+- **נגיעה יחידה (2026-06-26 fix2):** ה-`PageTopBar` המשותף (X אדום + כותרת + "חזור") מוסתר
+  *רק* בעמוד זה, כי הרובוט מספק סרגל מאוחד משלו במקומו:
   ```jsx
-  if (page === 'bookmap') { return <BookmapRobot navigate={navigate} />; }
+  {page !== 'bookmap' && <PageTopBar ... />}
   ```
-  שורת הרינדור הישנה בתוך `<main>` הוסרה (מיותרת בגלל ה-early-return).
-  זוהי הדרך שאושרה לבידוד: לא נגענו ב-Header/NavBar/PageTopBar עצמם — רק עוקפים אותם לעמוד זה.
+  זו תוספת תנאי בלבד — לא שינוי של `PageTopBar` עצמו.
 
 ## 2. כרטיס ברשימת "רובוטים" — `src/pages/HomePage.jsx`
 שורה אחת בתוך `<div className="hp-robots">`:

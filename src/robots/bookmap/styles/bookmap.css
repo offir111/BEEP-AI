@@ -1,25 +1,24 @@
-/* ── BOOK MAP robot — full-bleed Bookmap-style terminal (RTL) ── */
+/* ── BOOK MAP robot — Bookmap-style terminal inside the standard site shell (RTL) ── */
 .bm-root {
-  height: 100vh;
-  height: 100dvh;
   width: 100%;
   display: flex;
   flex-direction: column;
   color: var(--text-primary);
-  background: var(--bg-primary);
-  overflow: hidden;
 }
 
-/* ── Single top bar (everything lives here) ── */
+/* ── Single robot bar (sits in place of the shared PageTopBar) ── */
 .bm-topbar {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 6px 8px;
   background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-  min-height: 46px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  min-height: 44px;
+  flex-wrap: wrap;
   overflow: visible;
 }
 .bm-topbar-spacer { flex: 1 1 auto; }
@@ -130,9 +129,9 @@
 .bm-sym-item--on { color: var(--accent-gold); background: var(--bg-hover); }
 .bm-sym-empty { padding: 10px; color: var(--text-muted); font-size: 0.8rem; text-align: center; }
 
-/* Main layout — fills all height under the top bar; chart big, side panels
-   scroll internally. */
-.bm-main { display: flex; gap: 6px; flex: 1 1 auto; min-height: 0; padding: 6px; }
+/* Main layout — big chart inside the standard container; side panels scroll
+   internally. Height is a large fixed band (not full-viewport). */
+.bm-main { display: flex; gap: 6px; height: min(640px, calc(100vh - 230px)); min-height: 420px; }
 .bm-chart {
   flex: 1 1 auto;
   min-width: 0;
@@ -244,9 +243,8 @@
 
 /* Responsive: DOM/Pulse below the chart on narrow screens */
 @media (max-width: 820px) {
-  .bm-root { height: auto; min-height: 100vh; overflow: visible; }
   .bm-topbar { flex-wrap: wrap; }
-  .bm-main { flex-direction: column; height: auto; flex: none; }
+  .bm-main { flex-direction: column; height: auto; }
   .bm-side { width: 100%; height: auto; flex: none; flex-direction: row; }
   .bm-side > * { flex: 1; height: 320px; }
   .bm-chart { height: 60vh; }
