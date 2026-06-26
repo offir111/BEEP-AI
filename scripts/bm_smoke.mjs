@@ -43,7 +43,7 @@ vb.addTrade({price:10,qty:50,buyerMaker:true,ts:5000});
 ok(vb.bubbles.length===2,'two distinct bubbles');
 ok(vb.bubbles[0].buy===true && vb.bubbles[1].buy===false,'buy/sell colour mapping');
 ok(vb.maxQty===50,'maxQty tracks largest');
-vb.prune(20000); ok(vb.bubbles.length===0,'old bubbles pruned');
+vb.prune(80000); ok(vb.bubbles.length===0,'old bubbles pruned past lifeMs');
 
 const ic=new IcebergStopsEngine({sweepLevels:4,sweepWindowMs:1200});
 let ts=0; for(let i=0;i<8;i++){ ic.onTrade({price:100+i,qty:1,buyerMaker:false,ts:ts+=50}); }

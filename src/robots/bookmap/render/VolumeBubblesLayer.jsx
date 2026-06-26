@@ -13,9 +13,10 @@ export function drawBubbles(ctx, engine, { W, H, yOf, xOf, now }) {
     if (x < -60 || x > W + 60 || y < -30 || y > H + 30) continue;
     const age = (now - b.ts) / engine.lifeMs;          // 0..1
     if (age >= 1) continue;
-    const alpha = Math.max(0, 0.92 * (1 - age * 0.65));
-    // Bigger, clamped radius so even small trades read.
-    const r = 5 + 38 * Math.sqrt(Math.min(1, b.qty / maxQty));
+    // Semi-transparent (~0.5–0.65) so the heatmap reads through; gentle fade with age.
+    const alpha = Math.max(0.12, 0.66 * (1 - age * 0.5));
+    // Radius ∝ volume, clamped so small trades still read and giants don't blow up.
+    const r = Math.min(34, 5 + 34 * Math.sqrt(Math.min(1, b.qty / maxQty)));
 
     const core = b.buy ? [190, 255, 210] : [255, 205, 215];
     const mid  = b.buy ? [46, 208, 124]  : [255, 77, 109];
