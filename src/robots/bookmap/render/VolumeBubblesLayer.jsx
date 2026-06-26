@@ -10,27 +10,35 @@ export function drawBubbles(ctx, engine, { W, H, yOf, xOf, now }) {
   for (const b of engine.bubbles) {
     const x = xOf(b.ts);
     const y = yOf(b.price);
-    if (x < -50 || x > W + 50 || y < -20 || y > H + 20) continue;
+    if (x < -60 || x > W + 60 || y < -30 || y > H + 30) continue;
     const age = (now - b.ts) / engine.lifeMs;          // 0..1
     if (age >= 1) continue;
-    const alpha = Math.max(0, 0.9 * (1 - age * 0.7));
-    const r = 3 + 26 * Math.sqrt(Math.min(1, b.qty / maxQty));
+    const alpha = Math.max(0, 0.92 * (1 - age * 0.65));
+    // Bigger, clamped radius so even small trades read.
+    const r = 5 + 38 * Math.sqrt(Math.min(1, b.qty / maxQty));
 
-    // 3D sphere: offset highlight + radial gradient core→rim
-    const core = b.buy ? [180, 255, 200] : [255, 200, 210];
-    const mid  = b.buy ? [46, 208, 124]  : [239, 67, 97];
-    const rim  = b.buy ? [12, 110, 60]   : [150, 28, 60];
-    const g = ctx.createRadialGradient(x - r * 0.32, y - r * 0.32, r * 0.1, x, y, r);
+    const core = b.buy ? [190, 255, 210] : [255, 205, 215];
+    const mid  = b.buy ? [46, 208, 124]  : [255, 77, 109];
+    const rim  = b.buy ? [10, 120, 64]   : [165, 30, 64];
+
+    // soft glow → bubble floats above heatmap/candles
+    ctx.shadowColor = b.buy ? `rgba(46,208,124,${alpha * 0.7})` : `rgba(255,77,109,${alpha * 0.7})`;
+    ctx.shadowBlur = Math.min(26, r * 0.9);
+
+    const g = ctx.createRadialGradient(x - r * 0.34, y - r * 0.34, r * 0.08, x, y, r);
     g.addColorStop(0,   `rgba(${core[0]},${core[1]},${core[2]},${alpha})`);
-    g.addColorStop(0.45,`rgba(${mid[0]},${mid[1]},${mid[2]},${alpha * 0.92})`);
-    g.addColorStop(1,   `rgba(${rim[0]},${rim[1]},${rim[2]},${alpha * 0.85})`);
+    g.addColorStop(0.45,`rgba(${mid[0]},${mid[1]},${mid[2]},${alpha * 0.9})`);
+    g.addColorStop(1,   `rgba(${rim[0]},${rim[1]},${rim[2]},${alpha * 0.8})`);
 
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fillStyle = g;
     ctx.fill();
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = `rgba(${rim[0]},${rim[1]},${rim[2]},${alpha})`;
+
+    // bright rim highlight (no shadow on the stroke)
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = `rgba(${core[0]},${core[1]},${core[2]},${alpha * 0.7})`;
     ctx.stroke();
   }
   ctx.restore();
