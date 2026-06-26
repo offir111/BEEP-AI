@@ -359,6 +359,12 @@ export default function BookmapRobot({ navigate }) {
         )}
       </div>
 
+      {/* ── Controls — sticky row directly under the header (always visible) ── */}
+      <div className="bm-controls">
+        <IndicatorToggles toggles={toggles} onToggle={(k) => setToggles(t => ({ ...t, [k]: !t[k] }))} />
+        <ZoomControls halfSpanPct={halfSpan} onChange={setHalfSpan} />
+      </div>
+
       {!isCrypto && (
         <div className="bm-demo-banner">
           🟡 DEMO — לסימבול זה אין עומק ספר חינמי. הצג מטבע USDT (כגון BTCUSDT) לנתוני אמת.
@@ -380,12 +386,6 @@ export default function BookmapRobot({ navigate }) {
           <DOMPanel getBook={getBook} demo={!isCrypto} onDemoOrder={onDemoOrder} />
           <PulseFeed engine={engines.pulse} />
         </div>
-      </div>
-
-      {/* ── Controls ── */}
-      <div className="bm-controls">
-        <ZoomControls halfSpanPct={halfSpan} onChange={setHalfSpan} />
-        <IndicatorToggles toggles={toggles} onToggle={(k) => setToggles(t => ({ ...t, [k]: !t[k] }))} />
       </div>
 
       <ReplayControls
