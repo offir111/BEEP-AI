@@ -135,6 +135,7 @@ export default function HeatmapCanvas({
 
         if (span > 0) {
           if (toggles.bbo)      drawBBO(ctx, engines.bbo, { W, H, yOf, xOf, now, windowMs });
+          if (toggles.bbo && engines.vwap) _drawVWAP(ctx, engines.vwap, { W, H, yOf, xOf });
           if (toggles.candles)  drawCandles(ctx, engines.candle, { W, H, yOf, xOf });
           if (toggles.bubbles)  drawBubbles(ctx, engines.bubbles, { W, H, yOf, xOf, now });
           if (toggles.icebergs) _drawMarkers(ctx, engines.iceberg, { W, H, yOf, now });
@@ -214,6 +215,33 @@ function _drawMarkers(ctx, iceberg, { W, H, yOf, now }) {
 }
 
 // Moving price line — thin bright trace of recent mid prices over time.
+// VWAP — session volume-weighted average price as a gold line over time.
+function _drawVWAP(ctx, eng, { W, H, yOf, xOf }) {
+  const pts = eng.points;
+  if (!pts || pts.length < 2) return;
+  ctx.beginPath();
+  let started = false;
+  for (const p of pts) {
+    const x = xOf(p.ts), y = yOf(p.v);
+    if (y < -20 || y > H + 20) { started = false; continue; }
+    if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = 'rgba(245,200,66,0.95)';
+  ctx.lineWidth = 1.6;
+  ctx.setLineDash([6, 3]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // label at the latest point
+  const last = pts[pts.length - 1];
+  const y = yOf(last.v);
+  if (y >= 0 && y <= H) {
+    ctx.fillStyle = 'rgba(245,200,66,1)';
+    ctx.font = 'bold 10px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('VWAP', 6, y - 4);
+  }
+}
+
 // Large Lot Tracker — arrows on the price-axis gutter for the biggest trades.
 function _drawLargeLots(ctx, eng, { W, H, yOf, now }) {
   const norm = eng.maxNotional || 1;
