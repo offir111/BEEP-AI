@@ -102,6 +102,12 @@ export default function VolumeProfilePanel({ engines, getBook }) {
           // ── Vol Profile: traded volume per level ──
           const { buy, sell, max } = engines.profile.profile(pMin, pMax, ROWS);
           const vmax = max || 1;
+          // Point of Control = the price row with the most executed volume.
+          let pocRow = -1, pocVol = 0;
+          for (let r = 0; r < ROWS; r++) {
+            const v = buy[r] + sell[r];
+            if (v > pocVol) { pocVol = v; pocRow = r; }
+          }
           for (let r = 0; r < ROWS; r++) {
             const y = yOfRow(r);
             const tot = buy[r] + sell[r];
@@ -125,6 +131,20 @@ export default function VolumeProfilePanel({ engines, getBook }) {
               ctx.fillStyle = 'rgba(255,209,102,0.12)';
               ctx.fillRect(0, y, W, Math.max(1, rowH));
             }
+          }
+
+          // ── POC (Point of Control) — the max-volume price level ──
+          if (pocRow >= 0 && pocVol > 0) {
+            const y = yOfRow(pocRow);
+            ctx.strokeStyle = 'rgba(255,77,210,0.95)';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(0, y + rowH / 2); ctx.lineTo(W, y + rowH / 2);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(255,77,210,1)';
+            ctx.font = 'bold 9px Inter, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText('POC', W - 3, y + rowH / 2 - 3);
           }
         }
       }
