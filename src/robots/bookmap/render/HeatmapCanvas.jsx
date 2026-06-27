@@ -139,6 +139,7 @@ export default function HeatmapCanvas({
           if (toggles.candles)  drawCandles(ctx, engines.candle, { W, H, yOf, xOf });
           if (toggles.bubbles)  drawBubbles(ctx, engines.bubbles, { W, H, yOf, xOf, now });
           if (toggles.icebergs) _drawMarkers(ctx, engines.iceberg, { W, H, yOf, now });
+          if (toggles.icebergs && engines.spoof) _drawSpoof(ctx, engines.spoof, { W, H, yOf, now });
           if (toggles.bubbles && engines.largeLot) _drawLargeLots(ctx, engines.largeLot, { W, H, yOf, now });
           _drawPriceLine(ctx, engines.heatmap, { W, H, yOf, xOf, getBook });
         }
@@ -215,6 +216,27 @@ function _drawMarkers(ctx, iceberg, { W, H, yOf, now }) {
 }
 
 // Moving price line — thin bright trace of recent mid prices over time.
+// Spoofing / layering — big walls pulled before price reached them.
+function _drawSpoof(ctx, eng, { W, H, yOf, now }) {
+  for (const ev of eng.events) {
+    const y = yOf(ev.price);
+    if (y < 0 || y > H) continue;
+    const age = (now - ev.ts) / eng.eventLifeMs;
+    const alpha = Math.max(0.15, 1 - age);
+    ctx.strokeStyle = `rgba(255,159,28,${alpha})`;
+    ctx.setLineDash([2, 3]);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, y); ctx.lineTo(W, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = `rgba(255,159,28,${Math.min(1, alpha + 0.1)})`;
+    ctx.font = 'bold 10px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`👻 SPOOF ${ev.side === 'bid' ? '▲' : '▼'}`, W - 70, y - 4);
+  }
+}
+
 // VWAP — session volume-weighted average price as a gold line over time.
 function _drawVWAP(ctx, eng, { W, H, yOf, xOf }) {
   const pts = eng.points;

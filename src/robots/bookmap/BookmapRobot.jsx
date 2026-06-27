@@ -29,6 +29,7 @@ import VolumeProfileEngine from './engine/VolumeProfileEngine';
 import CVDEngine from './engine/CVDEngine';
 import LargeLotEngine from './engine/LargeLotEngine';
 import VWAPEngine from './engine/VWAPEngine';
+import SpoofEngine from './engine/SpoofEngine';
 
 import HeatmapCanvas from './render/HeatmapCanvas';
 import VolumeProfilePanel from './render/VolumeProfilePanel';
@@ -94,6 +95,7 @@ export default function BookmapRobot({ navigate }) {
       cvd: new CVDEngine(),
       largeLot: new LargeLotEngine(),
       vwap: new VWAPEngine(),
+      spoof: new SpoofEngine(),
     };
   }
   const engines = enginesRef.current;
@@ -130,6 +132,7 @@ export default function BookmapRobot({ navigate }) {
       engines.bubbles.prune(now);
       engines.iceberg.prune(now);
       engines.largeLot.prune(now);
+      engines.spoof.prune(now);
     }, 500);
     return () => clearInterval(iv);
   }, [engines, getNow]);
@@ -171,6 +174,7 @@ export default function BookmapRobot({ navigate }) {
       onUpdate: (book) => {
         liveBookRef.current = book;
         engines.iceberg.onBook(book);
+        engines.spoof.onBook(book);
       },
       onRawDiff: (ev) => {
         if (recordingRef.current && recordStore.current)
@@ -335,7 +339,10 @@ export default function BookmapRobot({ navigate }) {
           engines.vwap.addTrade(tk.data);
         } else if (tk.kind === 'bbo') engines.bbo.addBBO(tk.data);
       }
-      if (replayBookRef.current) engines.iceberg.onBook(replayBookRef.current);
+      if (replayBookRef.current) {
+        engines.iceberg.onBook(replayBookRef.current);
+        engines.spoof.onBook(replayBookRef.current, nowRef.current);
+      }
       nowRef.current = ph;
       const progress = (ph - t0) / span;
       setReplay(r => ({ ...r, progress }));
