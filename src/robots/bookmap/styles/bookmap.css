@@ -42,6 +42,7 @@
 .bm-status--connecting { color: #f59e0b; border-color: #f59e0b55; background: #f59e0b12; }
 .bm-status--down { color: #ef4444; border-color: #ef444455; background: #ef444412; }
 .bm-status--demo { color: #eab308; border-color: #eab30855; background: #eab30812; }
+.bm-status--replay { color: #c084fc; border-color: #c084fc55; background: #c084fc18; }
 
 /* Price — biggest, most prominent element (≈ +30%) */
 .bm-price-big {

@@ -363,13 +363,15 @@ export default function BookmapRobot({ navigate }) {
   const overall = isCrypto ? worstStatus(status.depth, status.trade, status.bbo) : 'demo';
   const book = getBook();
   const stale = book ? book.isStale() : true;
-  const statusInfo = !isCrypto
-    ? { dot: '🟡', text: 'DEMO', cls: 'demo' }
-    : overall === 'live' && !stale
-      ? { dot: '🟢', text: 'LIVE', cls: 'live' }
-      : overall === 'connecting'
-        ? { dot: '🟠', text: 'מתחבר…', cls: 'connecting' }
-        : { dot: '🔴', text: 'מנותק', cls: 'down' };
+  const statusInfo = replay.active
+    ? { dot: '⏯️', text: `שחזור ${Math.round(replay.progress * 100)}%`, cls: 'replay' }
+    : !isCrypto
+      ? { dot: '🟡', text: 'DEMO', cls: 'demo' }
+      : overall === 'live' && !stale
+        ? { dot: '🟢', text: 'LIVE', cls: 'live' }
+        : overall === 'connecting'
+          ? { dot: '🟠', text: 'מתחבר…', cls: 'connecting' }
+          : { dot: '🔴', text: 'מנותק', cls: 'down' };
 
   return (
     <div className="bm-root" dir="rtl">
