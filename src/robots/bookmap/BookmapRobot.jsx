@@ -26,9 +26,11 @@ import IcebergStopsEngine from './engine/IcebergStopsEngine';
 import MarketPulseEngine from './engine/MarketPulseEngine';
 import CandleEngine from './engine/CandleEngine';
 import VolumeProfileEngine from './engine/VolumeProfileEngine';
+import CVDEngine from './engine/CVDEngine';
 
 import HeatmapCanvas from './render/HeatmapCanvas';
 import VolumeProfilePanel from './render/VolumeProfilePanel';
+import CVDPanel from './render/CVDPanel';
 import DOMPanel from './render/DOMPanel';
 import PulseFeed from './render/PulseFeed';
 import SymbolPicker from './controls/SymbolPicker';
@@ -87,6 +89,7 @@ export default function BookmapRobot({ navigate }) {
       pulse: new MarketPulseEngine(),
       candle: new CandleEngine(),
       profile: new VolumeProfileEngine(),
+      cvd: new CVDEngine(),
     };
   }
   const engines = enginesRef.current;
@@ -132,6 +135,7 @@ export default function BookmapRobot({ navigate }) {
     engines.bbo.addTrade(t);
     engines.candle.addTrade(t);
     engines.profile.addTrade(t);
+    engines.cvd.addTrade(t);
     const before = engines.iceberg.events.length;
     engines.iceberg.onTrade(t);
     const sweep = engines.iceberg.events.length > before &&
@@ -263,6 +267,7 @@ export default function BookmapRobot({ navigate }) {
         engines.pulse.addTrade(tk.data, false);
         engines.candle.addTrade(tk.data);
         engines.profile.addTrade(tk.data);
+        engines.cvd.addTrade(tk.data);
       } else if (tk.kind === 'bbo') engines.bbo.addBBO(tk.data);
     }
     replayBookRef.current = book;
@@ -317,6 +322,7 @@ export default function BookmapRobot({ navigate }) {
           engines.bubbles.addTrade(tk.data); engines.bbo.addTrade(tk.data);
           engines.iceberg.onTrade(tk.data); engines.pulse.addTrade(tk.data, false);
           engines.candle.addTrade(tk.data); engines.profile.addTrade(tk.data);
+          engines.cvd.addTrade(tk.data);
         } else if (tk.kind === 'bbo') engines.bbo.addBBO(tk.data);
       }
       if (replayBookRef.current) engines.iceberg.onBook(replayBookRef.current);
@@ -381,13 +387,16 @@ export default function BookmapRobot({ navigate }) {
       {/* ── Chart + side panels ── */}
       <div className="bm-main">
         <div className="bm-chart">
-          <HeatmapCanvas
-            engines={engines}
-            getBook={getBook}
-            getNow={getNow}
-            running={isCrypto}
-            toggles={toggles}
-          />
+          <div className="bm-chart-stack">
+            <HeatmapCanvas
+              engines={engines}
+              getBook={getBook}
+              getNow={getNow}
+              running={isCrypto}
+              toggles={toggles}
+            />
+            <CVDPanel engines={engines} getNow={getNow} />
+          </div>
           {toggles.profile && <VolumeProfilePanel engines={engines} getBook={getBook} />}
         </div>
         <div className="bm-side">

@@ -160,8 +160,13 @@
   background: #05060a;
   display: flex;
 }
-.bm-canvas-wrap { flex: 1 1 auto; min-width: 0; height: 100%; position: relative; }
+.bm-chart-stack { flex: 1 1 auto; min-width: 0; height: 100%; display: flex; flex-direction: column; }
+.bm-canvas-wrap { flex: 1 1 auto; min-width: 0; min-height: 0; position: relative; }
 .bm-canvas { display: block; width: 100%; height: 100%; }
+
+/* CVD strip under the chart (same width → shares the time axis) */
+.bm-cvd { flex: 0 0 96px; min-height: 96px; border-top: 1px solid var(--border); }
+.bm-cvd-canvas { display: block; width: 100%; height: 100%; }
 
 /* Volume Profile / COB panel — right edge of the chart, same height + range */
 .bm-vprofile {
