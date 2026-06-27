@@ -30,11 +30,32 @@ export default function DOMPanel({ getBook, levels = 14 }) {
   const maxQty = Math.max(1, ...bids.map(l => l.qty), ...asks.map(l => l.qty));
   const asksDesc = [...asks].reverse();   // show highest ask on top
 
+  // Order-book imbalance: bid vs ask resting liquidity (top N levels).
+  const bidSum = bids.reduce((s, l) => s + l.qty, 0);
+  const askSum = asks.reduce((s, l) => s + l.qty, 0);
+  const tot = bidSum + askSum;
+  const bidPct = tot > 0 ? (bidSum / tot) * 100 : 50;
+  const lean = bidPct >= 55 ? 'קונים' : bidPct <= 45 ? 'מוכרים' : 'מאוזן';
+  const leanColor = bidPct >= 55 ? '#2ecc71' : bidPct <= 45 ? '#ff5a6e' : '#a0a0b0';
+
   return (
     <div className="bm-dom">
       <div className="bm-dom-head">
         <span>DOM — עומק ספר</span>
         {!ready && <span className="bm-dom-nodata">אין נתון 🔴</span>}
+      </div>
+
+      {/* Order Book Imbalance gauge */}
+      <div className="bm-imb" title="יחס נזילות קנייה מול מכירה">
+        <div className="bm-imb-bar">
+          <div className="bm-imb-bid" style={{ width: `${bidPct}%` }} />
+          <div className="bm-imb-ask" style={{ width: `${100 - bidPct}%` }} />
+        </div>
+        <div className="bm-imb-label">
+          <span style={{ color: '#2ecc71' }}>{bidPct.toFixed(0)}%</span>
+          <span style={{ color: leanColor, fontWeight: 800 }}>⚖ {lean}</span>
+          <span style={{ color: '#ff5a6e' }}>{(100 - bidPct).toFixed(0)}%</span>
+        </div>
       </div>
 
       <div className="bm-dom-ladder">

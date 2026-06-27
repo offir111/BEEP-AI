@@ -190,6 +190,13 @@
   border-bottom: 1px solid var(--border); color: var(--text-secondary);
 }
 .bm-dom-nodata { color: #ef4444; font-weight: 700; }
+
+/* Order Book Imbalance gauge */
+.bm-imb { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.bm-imb-bar { display: flex; height: 9px; border-radius: 5px; overflow: hidden; background: var(--bg-secondary); }
+.bm-imb-bid { background: linear-gradient(90deg, #1a7a4a, #2ecc71); transition: width 0.25s; }
+.bm-imb-ask { background: linear-gradient(90deg, #ff5a6e, #a51e36); transition: width 0.25s; }
+.bm-imb-label { display: flex; justify-content: space-between; align-items: center; font-size: 0.68rem; font-weight: 700; margin-top: 3px; }
 .bm-dom-ladder { display: flex; flex-direction: column; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .bm-dom-row {
   position: relative; display: flex; align-items: center; justify-content: space-between;
