@@ -13,7 +13,7 @@
  * markers fade.
  */
 export default class IcebergStopsEngine {
-  constructor({ refillThreshold = 3, sweepLevels = 4, sweepWindowMs = 1200, eventLifeMs = 8000 } = {}) {
+  constructor({ refillThreshold = 2, sweepLevels = 4, sweepWindowMs = 1200, eventLifeMs = 8000 } = {}) {
     this.refillThreshold = refillThreshold;
     this.sweepLevels = sweepLevels;
     this.sweepWindowMs = sweepWindowMs;
@@ -72,8 +72,10 @@ export default class IcebergStopsEngine {
       const key = lv.price.toString();
       let w = this.levelWatch.get(key);
       if (!w) { this.levelWatch.set(key, { lastQty: lv.qty, eaten: 0, refills: 0, side: lv.side }); continue; }
-      // A refill = the level was meaningfully eaten, then size returned to ~prev.
-      if (w.eaten > w.lastQty * 0.5 && lv.qty >= w.lastQty * 0.8) {
+      // Iceberg (absorption model): a lot of volume executes at the level
+      // (w.eaten ≥ the visible size) yet the VISIBLE DOM size barely shrinks
+      // (lv.qty stays ≥ ~70% of before) → a hidden order keeps replenishing.
+      if (w.eaten >= w.lastQty * 1.0 && lv.qty >= w.lastQty * 0.7) {
         w.refills += 1;
         w.eaten = 0;
         if (w.refills >= this.refillThreshold) {

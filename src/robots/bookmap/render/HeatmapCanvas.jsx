@@ -186,16 +186,18 @@ function _drawMarkers(ctx, iceberg, { W, H, yOf, now }) {
     const age = (now - ev.ts) / iceberg.eventLifeMs;
     const alpha = Math.max(0.15, 1 - age);
     if (ev.type === 'iceberg') {
-      ctx.fillStyle = `rgba(168,139,250,${alpha})`;
+      // dashed highlight band across the level + 🧊 tag
+      ctx.strokeStyle = `rgba(168,139,250,${alpha * 0.7})`;
+      ctx.setLineDash([5, 4]);
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(W - 60, y);
-      ctx.lineTo(W - 50, y - 5);
-      ctx.lineTo(W - 50, y + 5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.font = '10px Inter, sans-serif';
+      ctx.moveTo(0, y); ctx.lineTo(W, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = `rgba(168,139,250,${Math.min(1, alpha + 0.1)})`;
+      ctx.font = 'bold 11px Inter, sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(`🧊 ${ev.info}`, W - 48, y + 3);
+      ctx.fillText(`🧊 ICEBERG ${ev.info}`, 6, y - 4);
     } else {
       ctx.strokeStyle = ev.side === 'up' ? `rgba(74,222,128,${alpha})` : `rgba(248,113,113,${alpha})`;
       ctx.lineWidth = 2;
