@@ -27,6 +27,7 @@ import MarketPulseEngine from './engine/MarketPulseEngine';
 import CandleEngine from './engine/CandleEngine';
 import VolumeProfileEngine from './engine/VolumeProfileEngine';
 import CVDEngine from './engine/CVDEngine';
+import LargeLotEngine from './engine/LargeLotEngine';
 
 import HeatmapCanvas from './render/HeatmapCanvas';
 import VolumeProfilePanel from './render/VolumeProfilePanel';
@@ -90,6 +91,7 @@ export default function BookmapRobot({ navigate }) {
       candle: new CandleEngine(),
       profile: new VolumeProfileEngine(),
       cvd: new CVDEngine(),
+      largeLot: new LargeLotEngine(),
     };
   }
   const engines = enginesRef.current;
@@ -125,6 +127,7 @@ export default function BookmapRobot({ navigate }) {
       const now = getNow();
       engines.bubbles.prune(now);
       engines.iceberg.prune(now);
+      engines.largeLot.prune(now);
     }, 500);
     return () => clearInterval(iv);
   }, [engines, getNow]);
@@ -136,6 +139,7 @@ export default function BookmapRobot({ navigate }) {
     engines.candle.addTrade(t);
     engines.profile.addTrade(t);
     engines.cvd.addTrade(t);
+    engines.largeLot.addTrade(t);
     const before = engines.iceberg.events.length;
     engines.iceberg.onTrade(t);
     const sweep = engines.iceberg.events.length > before &&
@@ -268,6 +272,7 @@ export default function BookmapRobot({ navigate }) {
         engines.candle.addTrade(tk.data);
         engines.profile.addTrade(tk.data);
         engines.cvd.addTrade(tk.data);
+        engines.largeLot.addTrade(tk.data);
       } else if (tk.kind === 'bbo') engines.bbo.addBBO(tk.data);
     }
     replayBookRef.current = book;
@@ -322,7 +327,7 @@ export default function BookmapRobot({ navigate }) {
           engines.bubbles.addTrade(tk.data); engines.bbo.addTrade(tk.data);
           engines.iceberg.onTrade(tk.data); engines.pulse.addTrade(tk.data, false);
           engines.candle.addTrade(tk.data); engines.profile.addTrade(tk.data);
-          engines.cvd.addTrade(tk.data);
+          engines.cvd.addTrade(tk.data); engines.largeLot.addTrade(tk.data);
         } else if (tk.kind === 'bbo') engines.bbo.addBBO(tk.data);
       }
       if (replayBookRef.current) engines.iceberg.onBook(replayBookRef.current);

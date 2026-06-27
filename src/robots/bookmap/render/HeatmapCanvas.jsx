@@ -138,6 +138,7 @@ export default function HeatmapCanvas({
           if (toggles.candles)  drawCandles(ctx, engines.candle, { W, H, yOf, xOf });
           if (toggles.bubbles)  drawBubbles(ctx, engines.bubbles, { W, H, yOf, xOf, now });
           if (toggles.icebergs) _drawMarkers(ctx, engines.iceberg, { W, H, yOf, now });
+          if (toggles.bubbles && engines.largeLot) _drawLargeLots(ctx, engines.largeLot, { W, H, yOf, now });
           _drawPriceLine(ctx, engines.heatmap, { W, H, yOf, xOf, getBook });
         }
       }
@@ -213,6 +214,37 @@ function _drawMarkers(ctx, iceberg, { W, H, yOf, now }) {
 }
 
 // Moving price line — thin bright trace of recent mid prices over time.
+// Large Lot Tracker — arrows on the price-axis gutter for the biggest trades.
+function _drawLargeLots(ctx, eng, { W, H, yOf, now }) {
+  const norm = eng.maxNotional || 1;
+  for (const lot of eng.lots) {
+    const y = yOf(lot.price);
+    if (y < 0 || y > H) continue;
+    const age = (now - lot.ts) / eng.lifeMs;
+    const alpha = Math.max(0.15, 1 - age);
+    const big = lot.notional / norm;                  // 0..1
+    const col = lot.buy ? `74,222,128` : `255,90,110`;
+    const ax = W - 18;
+    // arrow pointing left into the chart from the right gutter
+    ctx.fillStyle = `rgba(${col},${alpha})`;
+    ctx.beginPath();
+    ctx.moveTo(ax - 9, y);
+    ctx.lineTo(ax, y - 5);
+    ctx.lineTo(ax, y + 5);
+    ctx.closePath();
+    ctx.fill();
+    // notional label
+    ctx.font = `bold ${9 + Math.round(big * 3)}px Inter, sans-serif`;
+    ctx.textAlign = 'right';
+    const v = lot.notional;
+    const txt = v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${(v / 1e3).toFixed(0)}K`;
+    ctx.lineWidth = 3; ctx.strokeStyle = `rgba(0,0,0,0.8)`;
+    ctx.strokeText(txt, ax - 11, y + 3);
+    ctx.fillStyle = `rgba(${col},${Math.min(1, alpha + 0.15)})`;
+    ctx.fillText(txt, ax - 11, y + 3);
+  }
+}
+
 function _drawPriceLine(ctx, hm, { W, H, yOf, xOf, getBook }) {
   const samples = hm.samples;
   if (samples && samples.length > 1) {

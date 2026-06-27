@@ -21,6 +21,19 @@ export function drawBubbles(ctx, engine, { W, H, yOf, xOf, now }) {
     const mid = b.buy ? '34,190,104'  : '236,76,84';     // solid body colour
     const dk  = b.buy ? '9,92,52'      : '150,32,46';     // shadow rim
 
+    // Large Lot emphasis: biggest trades get a bright glowing halo ring.
+    const big = b.qty >= maxQty * 0.55;
+    if (big) {
+      ctx.shadowColor = b.buy ? 'rgba(46,255,150,0.95)' : 'rgba(255,90,110,0.95)';
+      ctx.shadowBlur = r * 1.4;
+      ctx.beginPath();
+      ctx.arc(x, y, r * 1.18, 0, Math.PI * 2);
+      ctx.strokeStyle = b.buy ? 'rgba(180,255,210,0.9)' : 'rgba(255,200,210,0.9)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
     // soft drop shadow under the sphere (cast from an opaque disc)
     ctx.shadowColor = 'rgba(0,0,0,0.45)';
     ctx.shadowBlur = Math.min(12, r * 0.5);
