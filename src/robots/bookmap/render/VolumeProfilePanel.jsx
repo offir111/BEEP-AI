@@ -67,6 +67,7 @@ export default function VolumeProfilePanel({ engines, getBook }) {
           const yOfRow = (r) => 14 + (r / ROWS) * (H - 14);
 
           // ── COB: resting liquidity from the live book ──
+          const restingBins = new Float32Array(ROWS);   // bid+ask per row (for Strength)
           const book = getBook && getBook();
           if (book && book.ready) {
             const bidBins = new Float32Array(ROWS);
@@ -82,6 +83,7 @@ export default function VolumeProfilePanel({ engines, getBook }) {
               askBins[r] += l.qty; if (askBins[r] > cobMax) cobMax = askBins[r];
             }
             cobMax = cobMax || 1;
+            for (let r = 0; r < ROWS; r++) restingBins[r] = bidBins[r] + askBins[r];
             for (let r = 0; r < ROWS; r++) {
               const y = yOfRow(r);
               if (bidBins[r] > 0) {
@@ -110,6 +112,19 @@ export default function VolumeProfilePanel({ engines, getBook }) {
             ctx.fillRect(vpX, y, wBuy, Math.max(1, rowH));
             ctx.fillStyle = 'rgba(239,67,97,0.8)';
             ctx.fillRect(vpX + wBuy, y, wTot - wBuy, Math.max(1, rowH));
+
+            // ── Strength Level ── lots traded vs little resting liquidity =
+            // hidden liquidity / absorption → mark a "strong" level (★).
+            const resting = restingBins[r];
+            const strong = tot > vmax * 0.25 && tot > resting * 2.5;
+            if (strong) {
+              ctx.fillStyle = 'rgba(255,209,102,0.95)';
+              ctx.font = 'bold 10px Inter, sans-serif';
+              ctx.textAlign = 'left';
+              ctx.fillText('★', vpX + 1, y + rowH / 2 + 3);
+              ctx.fillStyle = 'rgba(255,209,102,0.12)';
+              ctx.fillRect(0, y, W, Math.max(1, rowH));
+            }
           }
         }
       }
