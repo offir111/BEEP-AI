@@ -92,6 +92,24 @@
 .bm-menu-toggle.on { color: var(--text-primary); }
 .bm-menu-check { width: 14px; color: var(--accent-green); font-weight: 800; }
 
+/* ── View-mode tabs (primary visualization selector) ── */
+.bm-modes {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding: 6px; margin-bottom: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border); border-radius: 10px;
+}
+.bm-mode {
+  flex: 1 1 auto; min-width: 72px;
+  font-size: 0.82rem; font-weight: 700; white-space: nowrap;
+  padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary);
+}
+.bm-mode--on {
+  color: var(--bg-primary); background: var(--accent-gold);
+  border-color: var(--accent-gold);
+}
+
 .bm-demo-banner {
   flex: 0 0 auto;
   background: #eab30815;

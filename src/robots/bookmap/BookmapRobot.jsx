@@ -35,6 +35,7 @@ import SymbolPicker from './controls/SymbolPicker';
 import ZoomControls from './controls/ZoomControls';
 import RobotMenu from './controls/RobotMenu';
 import IndicatorMenu from './controls/IndicatorMenu';
+import ViewModeTabs, { MODE_PRESETS } from './controls/ViewModeTabs';
 import ReplayControls from './controls/ReplayControls';
 
 import './styles/bookmap.css';
@@ -58,8 +59,15 @@ export default function BookmapRobot({ navigate }) {
   const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const isCrypto = /USDT$/.test(symbol);   // our picker only yields live USDT pairs
 
-  const [toggles, setToggles] = useState({ heatmap: true, candles: true, bubbles: true, bbo: true, icebergs: true, profile: true });
+  const [mode, setMode] = useState('heatmap');    // primary visualization mode (default heatmap, not book)
+  const [toggles, setToggles] = useState({ ...MODE_PRESETS.heatmap });
   const [zoomMult, setZoomMult] = useState(1);   // vertical zoom multiplier on the auto-range
+
+  // Apply a view-mode preset (still lets the אינדיקטורים menu fine-tune layers after).
+  const applyMode = useCallback((m) => {
+    setMode(m);
+    if (MODE_PRESETS[m]) setToggles({ ...MODE_PRESETS[m] });
+  }, []);
   const [status, setStatus] = useState({ depth: 'connecting', trade: 'connecting', bbo: 'connecting' });
   const [recording, setRecording] = useState(false);
   const [recCount, setRecCount] = useState(0);
@@ -360,6 +368,9 @@ export default function BookmapRobot({ navigate }) {
           <button className="bm-rec" onClick={enterReplay}>⏵ שחזור ({recCount})</button>
         )}
       </div>
+
+      {/* ── Primary view-mode selector — always visible, phone-friendly ── */}
+      <ViewModeTabs mode={mode} onMode={applyMode} />
 
       {!isCrypto && (
         <div className="bm-demo-banner">
