@@ -10,8 +10,11 @@
  *   א. שורת חיפוש + "סרוק" → טוען את הסמל לגרף ושומר אותו ככפתור מעקב.
  *   ב. גרף נרות יפניים מלא (ChartsPage), דיפולט BTC/USD.
  *   ג. כפתורי מניות שמורות (Watchlist) — לחיצה טוענת לגרף, ✕ מסירה ממעקב.
+ *   ד. התראות: נקבעות מתוך הגרף (כפתור 🔔 התראה → QuickAlert, קווים נגררים).
+ *      מספר ההתראות הפעילות מוצג כבאדג' 🔔 לצד המניה במעקב.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useAlerts } from '../context/AlertsContext';
 import ChartsPage from '../pages/ChartsPage';
 import './ProfileScanner.css';
 
@@ -31,11 +34,25 @@ function saveWatch(arr) {
 }
 
 export default function ProfileScanner() {
+  const { alerts } = useAlerts();
+
   // הסמל הטעון כרגע בגרף + nonce לטעינה-מחדש מאולצת (גם לאותו סמל).
   const [current, setCurrent]     = useState(DEFAULT_SYM);
   const [loadNonce, setLoadNonce] = useState(0);
   const [query, setQuery]         = useState('');
   const [watch, setWatch]         = useState(loadWatch);
+
+  // מספר התראות פעילות לכל סמל (לא נורו ולא פגו) — מוצג כבאדג' לצד המניה במעקב.
+  const alertCounts = useMemo(() => {
+    const m = {};
+    const now = Date.now();
+    for (const a of alerts) {
+      if (a.triggered || (a.expiresAt && now >= a.expiresAt)) continue;
+      const s = a.symbol.toUpperCase();
+      m[s] = (m[s] || 0) + 1;
+    }
+    return m;
+  }, [alerts]);
 
   // טוען סמל לגרף — remount של ChartsPage מבטיח שהנרות נטענים מחדש.
   const loadSymbol = useCallback((sym) => {
@@ -96,6 +113,11 @@ export default function ProfileScanner() {
                 onClick={() => loadSymbol(sym)}
                 title={`טען ${sym} לגרף`}
               >
+                {alertCounts[sym] > 0 && (
+                  <span className="psc-chip-bell" title={`${alertCounts[sym]} התראות פעילות`}>
+                    🔔{alertCounts[sym]}
+                  </span>
+                )}
                 {sym}
               </button>
               <button

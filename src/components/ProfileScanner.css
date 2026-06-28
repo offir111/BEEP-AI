@@ -76,6 +76,13 @@
   direction: ltr;
 }
 .psc-chip--on .psc-chip-load { color: var(--accent-gold); }
+.psc-chip-bell {
+  margin-inline-end: 5px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+  direction: ltr;
+}
 .psc-chip-x {
   padding: 0 8px;
   background: rgba(255, 255, 255, 0.04);
