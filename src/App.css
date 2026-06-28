@@ -42,6 +42,44 @@
   border-color: rgba(255,255,255,0.28);
 }
 
+/* Profile page: compact user identity in place of the back button */
+.page-topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.page-topbar-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #1a1a26;
+  background: linear-gradient(135deg, var(--accent-gold, #D4AF37), #f5d676);
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.4);
+}
+.page-topbar-user-txt {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+.page-topbar-user-name {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+}
+.page-topbar-user-login {
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
 .page-topbar-title {
   font-size: 0.85rem;
   font-weight: 700;

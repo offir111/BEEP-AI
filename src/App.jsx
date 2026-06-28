@@ -75,13 +75,32 @@ const PAGE_TITLES = {
   offir: '➕ +OFFIR — סורק ביטחונות',
 };
 
-function PageTopBar({ page, onBack, onClose }) {
+function PageTopBar({ page, onBack, onClose, session }) {
   if (page === 'home') return null;
+  // On the profile page the back button is replaced by a compact user identity
+  // (small yellow avatar + last-login), sized to the topbar row. Other pages keep "חזור".
+  const isProfile = page === 'profile';
+  const initial = session?.username?.[0]?.toUpperCase() || '?';
+  const lastLogin = session?.loginAt
+    ? new Date(session.loginAt).toLocaleString('he-IL', {
+        day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
+      })
+    : '—';
   return (
     <div className="page-topbar">
-      <button className="page-topbar-back" onClick={onBack} aria-label="חזור לעמוד הקודם">
-        &#8592; חזור
-      </button>
+      {isProfile ? (
+        <div className="page-topbar-user">
+          <span className="page-topbar-avatar">{initial}</span>
+          <div className="page-topbar-user-txt">
+            <span className="page-topbar-user-name">{session?.username || 'משתמש'}</span>
+            <span className="page-topbar-user-login">כניסה אחרונה: {lastLogin}</span>
+          </div>
+        </div>
+      ) : (
+        <button className="page-topbar-back" onClick={onBack} aria-label="חזור לעמוד הקודם">
+          &#8592; חזור
+        </button>
+      )}
       <span className="page-topbar-title">{PAGE_TITLES[page] || ''}</span>
       <button className="page-topbar-close" onClick={onClose} aria-label="סגור ועבור לדף הבית">
         &#10005;
@@ -159,7 +178,7 @@ function AppInner() {
       {/* BOOK MAP supplies its own unified robot bar, so it replaces the default
           PageTopBar (X + title + back). All other shared chrome stays. */}
       {page !== 'bookmap' && (
-        <PageTopBar page={page} onBack={goBack} onClose={() => { setPageParams(null); setPage('home'); setNavHistory(['home']); window.scrollTo(0,0); }} />
+        <PageTopBar page={page} session={session} onBack={goBack} onClose={() => { setPageParams(null); setPage('home'); setNavHistory(['home']); window.scrollTo(0,0); }} />
       )}
       <main className="app-main">
         {page === 'home'      && <HomePage   key={homeKey} navigate={navigate} />}
