@@ -1,51 +1,88 @@
 /**
- * ProfileScanner.jsx — סורק מניות בעמוד היוזר.
+ * ProfileScanner.jsx — אזור המעקב + הסורק בעמוד היוזר.
  *
- * משכפל את עמוד הגרף המלא (ChartsPage) אל תוך עמוד הפרופיל, ללא ניווט החוצה.
- * שימוש חוזר ישיר ב-ChartsPage שומר על בידוד מוחלט: כל לוגיקת הנתונים
- * (קריפטו → Binance, מניות → Yahoo /api/candles), ההתראות, הקווים הנגררים,
- * האינטרוולים והעיצוב — מגיעים איתו בדיוק כמו במקור.
+ * מבנה:
+ *   ⭐ מעקב מהיר — קבוצת כפתורים קטנים (ברירת מחדל 6: BTC·ETH·SOL·S&P·HUT8·CIFR).
+ *      לחיצה על כפתור טוענת את הסמל לגרף שלמטה (לא פותחת תיבת התראות).
+ *   📡 סורק מניות — שורת חיפוש + "סרוק": טוען לגרף, והסמל מופיע ככפתור עם
+ *      "➕ הוסף למעקב" שמצרף אותו לקבוצת המעקב למעלה.
+ *   גרף נרות מלא (ChartsPage) — שכפול עמוד הגרף inline, דיפולט BTC/USD.
  *
- * רכיבים:
- *   א. שורת חיפוש + "סרוק" → טוען את הסמל לגרף ושומר אותו ככפתור מעקב.
- *   ב. גרף נרות יפניים מלא (ChartsPage), דיפולט BTC/USD.
- *   ג. כפתורי מניות שמורות (Watchlist) — לחיצה טוענת לגרף, ✕ מסירה ממעקב.
- *   ד. התראות: נקבעות מתוך הגרף (כפתור 🔔 התראה → QuickAlert, קווים נגררים).
- *      מספר ההתראות הפעילות מוצג כבאדג' 🔔 לצד המניה במעקב.
+ * הקבוצה נשמרת ב-localStorage (beepai_profile_toplist). בידוד מלא — אינו
+ * נוגע בגרף המקורי, ב-8 כפתורי הבית, או בכל רובוט אחר.
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { useAlerts } from '../context/AlertsContext';
+import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import ChartsPage from '../pages/ChartsPage';
+import { formatPrice, formatChange } from '../utils/format';
 import './ProfileScanner.css';
 
-const DEFAULT_SYM   = 'BTC';
-const LS_WATCHLIST  = 'beepai_profile_watchlist';
-const MAX_WATCH     = 24;
+const DEFAULT_SYM = 'BTC';
+const LS_TOPLIST  = 'beepai_profile_toplist';
+const PRETTY      = { HUT: 'HUT 8' };
 
-function loadWatch() {
+/* קבוצת ברירת המחדל (RTL: ראשון = ימני ביותר). */
+const DEFAULT_TOP = [
+  { sym: 'BTC',  label: 'BTC'   },
+  { sym: 'ETH',  label: 'ETH'   },
+  { sym: 'SOL',  label: 'SOL'   },
+  { sym: 'S&P',  label: 'S&P'   },
+  { sym: 'HUT',  label: 'HUT 8' },
+  { sym: 'CIFR', label: 'CIFR'  },
+];
+
+function loadTop() {
   try {
-    const s = JSON.parse(localStorage.getItem(LS_WATCHLIST));
-    if (Array.isArray(s)) return s.map(x => String(x).toUpperCase().trim()).filter(Boolean);
+    const s = JSON.parse(localStorage.getItem(LS_TOPLIST));
+    if (Array.isArray(s) && s.length) {
+      return s
+        .map(x => {
+          const sym = String(x.sym ?? x).toUpperCase().trim();
+          return sym ? { sym, label: x.label || PRETTY[sym] || sym } : null;
+        })
+        .filter(Boolean);
+    }
   } catch { /* ignore */ }
-  return [];
+  return DEFAULT_TOP.map(x => ({ ...x }));
 }
-function saveWatch(arr) {
-  try { localStorage.setItem(LS_WATCHLIST, JSON.stringify(arr)); } catch { /* ignore */ }
+function saveTop(list) {
+  try { localStorage.setItem(LS_TOPLIST, JSON.stringify(list)); } catch { /* ignore */ }
+}
+
+/* ── כפתור מעקב קטן — לחיצה טוענת לגרף ── */
+function MiniTile({ sym, label, alertCount, active, onLoad, onRemove }) {
+  const { price, change, flash } = useQuote(sym);
+  const up = change != null && change >= 0;
+  const stateClass = change == null ? 'pfs-tile--flat' : up ? 'pfs-tile--up' : 'pfs-tile--down';
+  const flashClass = flash === 'up' ? 'lp-flash-up' : flash === 'down' ? 'lp-flash-down' : '';
+
+  return (
+    <div className={`pfs-tile ${stateClass}${active ? ' pfs-tile--on' : ''}`}>
+      <button className="pfs-tile-main" onClick={() => onLoad(sym)} title={`טען ${label} לגרף`}>
+        {alertCount > 0 && <span className="pfs-tile-badge" title={`${alertCount} התראות פעילות`}>{alertCount}</span>}
+        <span className="pfs-tile-sym">{label}</span>
+        <span className={`pfs-tile-price ${flashClass}`}>{price != null ? `$${formatPrice(price)}` : '—'}</span>
+        <span className="pfs-tile-change">{formatChange(change)}</span>
+      </button>
+      <button className="pfs-tile-x" onClick={() => onRemove(sym)} aria-label={`הסר ${label} ממעקב`} title="הסר ממעקב">✕</button>
+    </div>
+  );
 }
 
 export default function ProfileScanner() {
   const { alerts } = useAlerts();
+  const lqCtx = useContext(LiveQuoteContext);
 
-  // הסמל הטעון כרגע בגרף + nonce לטעינה-מחדש מאולצת (גם לאותו סמל).
+  const [topList, setTopList]     = useState(loadTop);
   const [current, setCurrent]     = useState(DEFAULT_SYM);
   const [loadNonce, setLoadNonce] = useState(0);
   const [query, setQuery]         = useState('');
-  const [watch, setWatch]         = useState(loadWatch);
+  const [searched, setSearched]   = useState(null);   // הסמל האחרון שנסרק (צ'יפ ממתין)
 
-  // מספר התראות פעילות לכל סמל (לא נורו ולא פגו) — מוצג כבאדג' לצד המניה במעקב.
+  /* מספר התראות פעילות לכל סמל. */
   const alertCounts = useMemo(() => {
-    const m = {};
-    const now = Date.now();
+    const m = {}; const now = Date.now();
     for (const a of alerts) {
       if (a.triggered || (a.expiresAt && now >= a.expiresAt)) continue;
       const s = a.symbol.toUpperCase();
@@ -54,7 +91,13 @@ export default function ProfileScanner() {
     return m;
   }, [alerts]);
 
-  // טוען סמל לגרף — remount של ChartsPage מבטיח שהנרות נטענים מחדש.
+  /* הזנת כל סמלי המעקב לפיד החי (לא מבטלים מנוי — מנוע ההתראות נשען עליו). */
+  useEffect(() => {
+    if (!lqCtx?.subscribe) return;
+    lqCtx.subscribe(topList.map(t => t.sym));
+  }, [topList, lqCtx]);
+
+  /* טעינת סמל לגרף (remount של ChartsPage טוען נרות מחדש). */
   const loadSymbol = useCallback((sym) => {
     const s = String(sym || '').trim().toUpperCase();
     if (!s) return;
@@ -62,35 +105,57 @@ export default function ProfileScanner() {
     setLoadNonce(n => n + 1);
   }, []);
 
-  // "סרוק" — טוען לגרף ושומר ככפתור מעקב (החדש ביותר ראשון).
-  const scan = useCallback((raw) => {
-    const s = String(raw ?? query).trim().toUpperCase();
+  const addToTop = useCallback((sym, label) => {
+    const s = String(sym || '').trim().toUpperCase();
     if (!s) return;
-    loadSymbol(s);
-    setWatch(prev => {
-      const next = [s, ...prev.filter(x => x !== s)].slice(0, MAX_WATCH);
-      saveWatch(next);
-      return next;
-    });
-    setQuery('');
-  }, [query, loadSymbol]);
-
-  const removeWatch = useCallback((sym) => {
-    setWatch(prev => {
-      const next = prev.filter(s => s !== sym);
-      saveWatch(next);
+    setTopList(prev => {
+      if (prev.some(t => t.sym === s)) return prev;
+      const next = [...prev, { sym: s, label: label || PRETTY[s] || s }];
+      saveTop(next);
       return next;
     });
   }, []);
 
-  return (
-    <div className="psc-wrap" dir="rtl">
-      <h2 className="pf-section-title">📡 סורק מניות</h2>
+  const removeFromTop = useCallback((sym) => {
+    setTopList(prev => { const next = prev.filter(t => t.sym !== sym); saveTop(next); return next; });
+  }, []);
 
-      {/* ── א. שורת חיפוש + סרוק ── */}
-      <form className="psc-search-row" onSubmit={e => { e.preventDefault(); scan(); }}>
+  /* "סרוק" — טוען לגרף ומציג צ'יפ עם אפשרות הוספה למעקב. */
+  const scan = useCallback((raw) => {
+    const s = String(raw ?? query).trim().toUpperCase();
+    if (!s) return;
+    loadSymbol(s);
+    setSearched(s);
+    setQuery('');
+  }, [query, loadSymbol]);
+
+  const isSaved = searched && topList.some(t => t.sym === searched);
+
+  return (
+    <div className="pfs-wrap" dir="rtl">
+
+      {/* ── ⭐ מעקב מהיר — כפתורים קטנים, לחיצה טוענת לגרף ── */}
+      <h2 className="pf-section-title">⭐ מעקב מהיר</h2>
+      <div className="pfs-tiles">
+        {topList.map(t => (
+          <MiniTile
+            key={t.sym}
+            sym={t.sym}
+            label={t.label}
+            alertCount={alertCounts[t.sym] || 0}
+            active={current === t.sym}
+            onLoad={loadSymbol}
+            onRemove={removeFromTop}
+          />
+        ))}
+        {topList.length === 0 && <span className="pfs-empty">אין מניות במעקב — חפש והוסף למטה.</span>}
+      </div>
+
+      {/* ── 📡 סורק מניות ── */}
+      <h2 className="pf-section-title">📡 סורק מניות</h2>
+      <form className="pfs-search-row" onSubmit={e => { e.preventDefault(); scan(); }}>
         <input
-          className="psc-search-input"
+          className="pfs-search-input"
           value={query}
           onChange={e => setQuery(e.target.value.toUpperCase())}
           placeholder="הזן סמל מניה/קריפטו — AAPL · CIFR · BTC"
@@ -100,39 +165,23 @@ export default function ProfileScanner() {
           spellCheck="false"
           aria-label="סמל לסריקה"
         />
-        <button type="submit" className="psc-scan-btn">🔍 סרוק</button>
+        <button type="submit" className="pfs-scan-btn">🔍 סרוק</button>
       </form>
 
-      {/* ── ג. כפתורי מניות שמורות (Watchlist) ── */}
-      {watch.length > 0 && (
-        <div className="psc-watch">
-          {watch.map(sym => (
-            <div key={sym} className={`psc-chip${current === sym ? ' psc-chip--on' : ''}`}>
-              <button
-                className="psc-chip-load"
-                onClick={() => loadSymbol(sym)}
-                title={`טען ${sym} לגרף`}
-              >
-                {alertCounts[sym] > 0 && (
-                  <span className="psc-chip-bell" title={`${alertCounts[sym]} התראות פעילות`}>
-                    🔔{alertCounts[sym]}
-                  </span>
-                )}
-                {sym}
-              </button>
-              <button
-                className="psc-chip-x"
-                onClick={() => removeWatch(sym)}
-                aria-label={`הסר ${sym} ממעקב`}
-                title="הסר ממעקב"
-              >✕</button>
-            </div>
-          ))}
+      {/* צ'יפ הסמל שנסרק — לחיצה טוענת לגרף; ➕ מצרף לקבוצת המעקב */}
+      {searched && (
+        <div className="pfs-searched">
+          <button className="pfs-searched-load" onClick={() => loadSymbol(searched)} title="טען לגרף">{searched}</button>
+          {isSaved ? (
+            <span className="pfs-searched-saved">✓ במעקב</span>
+          ) : (
+            <button className="pfs-searched-add" onClick={() => addToTop(searched)}>➕ הוסף למעקב</button>
+          )}
         </div>
       )}
 
-      {/* ── ב. גרף הנרות המלא — שכפול עמוד הגרף, inline בעמוד היוזר ── */}
-      <div className="psc-chart-host">
+      {/* ── גרף הנרות המלא — שכפול עמוד הגרף, inline ── */}
+      <div className="pfs-chart-host">
         <ChartsPage key={`${current}-${loadNonce}`} initialSymbol={current} />
       </div>
     </div>

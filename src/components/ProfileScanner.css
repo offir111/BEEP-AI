@@ -1,16 +1,102 @@
-/* ── ProfileScanner — סורק מניות בעמוד היוזר ───────────────── */
-.psc-wrap {
+/* ── ProfileScanner — מעקב מהיר + סורק בעמוד היוזר ─────────────── */
+.pfs-wrap {
   direction: rtl;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
-/* ── א. שורת חיפוש + סרוק ── */
-.psc-search-row {
+/* ── ⭐ מעקב מהיר — כפתורים קטנים (flex-wrap) ── */
+.pfs-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 6px;
+}
+.pfs-tile {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  overflow: visible;
+  transition: filter 0.12s ease, border-color 0.12s ease;
+}
+.pfs-tile:hover { filter: brightness(1.12); }
+.pfs-tile--up   { border-color: rgba(34, 197, 94, 0.45);  background: linear-gradient(160deg, rgba(34,197,94,0.16), rgba(34,197,94,0.05)); }
+.pfs-tile--down { border-color: rgba(239, 68, 68, 0.45);  background: linear-gradient(160deg, rgba(239,68,68,0.16), rgba(239,68,68,0.05)); }
+.pfs-tile--on   { box-shadow: 0 0 0 1px var(--accent-gold); border-color: var(--accent-gold); }
+
+.pfs-tile-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 5px 11px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  min-width: 56px;
+}
+.pfs-tile-sym {
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.05;
+  white-space: nowrap;
+  direction: ltr;
+}
+.pfs-tile-price {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  direction: ltr;
+}
+.pfs-tile-change {
+  font-size: 0.62rem;
+  font-weight: 700;
+  direction: ltr;
+}
+.pfs-tile--up   .pfs-tile-change { color: #4ade80; }
+.pfs-tile--down .pfs-tile-change { color: #f87171; }
+.pfs-tile--flat .pfs-tile-change { color: var(--text-muted); }
+
+/* alert-count badge (top-right corner) */
+.pfs-tile-badge {
+  position: absolute;
+  top: -7px; right: -7px;
+  z-index: 5;
+  min-width: 15px; height: 15px;
+  padding: 0 3px;
+  border-radius: 8px;
+  display: grid; place-items: center;
+  font-size: 0.6rem; font-weight: 800;
+  color: #1a1a26; background: var(--accent-gold);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+/* tiny remove (✕) on the side */
+.pfs-tile-x {
+  width: 16px;
+  background: rgba(255,255,255,0.04);
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.6rem;
+  cursor: pointer;
+  border-radius: 0 10px 10px 0;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.pfs-tile-x:hover { color: #f87171; background: rgba(248,113,113,0.14); }
+
+.pfs-empty { color: var(--text-muted); font-size: 0.82rem; padding: 6px 2px; }
+
+/* ── 📡 search row ── */
+.pfs-search-row {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
-.psc-search-input {
+.pfs-search-input {
   flex: 1;
   min-width: 0;
   padding: 10px 12px;
@@ -21,13 +107,13 @@
   font-size: 0.95rem;
   text-align: left;
 }
-.psc-search-input::placeholder { color: var(--text-muted); text-align: right; }
-.psc-search-input:focus {
+.pfs-search-input::placeholder { color: var(--text-muted); text-align: right; }
+.pfs-search-input:focus {
   outline: none;
   border-color: var(--accent-gold);
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.18);
 }
-.psc-scan-btn {
+.pfs-scan-btn {
   flex: 0 0 auto;
   padding: 10px 18px;
   border-radius: var(--radius-md);
@@ -40,71 +126,51 @@
   white-space: nowrap;
   transition: filter 0.12s ease, transform 0.12s ease;
 }
-.psc-scan-btn:hover  { filter: brightness(1.08); }
-.psc-scan-btn:active { transform: scale(0.96); }
+.pfs-scan-btn:hover  { filter: brightness(1.08); }
+.pfs-scan-btn:active { transform: scale(0.96); }
 
-/* ── ג. Watchlist chips ── */
-.psc-watch {
+/* searched chip + add-to-watchlist */
+.pfs-searched {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
-.psc-chip {
-  display: inline-flex;
-  align-items: stretch;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  overflow: hidden;
-  transition: border-color 0.12s ease, filter 0.12s ease;
-}
-.psc-chip:hover { filter: brightness(1.1); }
-.psc-chip--on {
-  border-color: var(--accent-gold);
-  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.35);
-}
-.psc-chip-load {
-  padding: 7px 12px;
-  background: none;
-  border: none;
-  color: var(--text-primary);
-  font-weight: 700;
-  font-size: 0.88rem;
-  letter-spacing: 0.3px;
-  cursor: pointer;
-  direction: ltr;
-}
-.psc-chip--on .psc-chip-load { color: var(--accent-gold); }
-.psc-chip-bell {
-  margin-inline-end: 5px;
-  font-size: 0.72rem;
-  font-weight: 800;
+.pfs-searched-load {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-gold);
+  background: rgba(212, 175, 55, 0.1);
   color: var(--accent-gold);
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
   direction: ltr;
 }
-.psc-chip-x {
-  padding: 0 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: none;
-  border-right: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: 0.72rem;
+.pfs-searched-add {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(74, 222, 128, 0.45);
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+  font-weight: 700;
+  font-size: 0.82rem;
   cursor: pointer;
-  transition: color 0.12s ease, background 0.12s ease;
 }
-.psc-chip-x:hover { color: #f87171; background: rgba(248, 113, 113, 0.14); }
+.pfs-searched-add:hover { filter: brightness(1.12); }
+.pfs-searched-saved {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #4ade80;
+}
 
-/* מארח הגרף המשוכפל — שומר על מסגרת בסגנון BEEP AI */
-.psc-chart-host {
+/* ── chart host ── */
+.pfs-chart-host {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-card);
   overflow: hidden;
   padding: 4px;
 }
-
-/* ChartsPage מביא את העיצוב שלו עצמו; כאן רק עוטפים אותו במסגרת הכרטיס. */
-.psc-chart-host .charts-wrap {
-  padding-top: 4px;
-}
+.pfs-chart-host .charts-wrap { padding-top: 4px; }
