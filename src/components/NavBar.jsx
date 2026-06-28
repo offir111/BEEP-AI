@@ -19,7 +19,7 @@ const MORE_PAGES = [
   { id: 'finviz',    icon: '🔍', label: 'FINVIZ'    },
   { id: 'etoro',     icon: '📊', label: 'eToro'     },
   { id: 'model-grid', icon: '📐', label: 'Model Grid' },
-  { id: 'daily',     icon: '🤖', label: 'Daily AI'  },
+  { id: 'daily',     icon: '🗞️', label: 'NEWS AI'   },
 ];
 
 export default function NavBar({ page, navigate }) {

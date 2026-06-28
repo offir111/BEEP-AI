@@ -15,7 +15,7 @@ const ROBOT_TABS = [
   { id: 'model-grid', label: '📐 Grid'   },
   { id: 'finviz',     label: '🔍 FINVIZ' },
   { id: 'etoro',      label: '📊 eToro'  },
-  { id: 'daily',      label: '🗞️ Daily' },
+  { id: 'daily',      label: '🗞️ NEWS AI' },
 ];
 
 export default function RobotNavTabs({ currentPage, navigate }) {

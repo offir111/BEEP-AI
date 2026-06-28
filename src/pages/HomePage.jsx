@@ -494,7 +494,7 @@ export default function HomePage({ navigate }) {
         <RobotCard icon="📐" name="S.M.C"   desc="Smart Money מוסדי"       tag="אנליזה" tagColor="#a78bfa" onClick={() => navigate('model-smc')} />
         <RobotCard icon="📊" name="FINVIZ"  desc="9 תבניות ריוורסל"        tag="סריקה" tagColor="#f59e0b" onClick={() => navigate('finviz')} />
         <RobotCard icon="📐" name="GRID"    desc="גריד BTC — רמות קנייה"   tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('model-grid')} />
-        <RobotCard icon="🗞️" name="NEWS AI" desc="חדשות מדורגות AI"         tag="אצור"  tagColor="#94a3b8" onClick={() => navigate('daily')} />
+        {/* NEWS AI הוסר מהבית לשמירת סימטריה (2 שורות); נשאר נגיש בתפריט "רובוטים" (daily). */}
         <RobotCard icon="🗺️" name="BOOK MAP" desc="Heatmap עומק ספר חי"     tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('bookmap')} />
       </div>
 
