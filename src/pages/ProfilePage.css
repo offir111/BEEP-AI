@@ -3,7 +3,7 @@
   direction: rtl;
   max-width: var(--page-max, 960px);
   margin: 0 auto;
-  padding: 16px 12px 48px;
+  padding: 2px 12px 48px;
 }
 
 /* ── User identity ── */

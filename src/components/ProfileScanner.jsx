@@ -134,8 +134,7 @@ export default function ProfileScanner() {
   return (
     <div className="pfs-wrap" dir="rtl">
 
-      {/* ── ⭐ מעקב מהיר — כפתורים קטנים, לחיצה טוענת לגרף ── */}
-      <h2 className="pf-section-title">⭐ מעקב מהיר</h2>
+      {/* ── מעקב — כפתורים קטנים, לחיצה טוענת לגרף (מוצמדים למעלה) ── */}
       <div className="pfs-tiles">
         {topList.map(t => (
           <MiniTile
