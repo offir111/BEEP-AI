@@ -1,0 +1,19 @@
+/* ── ProfileScanner — סורק מניות בעמוד היוזר ───────────────── */
+.psc-wrap {
+  direction: rtl;
+  margin-top: 8px;
+}
+
+/* מארח הגרף המשוכפל — שומר על מסגרת בסגנון BEEP AI */
+.psc-chart-host {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  overflow: hidden;
+  padding: 4px;
+}
+
+/* ChartsPage מביא את העיצוב שלו עצמו; כאן רק עוטפים אותו במסגרת הכרטיס. */
+.psc-chart-host .charts-wrap {
+  padding-top: 4px;
+}

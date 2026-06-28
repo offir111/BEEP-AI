@@ -16,6 +16,7 @@ import { useState, useEffect, useContext, useMemo } from 'react';
 import { useAlerts } from '../context/AlertsContext';
 import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import QuickAlert from '../components/QuickAlert';
+import ProfileScanner from '../components/ProfileScanner';
 import { formatPrice, formatChange } from '../utils/format';
 import './ProfilePage.css';
 
@@ -137,6 +138,9 @@ export default function ProfilePage({ username, loginAt }) {
       {quickSym && (
         <QuickAlert symbol={quickSym} onClose={() => setQuickSym(null)} />
       )}
+
+      {/* ── סורק מניות: גרף נרות + מעקב + התראות ── */}
+      <ProfileScanner />
     </div>
   );
 }
