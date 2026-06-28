@@ -150,14 +150,14 @@ export default function ProfileScanner() {
         {topList.length === 0 && <span className="pfs-empty">אין מניות במעקב — חפש והוסף למטה.</span>}
       </div>
 
-      {/* ── 📡 סורק מניות ── */}
-      <h2 className="pf-section-title">📡 סורק מניות</h2>
+      {/* ── סורק מניות — התווית בתוך שורת החיפוש ── */}
       <form className="pfs-search-row" onSubmit={e => { e.preventDefault(); scan(); }}>
+        <span className="pfs-search-label">📡 סורק מניות</span>
         <input
           className="pfs-search-input"
           value={query}
           onChange={e => setQuery(e.target.value.toUpperCase())}
-          placeholder="הזן סמל מניה/קריפטו — AAPL · CIFR · BTC"
+          placeholder="סמל — AAPL · CIFR · BTC"
           dir="ltr"
           autoComplete="off"
           autoCorrect="off"
