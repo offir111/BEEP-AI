@@ -10,6 +10,7 @@ const MAIN_PAGES = [
 ];
 
 const MORE_PAGES = [
+  { id: 'offir',     icon: '➕', label: '+OFFIR — סורק ביטחונות' },
   { id: 'tgm',       icon: '🛰️', label: 'TGM — סורק לידים' },
   { id: 'sot',       icon: '🤖', label: 'SOT'       },
   { id: 'model-w',   icon: '⚙️', label: 'Model W'   },

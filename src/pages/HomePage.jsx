@@ -487,6 +487,7 @@ export default function HomePage({ navigate }) {
       {/* ── Robots section ── */}
       <div className="hp-section-title">🤖 סקנרים &amp; רובוטים</div>
       <div className="hp-robots">
+        <RobotCard icon="➕" name="+OFFIR"  desc="סורק ביטחונות — תעלת מגמה" tag="LIVE" tagColor="#22d3ee" onClick={() => navigate('offir')} />
         <RobotCard icon="🛰️" name="TGM"     desc="מעקב ודירוג ספקי לידים" tag="LIVE" tagColor="#22d3ee" onClick={() => navigate('tgm')} />
         <RobotCard icon="⚙️" name="W"       desc="קריפטו — BTC/ETH/SOL"   tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('model-w')} />
         <RobotCard icon="₿"  name="BIT"     desc="Bitcoin — 4H+1H"         tag="LIVE"  tagColor="#22d3ee" onClick={() => navigate('model-bit')} />
