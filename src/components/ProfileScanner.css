@@ -4,6 +4,90 @@
   margin-top: 8px;
 }
 
+/* ── א. שורת חיפוש + סרוק ── */
+.psc-search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.psc-search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  text-align: left;
+}
+.psc-search-input::placeholder { color: var(--text-muted); text-align: right; }
+.psc-search-input:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.18);
+}
+.psc-scan-btn {
+  flex: 0 0 auto;
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(212, 175, 55, 0.5);
+  background: linear-gradient(135deg, var(--accent-gold), #f5d676);
+  color: #1a1a26;
+  font-weight: 800;
+  font-size: 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.12s ease, transform 0.12s ease;
+}
+.psc-scan-btn:hover  { filter: brightness(1.08); }
+.psc-scan-btn:active { transform: scale(0.96); }
+
+/* ── ג. Watchlist chips ── */
+.psc-watch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.psc-chip {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  overflow: hidden;
+  transition: border-color 0.12s ease, filter 0.12s ease;
+}
+.psc-chip:hover { filter: brightness(1.1); }
+.psc-chip--on {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.35);
+}
+.psc-chip-load {
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.88rem;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  direction: ltr;
+}
+.psc-chip--on .psc-chip-load { color: var(--accent-gold); }
+.psc-chip-x {
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.psc-chip-x:hover { color: #f87171; background: rgba(248, 113, 113, 0.14); }
+
 /* מארח הגרף המשוכפל — שומר על מסגרת בסגנון BEEP AI */
 .psc-chart-host {
   border: 1px solid var(--border);
