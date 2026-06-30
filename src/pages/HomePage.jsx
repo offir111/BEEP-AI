@@ -2,6 +2,7 @@ import { useState, useEffect, useContext, useRef } from 'react';
 import { useAlerts } from '../context/AlertsContext';
 import ScannerWidget  from '../components/ScannerWidget';
 import MiniChartPanel from '../components/MiniChartPanel';
+import BuyersSellersBar from '../components/BuyersSellersBar';
 import LiveQuoteContext, { useQuote } from '../context/LiveQuoteContext';
 import FngIndicator from '../components/FngIndicator';
 import { apiUrl } from '../utils/apiBase';
@@ -472,6 +473,9 @@ export default function HomePage({ navigate }) {
 
       {/* ── Mini chart panel ── */}
       <MiniChartPanel navigate={navigate} symbol={chartSymbol} />
+
+      {/* ── Live buyers/sellers (order-book imbalance) — same source as BOOK MAP DOM ── */}
+      <BuyersSellersBar navigate={navigate} />
 
       {/* ── 4 crypto mini cards ── */}
       <CryptoStrip selected={chartSymbol} onSelect={handleSymbolSelect} />

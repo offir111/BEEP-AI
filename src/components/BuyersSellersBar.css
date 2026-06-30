@@ -1,0 +1,53 @@
+/* BuyersSellersBar — standalone order-book imbalance gauge for the home screen.
+   Mirrors the BOOK MAP DOM bar colors; full-width, RTL, clickable card. */
+.bsb-wrap {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: inherit;
+  font: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.bsb-wrap:hover { border-color: var(--accent-gold); background: #20202e; }
+.bsb-wrap:active { transform: translateY(1px); }
+
+.bsb-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.bsb-title { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.2px; }
+.bsb-nodata { font-size: 0.66rem; font-weight: 700; color: #ff5a6e; }
+
+.bsb-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+.bsb-bid { background: linear-gradient(90deg, #1a7a4a, #2ecc71); transition: width 0.25s; }
+.bsb-ask { background: linear-gradient(90deg, #ff5a6e, #a51e36); transition: width 0.25s; }
+
+.bsb-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+.bsb-pct-bid { color: #2ecc71; }
+.bsb-pct-ask { color: #ff5a6e; }
+
+.bsb-mid { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); }
+.bsb-mid b { font-weight: 700; color: var(--text-muted); transition: color 0.15s; }
+.bsb-sep { opacity: 0.5; }
+.bsb-strong-bid { color: #2ecc71 !important; }
+.bsb-strong-ask { color: #ff5a6e !important; }
