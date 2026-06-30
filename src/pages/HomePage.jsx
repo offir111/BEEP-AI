@@ -474,8 +474,9 @@ export default function HomePage({ navigate }) {
       {/* ── Mini chart panel ── */}
       <MiniChartPanel navigate={navigate} symbol={chartSymbol} />
 
-      {/* ── Live buyers/sellers (order-book imbalance) — same source as BOOK MAP DOM ── */}
-      <BuyersSellersBar navigate={navigate} />
+      {/* ── Live buyers/sellers (order-book imbalance) — same source as BOOK MAP DOM ──
+          Follows the selected symbol: clicking a card below re-syncs the bar. ── */}
+      <BuyersSellersBar navigate={navigate} symbol={chartSymbol} />
 
       {/* ── 4 crypto mini cards ── */}
       <CryptoStrip selected={chartSymbol} onSelect={handleSymbolSelect} />

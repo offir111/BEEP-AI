@@ -23,6 +23,7 @@
   margin-bottom: 6px;
 }
 .bsb-title { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.2px; }
+.bsb-sym { color: var(--accent-gold); font-weight: 800; }
 .bsb-nodata { font-size: 0.66rem; font-weight: 700; color: #ff5a6e; }
 
 .bsb-bar {

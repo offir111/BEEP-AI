@@ -21,16 +21,22 @@ import { useEffect, useRef, useState } from 'react';
 import BinanceDepthFeed from '../robots/bookmap/data/BinanceDepthFeed';
 import './BuyersSellersBar.css';
 
-const LEVELS = 14;        // same top-N depth the DOM imbalance gauge uses
-const SYMBOL = 'BTCUSDT'; // the main-screen BTC card symbol
+const LEVELS = 14;     // same top-N depth the DOM imbalance gauge uses
+const DEFAULT = 'BTC'; // the main-screen default symbol
 
-export default function BuyersSellersBar({ navigate, symbol = SYMBOL }) {
+export default function BuyersSellersBar({ navigate, symbol = DEFAULT }) {
   const feedRef = useRef(null);
   const [, setTick] = useState(0);
 
-  // One live depth feed for the lifetime of the bar (mirrors DOMPanel's source).
+  // The strip/cards use short symbols (BTC, ETH, SOL…); the depth feed needs the
+  // Binance USDT pair (BTCUSDT). Normalize so the bar follows the selected symbol.
+  const base = String(symbol || DEFAULT).replace(/USDT$/i, '').toUpperCase();
+  const pair = base + 'USDT';
+
+  // One live depth feed, re-created whenever the selected symbol changes — this is
+  // what syncs the bar to the BTC/ETH/SOL/… card the user clicks below it.
   useEffect(() => {
-    const feed = new BinanceDepthFeed(symbol);
+    const feed = new BinanceDepthFeed(pair);
     feedRef.current = feed;
     feed.start();
     const iv = setInterval(() => setTick(t => t + 1), 250);
@@ -39,7 +45,7 @@ export default function BuyersSellersBar({ navigate, symbol = SYMBOL }) {
       feed.stop();
       feedRef.current = null;
     };
-  }, [symbol]);
+  }, [pair]);
 
   const book = feedRef.current?.book;
   const ready = book && book.ready && !book.isStale();
@@ -62,7 +68,9 @@ export default function BuyersSellersBar({ navigate, symbol = SYMBOL }) {
       aria-label="פס קונים מול מוכרים — פתח את רובוט BOOK MAP"
     >
       <div className="bsb-head">
-        <span className="bsb-title">קונים / מוכרים — עומק ספר</span>
+        <span className="bsb-title">
+          קונים / מוכרים — עומק ספר <b className="bsb-sym">{base}/USDT</b>
+        </span>
         {!ready && <span className="bsb-nodata">אין נתון 🔴</span>}
       </div>
 
