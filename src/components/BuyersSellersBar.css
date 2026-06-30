@@ -3,7 +3,7 @@
 .bsb-wrap {
   display: block;
   width: 100%;
-  margin: 8px 0;
+  margin: 4px 0 8px;   /* ~1mm gap above (under the BTC chart card) */
   padding: 8px 12px;
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -22,7 +22,7 @@
   justify-content: space-between;
   margin-bottom: 6px;
 }
-.bsb-title { font-size: 0.72rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.2px; }
+.bsb-title { font-size: 0.72rem; font-weight: 700; color: #ffffff; letter-spacing: 0.2px; }
 .bsb-sym { color: var(--accent-gold); font-weight: 800; }
 .bsb-nodata { font-size: 0.66rem; font-weight: 700; color: #ff5a6e; }
 
