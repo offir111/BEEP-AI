@@ -12,14 +12,19 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import RobotNavTabs from '../components/RobotNavTabs';
+import AlertChartPanel from '../components/AlertChartPanel';
 import { apiUrl } from '../utils/apiBase';
 import {
   analyzeOffir, mockCandles, resolveApiSymbol,
   DEFAULT_WATCHLIST, OFFIR_CRITERIA,
 } from '../engine/offirModel';
+import {
+  huntPrefilter, buildCandidate, rankCandidates,
+} from '../engine/offirHunter';
 import './PlusOffirPage.css';
 
 const LS_WATCHLIST = 'beepai_offir_watchlist';
+const LS_HUNT = 'beepai_offir_hunt';
 
 /* ── persistence ─────────────────────────────────────────────── */
 function loadWatchlist() {
@@ -87,6 +92,52 @@ async function fetchSymbolData(item) {
     price, marketCap, sector, industry,
     name: liveName || item.name, analysis,
   };
+}
+
+/* ── Hunter (Stage 2): scan the live gainers stream for dip-in-uptrend setups ──
+ * Reuses existing infra only: /api/tv-screener (universe), /api/candles (TA),
+ * /api/offir-quote (sector). Inverse filter + Stage-1 analyzeOffir + conviction score.
+ */
+async function runHunt() {
+  let universe = [];
+  try {
+    const r = await fetch(apiUrl(`/api/tv-screener?period=1y&cap=all&_t=${Date.now()}`));
+    if (r.ok) { const d = await r.json(); if (Array.isArray(d.quotes)) universe = d.quotes; }
+  } catch { /* no universe → empty discoveries */ }
+
+  const shortlist = huntPrefilter(universe);
+
+  const results = await Promise.all(shortlist.map(async (q) => {
+    try {
+      const [cd, oq] = await Promise.all([
+        fetch(apiUrl(`/api/candles?symbol=${encodeURIComponent(q.symbol)}&interval=1d`)).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(apiUrl(`/api/offir-quote?symbol=${encodeURIComponent(q.symbol)}&type=STOCK`)).then(r => r.ok ? r.json() : null).catch(() => null),
+      ]);
+      const candles = Array.isArray(cd?.candles) ? cd.candles : [];
+      if (!candles.length) return null;                  // no LIVE candles → don't guess
+      const a = analyzeOffir(candles, {
+        marketCap: q.market_cap, assetType: 'STOCK',
+        sector: oq?.sector, industry: oq?.industry,
+        hint: `${q.name || ''} ${oq?.sector || ''}`,
+        week52High: oq?.week52High,
+      });
+      return buildCandidate(q, a, { sector: oq?.sector });
+    } catch { return null; }
+  }));
+
+  return { ranked: rankCandidates(results), ts: Date.now(), universe: universe.length, shortlist: shortlist.length };
+}
+
+const todayKey = () => new Date().toISOString().slice(0, 10);   // YYYY-MM-DD (daily cache)
+function loadHuntCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem(LS_HUNT));
+    if (c && c.date === todayKey() && Array.isArray(c.ranked)) return c;
+  } catch { /* ignore */ }
+  return null;
+}
+function saveHuntCache(ranked, ts) {
+  try { localStorage.setItem(LS_HUNT, JSON.stringify({ date: todayKey(), ts, ranked })); } catch { /* ignore */ }
 }
 
 const fmtMcap = (m) => {
@@ -261,6 +312,35 @@ function EditModal({ item, onSave, onClose }) {
   );
 }
 
+/* ── Hunter discovery button (compact, MiniTile-style: ticker + dip%) ── */
+function HunterButton({ c, onOpen }) {
+  const tier = c.score >= 80 ? 'po-hunt-score--hot' : c.score >= 60 ? 'po-hunt-score--good' : 'po-hunt-score--mild';
+  const dn = (c.displayPct ?? 0) < 0;
+  return (
+    <button className="po-hunt-btn" onClick={() => onOpen(c.symbol)} title={`${c.name || c.symbol} · ציון כניסה ${c.score}/100 · 1Y ${c.pct_1y}% · פתח גרף`}>
+      <span className={`po-hunt-score ${tier}`}>{c.score}</span>
+      <span className="po-hunt-sym">{c.symbol}</span>
+      <span className={`po-hunt-pct ${dn ? 'po-dn' : 'po-up'}`} dir="ltr">
+        {dn ? '' : '+'}{Number.isFinite(c.displayPct) ? c.displayPct.toFixed(0) : '—'}%
+      </span>
+      {c.hotSector && <span className="po-hunt-fire" title={`סקטור חם: ${c.sector}`}>🔥</span>}
+    </button>
+  );
+}
+
+/* "עודכן לפני X" — same idea as GainersPage TsBar */
+function HuntAge({ ts }) {
+  const [age, setAge] = useState(0);
+  useEffect(() => {
+    if (!ts) return;
+    const tick = () => setAge(Math.round((Date.now() - ts) / 1000));
+    tick(); const iv = setInterval(tick, 1000); return () => clearInterval(iv);
+  }, [ts]);
+  if (!ts) return null;
+  const txt = age < 90 ? `${age}ש׳` : age < 5400 ? `${Math.round(age / 60)} דק׳` : `${Math.round(age / 3600)} ש׳`;
+  return <span className="po-hunt-age">עודכן לפני {txt}</span>;
+}
+
 /* ── main page ───────────────────────────────────────────────── */
 export default function PlusOffirPage({ navigate }) {
   const [watchlist, setWatchlist] = useState(loadWatchlist);
@@ -269,6 +349,33 @@ export default function PlusOffirPage({ navigate }) {
   const [editing, setEditing] = useState(null);
   const [newTicker, setNewTicker] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
+
+  /* Hunter (Stage 2) */
+  const [discoveries, setDiscoveries] = useState([]);
+  const [huntLoading, setHuntLoading] = useState(false);
+  const [huntTs, setHuntTs] = useState(null);
+  const [huntMeta, setHuntMeta] = useState(null);   // { universe, shortlist }
+  const [chartSym, setChartSym] = useState(null);    // open chart overlay
+
+  const doHunt = useCallback(async () => {
+    setHuntLoading(true);
+    try {
+      const { ranked, ts, universe, shortlist } = await runHunt();
+      setDiscoveries(ranked);
+      setHuntTs(ts);
+      setHuntMeta({ universe, shortlist });
+      saveHuntCache(ranked, ts);
+    } finally {
+      setHuntLoading(false);
+    }
+  }, []);
+
+  /* On mount: use today's cache if present, else hunt. Re-hunt daily. */
+  useEffect(() => {
+    const cached = loadHuntCache();
+    if (cached) { setDiscoveries(cached.ranked); setHuntTs(cached.ts); }
+    else { doHunt(); }
+  }, [doHunt]);
 
   /* Fetch analysis for the whole watchlist (on change / manual refresh). */
   useEffect(() => {
@@ -340,6 +447,31 @@ export default function PlusOffirPage({ navigate }) {
         <span className="po-disc-na"> ⚠️/* = נתון לא זמין מהפרוקסי (לא פוסל). MOCK = נתוני הדמיה מסומנים.</span>
       </div>
 
+      {/* ── Hunter discoveries (Stage 2) — top of page, above watchlist ── */}
+      <div className="po-hunt-head">
+        <div className="po-section-title">🔭 תגליות — צייד אוטומטי</div>
+        <div className="po-hunt-meta">
+          <HuntAge ts={huntTs} />
+          <button className="po-hunt-refresh" onClick={doHunt} disabled={huntLoading} aria-label="סרוק עכשיו">
+            {huntLoading ? '… סורק' : '⟳ סרוק'}
+          </button>
+        </div>
+      </div>
+      <div className="po-hunt-sub">
+        מניות במגמה שנתית עולה שירדו לנקודת כניסה (dip) — ממוינות לפי עוצמת ההזדמנות (ציון 0–100).
+        <span className="po-src po-src--live">LIVE · TradingView</span>
+      </div>
+      <div className="po-hunt-strip">
+        {huntLoading && discoveries.length === 0 && <span className="po-hunt-loading">סורק את השוק…</span>}
+        {!huntLoading && discoveries.length === 0 && (
+          <span className="po-hunt-empty">אין תגליות כרגע — לא נמצא setup של dip-in-uptrend בשוק.</span>
+        )}
+        {discoveries.map(c => <HunterButton key={c.symbol} c={c} onOpen={setChartSym} />)}
+      </div>
+      {huntMeta && (
+        <div className="po-hunt-note">סרק {huntMeta.universe} מניות חזקות שנתית → {huntMeta.shortlist} מועמדים → {discoveries.length} תגליות שעברו את כל הסינון והבטיחות.</div>
+      )}
+
       {/* Add slot */}
       <form className="po-add" onSubmit={e => { e.preventDefault(); addTicker(newTicker); }}>
         <input
@@ -369,14 +501,20 @@ export default function PlusOffirPage({ navigate }) {
         )}
       </div>
 
-      {/* Stage-2 placeholder */}
-      <div className="po-section-title">🔭 תגליות</div>
-      <div className="po-discoveries">
-        <span className="po-discoveries-soon">צייד אוטומטי — שלב 2 (בקרוב)</span>
-      </div>
-
       {editing && (
         <EditModal item={editing} onSave={saveEdit} onClose={() => setEditing(null)} />
+      )}
+
+      {/* Chart overlay — reuses the existing AlertChartPanel (same as GainersPage) */}
+      {chartSym && (
+        <div className="po-chart-overlay" onClick={() => setChartSym(null)}>
+          <div className="po-chart-box" onClick={e => e.stopPropagation()}>
+            <div className="po-chart-iframe">
+              <AlertChartPanel symbol={chartSym} isCrypto={false} defaultTf="1D" />
+            </div>
+            <button className="po-chart-x" onClick={() => setChartSym(null)} aria-label="סגור גרף">✕</button>
+          </div>
+        </div>
       )}
     </div>
   );
