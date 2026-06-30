@@ -3,9 +3,7 @@
 .bsb-wrap {
   display: block;
   width: 100%;
-  /* .hp-wrap is a flex column with gap:16px. Pull up to leave only ~1mm
-     between this bar and the BTC chart card above it (16px gap − 12px). */
-  margin: -12px 0 0;
+  margin: 4px 0 8px;   /* gap above (under the BTC chart card) */
   padding: 8px 12px;
   background: var(--bg-card);
   border: 1px solid var(--border);
