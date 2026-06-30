@@ -69,7 +69,7 @@ export default function BuyersSellersBar({ navigate, symbol = DEFAULT }) {
     >
       <div className="bsb-head">
         <span className="bsb-title">
-          קונים / מוכרים — עומק ספר <b className="bsb-sym">{base}/USDT</b>
+          קונים / מוכרים <b className="bsb-sym">{base}/</b>
         </span>
         {!ready && <span className="bsb-nodata">אין נתון 🔴</span>}
       </div>
