@@ -9,17 +9,109 @@
  * הקלט: מערך נרות יומיים [{time,open,high,low,close,volume}] (~שנה).
  */
 
-/* רשימת 6 הקריטריונים, לפי הסדר שמוצג ב-UI. */
+/* רשימת 6 הקריטריונים, לפי מסמך ה-CHECK של +OFFIR, בסדר שמוצג ב-UI. */
 export const OFFIR_CRITERIA = [
-  { key: 'marketCap',   label: 'מרקט-קאפ ≥ 500M$' },
-  { key: 'aboveSMA200', label: 'מעל SMA200' },
-  { key: 'slopeUp',     label: 'שיפוע שנתי חיובי' },
-  { key: 'volatility',  label: 'תנודתיות 2%–20%' },
-  { key: 'entryZone',   label: 'אזור כניסה (רבע תחתון)' },
-  { key: 'trendIntact', label: 'מגמה שלמה (לא נשברה)' },
+  { key: 'marketCap',  label: 'שווי שוק ≥ 500M$' },
+  { key: 'hotSector',  label: 'סקטור חם' },
+  { key: 'catalyst',   label: 'קטליסט חיובי' },
+  { key: 'uptrend',    label: 'מגמת עלייה שנתית' },
+  { key: 'volatility', label: 'תנודתיות יומית 2%–20%' },
+  { key: 'dipFromHigh', label: 'ירידה ≥20% מהשיא המקומי' },
 ];
 
 export const MIN_MARKET_CAP = 500e6;
+export const MIN_DIP_PCT = 20;            // קריטריון 6: ירידה מינ' מהשיא המקומי
+export const DIP_LOOKBACK = 132;          // ~6 חודשי מסחר ל"שיא מקומי"
+
+/* ── קריטריון 2: סקטור חם ──────────────────────────────────────────
+ * תזת הרובוט: AI/HPC + קריפטו/טכנולוגיה. מזהים "חם" לפי סקטור+תעשייה
+ * מ-Finviz, ובנוסף רמז (שם החברה + הקטליסט) שתופס כורי-קריפטו שמסווגים
+ * תחת Financial/Capital-Markets ו-ETF-ים קריפטוגרפיים שתחת Exchange-Traded-Fund.
+ */
+const HOT_PATTERNS = [
+  'technolog', 'semiconduct', 'software', 'information technology',
+  'communication', 'internet', 'data center', 'data processing',
+  'capital market', 'energy',
+];
+const THEME_PATTERNS = [
+  'ai', 'hpc', 'compute', 'cloud', 'data center',
+  'bitcoin', 'solana', 'crypto', 'blockchain', 'mining', 'digital asset',
+];
+
+function matchAny(hay, patterns) {
+  for (const p of patterns) if (hay.includes(p)) return p;
+  return null;
+}
+
+/**
+ * isHotSector — מחזיר { hot, sector, matched } או hot=null אם אין נתון סקטור כלל.
+ * @param {string} sector   סקטור (Finviz)
+ * @param {string} industry תעשייה (Finviz)
+ * @param {string} hint     רמז נוסף — שם החברה + טקסט הקטליסט
+ */
+export function isHotSector(sector, industry, hint = '') {
+  const hasSector = !!(sector || industry);
+  const themeHay = ` ${String(hint).toLowerCase()} `;
+  // theme יכול להפוך "חם" גם בלי סקטור (לפי שם/קטליסט)
+  const themeMatch =
+    THEME_PATTERNS.find(p => themeHay.includes(` ${p} `) || themeHay.includes(p));
+  if (!hasSector && !themeMatch) return { hot: null, sector: null, matched: null };
+  const secHay = `${String(sector || '').toLowerCase()} ${String(industry || '').toLowerCase()}`;
+  const secMatch = matchAny(secHay, HOT_PATTERNS);
+  const matched = secMatch || themeMatch || null;
+  return { hot: !!matched, sector: sector || null, matched };
+}
+
+/* ── קריטריון 3: קטליסט חיובי (שכבת NLP בסיסית) ────────────────────
+ * ניקוד מילות-מפתח חיוביות מול שליליות (אנגלית+עברית). חיובי = יש טקסט,
+ * אין דגל שלילי דומיננטי, ויש לפחות אות חיובית אחת.
+ */
+const POS_WORDS = [
+  'deal', 'partnership', 'partner', 'contract', 'expansion', 'expand',
+  'acquisition', 'acquire', 'upgrade', 'beat', 'record', 'growth', 'surge',
+  'ai', 'hpc', 'cloud', 'launch', 'approval', 'approved', 'demand', 'backing',
+  'invest', 'investment', 'breakthrough', 'milestone', 'guidance raise',
+  // תזת קריפטו/חשיפת-ספוט = הקטליסט החיובי של ה-ETF-ים ברשימת ברירת-המחדל
+  'bitcoin', 'solana', 'crypto', 'blockchain', 'spot', 'exposure', 'etf',
+  'עסקה', 'שותפות', 'גידול', 'שדרוג', 'הסכם', 'השקעה', 'פריצה', 'גב', 'ביקוש', 'חשיפה',
+];
+const NEG_WORDS = [
+  'lawsuit', 'downgrade', 'dilution', 'bankruptcy', 'bankrupt', 'miss', 'fraud',
+  'delisting', 'delist', 'investigation', 'sec probe', 'default', 'halt',
+  'תביעה', 'דילול', 'חקירה', 'פשיטת רגל', 'הורדת דירוג', 'הונאה',
+];
+
+export function scoreCatalyst(text) {
+  const t = String(text || '').toLowerCase().trim();
+  if (!t) return { hasCatalyst: false, positive: null, score: 0, pos: 0, neg: 0 };
+  let pos = 0, neg = 0;
+  for (const w of POS_WORDS) if (t.includes(w)) pos++;
+  for (const w of NEG_WORDS) if (t.includes(w)) neg++;
+  const score = pos - neg;
+  // קטליסט חיובי: יש מילים חיוביות, והן גוברות על השליליות.
+  const positive = pos > 0 && score > 0;
+  return { hasCatalyst: true, positive, score, pos, neg };
+}
+
+/* ── קריטריון 6: ירידה מהשיא המקומי ────────────────────────────────
+ * שיא מקומי = ה-high הגבוה ביותר בחלון ~6 חודשים אחרון. אחוז הירידה
+ * מחושב מהשיא הזה אל מחיר הסגירה האחרון.
+ */
+export function dipFromLocalHigh(candles, lookback = DIP_LOOKBACK, fallbackHigh = null) {
+  const arr = Array.isArray(candles) ? candles : [];
+  const last = arr.length ? arr[arr.length - 1].close : null;
+  if (last == null || !Number.isFinite(last)) return { localHigh: null, dipPct: null, pass: null };
+  const window = arr.slice(-lookback);
+  let hi = -Infinity;
+  for (const c of window) {
+    const h = Number.isFinite(c.high) ? c.high : c.close;
+    if (Number.isFinite(h) && h > hi) hi = h;
+  }
+  if (Number.isFinite(fallbackHigh) && fallbackHigh > hi) hi = fallbackHigh;
+  if (!Number.isFinite(hi) || hi <= 0) return { localHigh: null, dipPct: null, pass: null };
+  const dipPct = ((hi - last) / hi) * 100;
+  return { localHigh: hi, dipPct, pass: dipPct >= MIN_DIP_PCT };
+}
 
 /* ── ממוצע נע פשוט על N הערכים האחרונים ───────────────────────── */
 export function sma(values, period) {
@@ -74,14 +166,23 @@ export function volumeSpike(candles, period = 20) {
 }
 
 /**
- * analyzeOffir — מריץ את כל הקריטריונים ומחזיר סטטוס 🟢/🟡/🔴.
+ * analyzeOffir — מריץ את 6 קריטריוני הסינון ומחזיר סטטוס 🟢/🟡/🔴.
  *
- * @param {Array}  candles            נרות יומיים (~שנה)
+ * @param {Array}  candles             נרות יומיים (~שנה)
  * @param {object} [opts]
- * @param {number} [opts.marketCap]   שווי שוק / AUM ($); null = לא ידוע (לא פוסל)
- * @param {string} [opts.assetType]   'STOCK' | 'ETF'
+ * @param {number} [opts.marketCap]    שווי שוק / AUM ($); null = לא ידוע (לא פוסל)
+ * @param {string} [opts.assetType]    'STOCK' | 'ETF'
+ * @param {string} [opts.sector]       סקטור (Finviz)            → קריטריון 2
+ * @param {string} [opts.industry]     תעשייה (Finviz)           → קריטריון 2
+ * @param {string} [opts.hint]         שם + קטליסט (לזיהוי תזה)  → קריטריון 2
+ * @param {string} [opts.catalyst]     טקסט הקטליסט              → קריטריון 3
+ * @param {number} [opts.week52High]   שיא 52-שבועות (גיבוי)     → קריטריון 6
  */
-export function analyzeOffir(candles, { marketCap = null, assetType = 'STOCK' } = {}) {
+export function analyzeOffir(candles, {
+  marketCap = null, assetType = 'STOCK',
+  sector = null, industry = null, hint = '',
+  catalyst = '', week52High = null,
+} = {}) {
   const arr = Array.isArray(candles) ? candles : [];
   const closes = arr.map(c => c.close).filter(Number.isFinite);
   const enough = closes.length >= 50;
@@ -95,7 +196,7 @@ export function analyzeOffir(candles, { marketCap = null, assetType = 'STOCK' } 
   const atrPct = atrPercent(arr);
   const vSpike = volumeSpike(arr);
 
-  /* מיקום בתעלה: 0% = גבול תחתון, 100% = גבול עליון. <0 = שבר כלפי מטה. */
+  /* מיקום בתעלה (להצגה בלבד): 0% = גבול תחתון, 100% = עליון. <0 = שבר מטה. */
   let channelPos = null, brokeBelow = false;
   if (ch && last != null) {
     const width = ch.upper - ch.lower;
@@ -103,24 +204,36 @@ export function analyzeOffir(candles, { marketCap = null, assetType = 'STOCK' } 
     brokeBelow = last < ch.lower;
   }
 
+  /* ── 6 הקריטריונים ── */
+  // 1) שווי שוק ≥ 500M$ (ETF ללא mcap → לא ידוע, לא פוסל)
+  const mcapOK = marketCap != null ? marketCap >= MIN_MARKET_CAP : null;
+  // 2) סקטור חם
+  const hot = isHotSector(sector, industry, hint);
+  // 3) קטליסט חיובי (NLP בסיסי)
+  const cat = scoreCatalyst(catalyst);
+  // 4) מגמת עלייה שנתית (מעל SMA200 + שיפוע חיובי)
   const aboveSMA200 = (sma200 != null && last != null) ? last > sma200 : null;
   const slopeUp     = ch ? ch.slope > 0 : null;
-  const volOK       = atrPct != null ? (atrPct >= 2 && atrPct <= 20) : null;
-  const mcapOK      = marketCap != null ? marketCap >= MIN_MARKET_CAP : null; // null = לא ידוע
-  const entryZone   = channelPos != null ? channelPos <= 25 : null;
-  const volBreak    = vSpike != null && vSpike >= 3 && dropping;
-  const trendIntact = !brokeBelow && !volBreak;
+  const uptrend     = (aboveSMA200 != null && slopeUp != null)
+    ? (aboveSMA200 === true && slopeUp === true) : null;
+  // 5) תנודתיות יומית 2%–20%
+  const volOK = atrPct != null ? (atrPct >= 2 && atrPct <= 20) : null;
+  // 6) ירידה ≥20% מהשיא המקומי
+  const dip = dipFromLocalHigh(arr, DIP_LOOKBACK, week52High);
 
-  /* ── סיווג סטטוס ──
-   * 🔴 זהירות: שבר גבול תחתון / מתחת ל-SMA200 / נפח-שבירה חריג / אין מגמה עולה תקפה.
-   * 🟢 כניסה: מגמה עולה תקפה + רבע תחתון של התעלה + לא נשברה.
-   * 🟡 המתן: מגמה עולה תקפה אבל לא בנקודת כניסה.
+  // עזר פנימי לסטטוס (לא בין 6 הקריטריונים): שבירת-נפח חריגה בירידה.
+  const volBreak = vSpike != null && vSpike >= 3 && dropping;
+
+  /* ── סיווג סטטוס (מסחר conviction, ללא סטופ-לוס) ──
+   * 🔴 זהירות: אין מגמה שנתית עולה / שבר גבול תעלה תחתון / נפח-שבירה חריג.
+   * 🟢 כניסה: מגמה עולה תקפה + ירדה ≥20% מהשיא (הנחה) + לא נשברה.
+   * 🟡 המתן: מגמה עולה תקפה אך עדיין קרובה לשיא (לא באזור הנחה).
    */
-  const validUptrend = aboveSMA200 === true && slopeUp === true;
+  const validUptrend = uptrend === true;
   let status, statusLabel;
-  if (brokeBelow || aboveSMA200 === false || volBreak || !validUptrend) {
+  if (!validUptrend || brokeBelow || volBreak) {
     status = 'red'; statusLabel = 'זהירות';
-  } else if (entryZone) {
+  } else if (dip.pass) {
     status = 'green'; statusLabel = 'כניסה';
   } else {
     status = 'yellow'; statusLabel = 'המתן';
@@ -128,26 +241,28 @@ export function analyzeOffir(candles, { marketCap = null, assetType = 'STOCK' } 
 
   /* סיבה ראשית להצגה */
   const reason =
-    brokeBelow                ? 'שבר את גבול התעלה התחתון כלפי מטה' :
-    aboveSMA200 === false     ? 'מתחת ל-SMA200 — חשד לשבירת מגמה' :
-    volBreak                  ? `נפח חריג (×${vSpike?.toFixed(1)}) בירידה` :
-    !validUptrend             ? 'אין מגמה שנתית עולה תקפה' :
-    status === 'green'        ? 'בגבול התחתון של תעלת מגמה עולה — נקודת כניסה' :
-                                'מגמה עולה, אך לא באזור כניסה';
+    aboveSMA200 === false ? 'מתחת ל-SMA200 — חשד לשבירת מגמה' :
+    !validUptrend         ? 'אין מגמה שנתית עולה תקפה' :
+    brokeBelow            ? 'שבר את גבול התעלה התחתון כלפי מטה' :
+    volBreak              ? `נפח חריג (×${vSpike?.toFixed(1)}) בירידה` :
+    dip.pass              ? `ירד ${dip.dipPct?.toFixed(0)}% מהשיא המקומי במגמה עולה — נקודת כניסה` :
+                            `מגמה עולה, אך רק ${dip.dipPct != null ? dip.dipPct.toFixed(0) : '—'}% מהשיא (פחות מ-20%)`;
 
   const criteria = {
-    marketCap:   { pass: mcapOK,      value: marketCap, unknown: mcapOK === null },
-    aboveSMA200: { pass: aboveSMA200, value: sma200, partial: !fullSMA },
-    slopeUp:     { pass: slopeUp,     value: ch ? ch.slope : null },
-    volatility:  { pass: volOK,       value: atrPct },
-    entryZone:   { pass: entryZone,   value: channelPos },
-    trendIntact: { pass: trendIntact, value: vSpike },
+    marketCap:   { pass: mcapOK,       value: marketCap, unknown: mcapOK === null },
+    hotSector:   { pass: hot.hot,      value: hot.sector, unknown: hot.hot === null, matched: hot.matched },
+    catalyst:    { pass: cat.positive, value: catalyst || null, unknown: !cat.hasCatalyst },
+    uptrend:     { pass: uptrend,      value: ch ? ch.slope : null, partial: !fullSMA },
+    volatility:  { pass: volOK,        value: atrPct },
+    dipFromHigh: { pass: dip.pass,     value: dip.dipPct, localHigh: dip.localHigh },
   };
 
   return {
     enough, last, sma200, fullSMA, assetType,
     channel: ch, channelPos, brokeBelow,
     atrPct, volSpike: vSpike,
+    sector: hot.sector, hotSector: hot.hot, catalystScore: cat,
+    dip,
     status, statusLabel, reason, criteria,
   };
 }

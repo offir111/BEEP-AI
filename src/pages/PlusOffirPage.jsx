@@ -48,37 +48,45 @@ async function fetchSymbolData(item) {
   const sym = item.apiSymbol || resolveApiSymbol(item.ticker);
   let candles = [];
   let marketCap = null, livePrice = null, liveName = null;
+  let sector = null, industry = null, week52High = null;
 
-  // 1y daily candles (TA engine input)
+  // 1y daily candles (TA engine input) — מגמה/תנודתיות/ירידה-מהשיא
   try {
     const r = await fetch(apiUrl(`/api/candles?symbol=${encodeURIComponent(sym)}&interval=1d`));
     if (r.ok) { const d = await r.json(); if (Array.isArray(d.candles)) candles = d.candles; }
   } catch { /* fall through to MOCK */ }
 
-  // quote: market-cap + live price + name
+  // OFFIR fundamentals (Finviz mcap+sector, Yahoo price+52wk) — קריטריונים 1,2,6
   try {
-    const r = await fetch(apiUrl(`/api/stock-detail?symbol=${encodeURIComponent(sym)}`));
+    const r = await fetch(apiUrl(`/api/offir-quote?symbol=${encodeURIComponent(sym)}&type=${item.type}`));
     if (r.ok) {
       const d = await r.json();
-      if (Number.isFinite(d.market_cap)) marketCap = d.market_cap;
+      if (Number.isFinite(d.marketCap)) marketCap = d.marketCap;
       if (Number.isFinite(d.price)) livePrice = d.price;
-      else if (Array.isArray(d.prices) && d.prices.length) {
-        const p = d.prices[d.prices.length - 1];
-        if (Number.isFinite(p)) livePrice = p;
-      }
-      // Yahoo often returns just the ticker as "name" when the quote feed is blocked —
-      // keep the nicer static company name in that case.
+      if (Number.isFinite(d.week52High)) week52High = d.week52High;
+      if (d.sector) sector = d.sector;
+      if (d.industry) industry = d.industry;
       if (d.name && d.name.toUpperCase() !== sym.toUpperCase()) liveName = d.name;
     }
-  } catch { /* keep nulls */ }
+  } catch { /* keep nulls — criteria mark ⚠️ unknown, never silently pass */ }
 
   const isLive = candles.length > 0;
   if (!isLive) candles = mockCandles(item.ticker);
 
-  const analysis = analyzeOffir(candles, { marketCap, assetType: item.type });
+  const hint = `${item.name || ''} ${item.catalyst || ''}`;
+  const analysis = analyzeOffir(candles, {
+    marketCap, assetType: item.type,
+    sector, industry, hint,
+    catalyst: item.catalyst || '',
+    week52High,
+  });
   const price = livePrice ?? analysis.last ?? null;
 
-  return { source: isLive ? 'LIVE' : 'MOCK', price, marketCap, name: liveName || item.name, analysis };
+  return {
+    source: isLive ? 'LIVE' : 'MOCK',
+    price, marketCap, sector, industry,
+    name: liveName || item.name, analysis,
+  };
 }
 
 const fmtMcap = (m) => {
@@ -118,17 +126,35 @@ function ChannelBar({ pos, broke }) {
   );
 }
 
+/* ערך מדיד קצר לכל קריטריון — מוכיח שהבדיקה אמיתית (לא תחושה). */
+function critValue(key, c) {
+  if (c == null) return '';
+  const v = c.value;
+  switch (key) {
+    case 'marketCap':  return Number.isFinite(v) ? fmtMcap(v) : (c.unknown ? '—' : '');
+    case 'hotSector':  return v || (c.unknown ? '—' : '');
+    case 'catalyst':   return c.unknown ? 'אין' : c.pass ? 'חיובי' : 'חלש';
+    case 'uptrend':    return Number.isFinite(v) ? (v > 0 ? 'עולה' : 'יורד') : '';
+    case 'volatility': return Number.isFinite(v) ? `${v.toFixed(1)}%` : '';
+    case 'dipFromHigh': return Number.isFinite(v) ? `${v.toFixed(0)}%` : '';
+    default: return '';
+  }
+}
+
 function CriteriaList({ criteria }) {
   return (
     <ul className="po-crit">
       {OFFIR_CRITERIA.map(({ key, label }) => {
         const c = criteria[key] || {};
-        const mark = c.unknown || c.pass == null ? '⚠️' : c.pass ? '✓' : '✗';
-        const cls = c.unknown || c.pass == null ? 'po-crit--na' : c.pass ? 'po-crit--ok' : 'po-crit--no';
+        const na = c.unknown || c.pass == null;
+        const mark = na ? '⚠️' : c.pass ? '✓' : '✗';
+        const cls = na ? 'po-crit--na' : c.pass ? 'po-crit--ok' : 'po-crit--no';
+        const val = critValue(key, c);
         return (
           <li key={key} className={`po-crit-row ${cls}`}>
             <span className="po-crit-mark">{mark}</span>
             <span className="po-crit-label">{label}{c.partial ? ' *' : ''}</span>
+            {val && <span className="po-crit-val">{val}</span>}
           </li>
         );
       })}
@@ -168,9 +194,9 @@ function StockCard({ item, data, loading, onEdit, onRemove }) {
           <div className="po-card-mid">
             <ChannelBar pos={data.analysis.channelPos} broke={data.analysis.brokeBelow} />
             <div className="po-card-metrics">
-              <div className="po-metric"><span>מרקט-קאפ</span><b>{fmtMcap(data.marketCap)}</b></div>
-              <div className="po-metric"><span>תנודתיות</span><b>{data.analysis.atrPct != null ? `${data.analysis.atrPct.toFixed(1)}%` : '—'}</b></div>
-              <div className="po-metric"><span>SMA200</span><b>{fmtPrice(data.analysis.sma200)}</b></div>
+              <div className="po-metric"><span>מרקט-קאפ</span><b>{Number.isFinite(data.marketCap) ? fmtMcap(data.marketCap) : (data.analysis.assetType === 'ETF' ? 'ETF' : '—')}</b></div>
+              <div className="po-metric"><span>סקטור</span><b>{data.sector || '—'}</b></div>
+              <div className="po-metric"><span>ירידה מהשיא</span><b>{data.analysis.dip?.dipPct != null ? `${data.analysis.dip.dipPct.toFixed(0)}%` : '—'}</b></div>
               <CriteriaList criteria={data.analysis.criteria} />
             </div>
           </div>
