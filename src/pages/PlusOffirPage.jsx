@@ -36,6 +36,7 @@ const LS_BASE = 'beepai_offir_base';   // מחיר-בסיס מרגע ההוספ�
 const LS_PAPER = 'beepai_offir_paper'; // מעקב STRONG BUY וירטואלי (paper tracking)
 const HUNT_REFRESH_MS = 10 * 60 * 1000;   // re-hunt every 10 min while market is open
 const HUNT_REFRESH_LABEL = '10 דק׳';
+const OFFIR_VERSION = 'v7';               // bump each deploy → visible freshness check
 
 /* ── persistence ─────────────────────────────────────────────── */
 function loadWatchlist() {
@@ -741,6 +742,7 @@ export default function PlusOffirPage({ navigate }) {
       <div className="po-topbar">
         <div className="po-topbar-right">
           <h2 className="po-topbar-title">➕ +OFFIR — סורק ביטחונות</h2>
+          <span className="po-ver" title="גרסת ממשק — אם אתה לא רואה את זה, אתה על cache ישן">{OFFIR_VERSION}</span>
           <RobotsDropdown navigate={navigate} />
         </div>
         <div className="po-topbar-left">

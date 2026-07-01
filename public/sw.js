@@ -1,6 +1,9 @@
 // BEEP AI Service Worker — push notifications only.
 // IMPORTANT: no app-shell caching. Caching index.html/JS caused stale
 // "white screen" after every deploy. The browser always goes to network now.
+// Bump SW_BUILD on deploy to force every client's SW to re-activate and nuke
+// any caches left by an older (caching) service-worker version.
+const SW_BUILD = '2026-07-01-offir-v7';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
