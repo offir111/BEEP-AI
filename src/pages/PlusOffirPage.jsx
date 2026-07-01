@@ -10,7 +10,7 @@
  *
  * בידוד: קומפוננטה עצמאית. אינה נוגעת בשום רובוט קיים.
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ROBOT_TABS } from '../components/RobotNavTabs';
 import AlertChartPanel from '../components/AlertChartPanel';
 import { apiUrl } from '../utils/apiBase';
@@ -24,12 +24,16 @@ import {
 import {
   detectCatalystHeadline, convictionBadges, recommend,
 } from '../engine/offirConviction';
+import {
+  recordBuy, updateBook, rankByLiveReturn, summarize, liveReturn,
+} from '../engine/offirPaper';
 import { clockStatus } from '../../api/_marketClock.js';
 import './PlusOffirPage.css';
 
 const LS_WATCHLIST = 'beepai_offir_watchlist';
 const LS_HUNT = 'beepai_offir_hunt';
 const LS_BASE = 'beepai_offir_base';   // מחיר-בסיס מרגע ההוספה למעקב (ל"אחוז מאז מעקב")
+const LS_PAPER = 'beepai_offir_paper'; // מעקב STRONG BUY וירטואלי (paper tracking)
 const HUNT_REFRESH_MS = 10 * 60 * 1000;   // re-hunt every 10 min while market is open
 const HUNT_REFRESH_LABEL = '10 דק׳';
 
@@ -140,7 +144,16 @@ async function runHunt() {
         hint: `${q.name || ''} ${oq?.sector || ''}`,
         week52High: oq?.week52High,
       });
-      return buildCandidate(q, a, { sector: oq?.sector });
+      const c = buildCandidate(q, a, { sector: oq?.sector });
+      if (c) {
+        // attach the Stage-3 recommendation → STRONG BUY discoveries feed paper-tracking
+        const catStrong = detectCatalystHeadline(oq?.headlines).strong;
+        const badges = convictionBadges(oq || {}, catStrong);
+        c.reco = recommend({ analysis: a, badges, catalystStrong: catStrong }).level;
+        c.localHigh = a.dip?.localHigh ?? null;
+        c.entryPrice = Number.isFinite(q.price) ? q.price : (a.last ?? null);
+      }
+      return c;
     } catch { return null; }
   }));
 
@@ -160,6 +173,8 @@ function saveHuntCache(ranked, ts) {
 }
 function loadBase() { try { return JSON.parse(localStorage.getItem(LS_BASE)) || {}; } catch { return {}; } }
 function saveBase(m) { try { localStorage.setItem(LS_BASE, JSON.stringify(m)); } catch { /* ignore */ } }
+function loadPaper() { try { const p = JSON.parse(localStorage.getItem(LS_PAPER)); return p && p.positions ? p : { positions: {} }; } catch { return { positions: {} }; } }
+function savePaper(b) { try { localStorage.setItem(LS_PAPER, JSON.stringify(b)); } catch { /* ignore */ } }
 
 const fmtMcap = (m) => {
   if (!Number.isFinite(m)) return '—';
@@ -430,6 +445,74 @@ function HuntAge({ ts }) {
   return <span className="po-hunt-age">עודכן לפני {txt}</span>;
 }
 
+/* ── STRONG BUY paper-tracking (Part 2) ── */
+const fmtRet0 = (v) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`);
+const fmtRetSigned = (v) => {
+  if (v == null) return '—';
+  const s = Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(1);
+  return `${v >= 0 ? '' : ''}${s}%`;   // minus comes naturally; positives no plus (per spec format)
+};
+
+function SbButton({ pos, ret, onOpen }) {
+  const up = (ret ?? 0) >= 0;
+  return (
+    <button className="po-sb-btn" onClick={() => onOpen(pos.ticker)} title={`${pos.label || pos.ticker} · וירטואלי $100 · תשואה חיה מהקנייה`}>
+      <span className="po-sb-sym">{pos.label || pos.ticker}</span>
+      <span className={`po-sb-pct ${up ? 'po-up' : 'po-dn'}`} dir="ltr">{fmtRet0(ret)}</span>
+    </button>
+  );
+}
+
+function SbDropdown({ items, onOpen }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+  return (
+    <div className="po-sb-dd" ref={ref}>
+      <button className="po-sb-btn po-sb-more" onClick={() => setOpen(o => !o)} title="כל המניות הווירטואליות">⋯</button>
+      {open && (
+        <div className="po-sb-menu" role="menu">
+          {items.map(({ pos, ret }) => {
+            const up = (ret ?? 0) >= 0;
+            return (
+              <button key={pos.ticker} className="po-sb-mi" onClick={() => { setOpen(false); onOpen(pos.ticker); }}>
+                <span>{pos.label || pos.ticker}</span>
+                <span className={up ? 'po-up' : 'po-dn'} dir="ltr">{fmtRet0(ret)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PaperMark({ label, v }) {
+  if (v == null) return <span className="po-pm po-pm--wait">{label} —</span>;
+  return <span className={`po-pm ${v >= 0 ? 'po-up' : 'po-dn'}`} dir="ltr">{label} {fmtRetSigned(v)}</span>;
+}
+
+function PaperRow({ pos, ret, onOpen }) {
+  return (
+    <div className="po-paper-row">
+      <button className="po-paper-sym" onClick={() => onOpen(pos.ticker)} title="פתח גרף">{pos.label || pos.ticker}</button>
+      <span className="po-paper-marks">
+        <PaperMark label="D" v={pos.marks?.D} />
+        <PaperMark label="W" v={pos.marks?.W} />
+        <PaperMark label="M" v={pos.marks?.M} />
+        <PaperMark label="HIGH" v={pos.high} />
+      </span>
+      <span className={`po-paper-live ${(ret ?? 0) >= 0 ? 'po-up' : 'po-dn'}`} dir="ltr">
+        {ret == null ? '' : `חי ${fmtRet0(ret)}`}
+      </span>
+    </div>
+  );
+}
+
 /* ── robots dropdown (replaces the full RobotNavTabs strip, +OFFIR only) ── */
 function RobotsDropdown({ navigate }) {
   const [open, setOpen] = useState(false);
@@ -475,6 +558,7 @@ export default function PlusOffirPage({ navigate }) {
   const [huntMeta, setHuntMeta] = useState(null);   // { universe, shortlist }
   const [chart, setChart] = useState(null);          // { navList, navIdx, pctLabel } — open chart overlay
   const [baseMap, setBaseMap] = useState(loadBase);  // ticker → { price, at } (baseline since watching)
+  const [paper, setPaper] = useState(loadPaper);     // STRONG BUY virtual tracking book
 
   /* Open chart from a daily-hunter discovery — arrows navigate the discoveries (dip%). */
   const openHunterChart = useCallback((sym) => {
@@ -588,6 +672,57 @@ export default function PlusOffirPage({ navigate }) {
     setChart({ navList, navIdx: i >= 0 ? i : 0, pctLabel: 'אחוז מאז מעקב' });
   }, [watchlist, dataMap, baseMap]);
 
+  /* ── STRONG BUY paper tracking (Part 2) ── */
+  // current prices keyed by API symbol (discoveries + watchlist)
+  const paperPrices = useMemo(() => {
+    const m = {};
+    discoveries.forEach(c => { if (Number.isFinite(c.price)) m[c.symbol] = c.price; });
+    watchlist.forEach(w => {
+      const d = dataMap[w.ticker];
+      const sym = w.apiSymbol || resolveApiSymbol(w.ticker);
+      if (Number.isFinite(d?.price)) m[sym] = d.price;
+    });
+    return m;
+  }, [discoveries, dataMap, watchlist]);
+
+  // record STRONG BUY calls (once each) + capture D/W/M/HIGH marks as time passes
+  useEffect(() => {
+    const now = Date.now();
+    const buys = [];
+    discoveries.forEach(c => {
+      const price = Number.isFinite(c.entryPrice) ? c.entryPrice : c.price;
+      if (c.reco === 'strong_buy' && Number.isFinite(price)) {
+        buys.push({ ticker: c.symbol, price, localHigh: c.localHigh, ts: now, label: c.symbol });
+      }
+    });
+    watchlist.forEach(w => {
+      const d = dataMap[w.ticker];
+      if (d?.reco?.level === 'strong_buy' && Number.isFinite(d.price)) {
+        const sym = w.apiSymbol || resolveApiSymbol(w.ticker);
+        buys.push({ ticker: sym, price: d.price, localHigh: d.analysis?.dip?.localHigh ?? null, ts: now, label: w.ticker });
+      }
+    });
+    setPaper(prev => {
+      let book = prev, dirty = false;
+      for (const b of buys) { const nb = recordBuy(book, b); if (nb !== book) { book = nb; dirty = true; } }
+      const upd = updateBook(book, paperPrices, now);
+      if (upd.changed) { book = upd.book; dirty = true; }
+      if (!dirty) return prev;
+      savePaper(book);
+      return book;
+    });
+  }, [discoveries, dataMap, watchlist, paperPrices]);
+
+  const openPaperChart = useCallback((sym) => {
+    const ranked = rankByLiveReturn(paper, paperPrices);
+    const navList = ranked.map(({ pos, ret }) => ({ symbol: pos.ticker, pct: ret, isCrypto: false }));
+    const i = ranked.findIndex(({ pos }) => pos.ticker === sym);
+    setChart({ navList, navIdx: i >= 0 ? i : 0, pctLabel: 'תשואה חיה מהקנייה' });
+  }, [paper, paperPrices]);
+
+  const paperRanked = useMemo(() => rankByLiveReturn(paper, paperPrices), [paper, paperPrices]);
+  const paperSummary = useMemo(() => summarize(paper, paperPrices), [paper, paperPrices]);
+
   // summary
   const liveCount = Object.values(dataMap).filter(d => d?.source === 'LIVE').length;
   const total = watchlist.length;
@@ -610,6 +745,19 @@ export default function PlusOffirPage({ navigate }) {
           </span>
         </div>
       </div>
+
+      {/* ── STRONG BUY overview row (Part 2.5) — above the daily hunter ── */}
+      {paperRanked.length > 0 && (
+        <div className="po-sb-wrap">
+          <span className="po-sb-label">🏆 STRONG BUY <span className="po-sb-demo">וירטואלי</span></span>
+          <div className="po-sb-row">
+            {paperRanked.slice(0, 7).map(({ pos, ret }) => (
+              <SbButton key={pos.ticker} pos={pos} ret={ret} onOpen={openPaperChart} />
+            ))}
+            <SbDropdown items={paperRanked} onOpen={openPaperChart} />
+          </div>
+        </div>
+      )}
 
       {/* ── Hunter discoveries (Stage 2) — top of page, above watchlist ── */}
       <div className="po-hunt-head">
@@ -672,6 +820,26 @@ export default function PlusOffirPage({ navigate }) {
           <div className="po-empty">אין מניות במעקב — הוסף טיקר למעלה.</div>
         )}
       </div>
+
+      {/* ── STRONG BUY virtual tracking table (Part 2.3/2.4) ── */}
+      <div className="po-section-title">📊 מעקב STRONG BUY <span className="po-sb-demo">וירטואלי / DEMO</span></div>
+      {paperSummary.count > 0 ? (
+        <>
+          <div className="po-paper-summary">
+            {paperSummary.count} קריאות · {paperSummary.winPct != null ? `${paperSummary.winPct.toFixed(0)}% ירוקות (חי)` : '—'}
+            {paperSummary.avgHigh != null && <> · תשואת HIGH ממוצעת {paperSummary.avgHigh.toFixed(0)}%</>}
+          </div>
+          <div className="po-paper-list">
+            {paperRanked.map(({ pos, ret }) => (
+              <PaperRow key={pos.ticker} pos={pos} ret={ret} onOpen={openPaperChart} />
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="po-paper-empty">
+          עדיין אין קריאות STRONG BUY. ברגע שמניה תקבל המלצת STRONG BUY (ממנוע ההמלצה) — היא "תיקנה" וירטואלית ב-$100 ותימדד כאן ב-4 נקודות: D (יום) · W (שבוע) · M (חודש) · HIGH (חזרה לשיא).
+        </div>
+      )}
 
       {editing && (
         <EditModal item={editing} onSave={saveEdit} onClose={() => setEditing(null)} />
