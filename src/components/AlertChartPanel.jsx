@@ -57,13 +57,6 @@ export default function AlertChartPanel({
   return (
     <div className="acp-wrap">
       <div className="acp-tf-row">
-        {nav && (
-          <span className="acp-nav">
-            <button className="acp-nav-btn" onClick={() => step(-1)} aria-label="מניה קודמת" title="הקודם">◄</button>
-            <button className="acp-nav-btn" onClick={() => step(1)}  aria-label="מניה הבאה"  title="הבא">►</button>
-            <span className="acp-nav-pos">{clampIdx(idx) + 1}/{nav.length}</span>
-          </span>
-        )}
         {TIMEFRAMES.map(t => (
           <button
             key={t.id}
@@ -71,10 +64,12 @@ export default function AlertChartPanel({
             onClick={() => setTf(t.id)}
           >{t.id}</button>
         ))}
-        {nav && pctNum != null && (
-          <span className={`acp-pct ${pctNum >= 0 ? 'acp-pct--up' : 'acp-pct--dn'}`} dir="ltr"
-                title={navPctLabel || undefined}>
-            {pctNum >= 0 ? '+' : ''}{pctNum.toFixed(1)}%
+        {/* חיצי ניווט — בקצה השמאלי של שורת הטווחים, מוגדלים (opt-in) */}
+        {nav && (
+          <span className="acp-nav">
+            <button className="acp-nav-btn" onClick={() => step(-1)} aria-label="מניה קודמת" title="הקודם">‹</button>
+            <button className="acp-nav-btn" onClick={() => step(1)}  aria-label="מניה הבאה"  title="הבא">›</button>
+            <span className="acp-nav-pos">{clampIdx(idx) + 1}/{nav.length}</span>
           </span>
         )}
       </div>
@@ -86,6 +81,9 @@ export default function AlertChartPanel({
           limit={cur.limit}
           cgId={activeCg}
           alerts={symAlerts}
+          changePct={pctNum}
+          marketCap={active && Number.isFinite(active.mcap) ? active.mcap : null}
+          newsEnabled={!!nav}
           onAlertPriceChange={(id, price) => editAlert(id, { target: price })}
           onAlertRemove={removeAlert}
         />

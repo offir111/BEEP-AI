@@ -35,29 +35,33 @@
   position: relative;
 }
 
-/* ── ניווט בין מניות (opt-in) ── */
+/* ── ניווט בין מניות (opt-in) — בקצה השמאלי של שורת הטווחים, מוגדל ── */
 .acp-nav {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  margin-inline-end: 4px;
+  gap: 4px;
+  margin-inline-start: auto;   /* דוחף לקצה השמאלי (RTL) */
 }
 .acp-nav-btn {
-  background: rgba(212, 175, 55, 0.14);
-  border: 1px solid rgba(212, 175, 55, 0.45);
+  background: rgba(212, 175, 55, 0.16);
+  border: 1px solid rgba(212, 175, 55, 0.5);
   color: #ffcf00;
-  border-radius: 7px;
-  min-width: 26px;
-  padding: 4px 7px;
-  font-size: 0.8rem;
-  font-weight: 800;
+  border-radius: 8px;
+  min-width: 34px;
+  height: 30px;
+  padding: 0 6px;
+  font-size: 1.5rem;           /* מוגדל למקסימום בגבולות הכפתור */
+  font-weight: 900;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: all 0.12s;
 }
-.acp-nav-btn:hover { background: rgba(212, 175, 55, 0.28); color: #fff; }
+.acp-nav-btn:hover { background: rgba(212, 175, 55, 0.3); color: #fff; }
 .acp-nav-pos {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--text-muted, #6b7280);
   padding: 0 3px;
