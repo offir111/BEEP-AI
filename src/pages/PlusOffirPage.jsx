@@ -11,7 +11,7 @@
  * בידוד: קומפוננטה עצמאית. אינה נוגעת בשום רובוט קיים.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import RobotNavTabs from '../components/RobotNavTabs';
+import { ROBOT_TABS } from '../components/RobotNavTabs';
 import AlertChartPanel from '../components/AlertChartPanel';
 import { apiUrl } from '../utils/apiBase';
 import {
@@ -430,6 +430,35 @@ function HuntAge({ ts }) {
   return <span className="po-hunt-age">עודכן לפני {txt}</span>;
 }
 
+/* ── robots dropdown (replaces the full RobotNavTabs strip, +OFFIR only) ── */
+function RobotsDropdown({ navigate }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  return (
+    <div className="po-robots" ref={ref}>
+      <button className="po-robots-btn" onClick={() => setOpen(o => !o)} aria-haspopup="menu" aria-expanded={open}>
+        ☰ רובוטים <span className="po-robots-caret">▾</span>
+      </button>
+      {open && (
+        <div className="po-robots-menu" role="menu">
+          {ROBOT_TABS.map(t => (
+            <button key={t.id} className={`po-robots-item${t.id === 'offir' ? ' po-robots-item--on' : ''}`}
+              role="menuitem" onClick={() => { setOpen(false); if (t.id !== 'offir') navigate(t.id); }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── main page ───────────────────────────────────────────────── */
 export default function PlusOffirPage({ navigate }) {
   const [watchlist, setWatchlist] = useState(loadWatchlist);
@@ -566,28 +595,20 @@ export default function PlusOffirPage({ navigate }) {
 
   return (
     <div className="po-wrap" dir="rtl">
-      <RobotNavTabs currentPage="offir" navigate={navigate} />
-
-      {/* Header */}
-      <div className="po-header">
-        <div>
-          <h2 className="po-title">➕ +OFFIR — סורק ביטחונות</h2>
-          <p className="po-sub">מסחר ללא סטופ-לוס: מניות במגמה שנתית עולה שירדו לגבול התחתון של תעלת המגמה</p>
+      {/* Custom top bar (replaces global PageTopBar for +OFFIR) — no back button */}
+      <div className="po-topbar">
+        <div className="po-topbar-right">
+          <h2 className="po-topbar-title">➕ +OFFIR — סורק ביטחונות</h2>
+          <RobotsDropdown navigate={navigate} />
         </div>
-        <div className="po-summary">
+        <div className="po-topbar-left">
+          <button className="po-close" onClick={() => navigate('home')} aria-label="סגור ועבור לדף הבית">✕</button>
+          <button className="po-refresh" onClick={() => setRefreshTick(t => t + 1)} aria-label="רענן ניתוח">⟳ רענן</button>
+          {greens > 0 && <span className="po-summary-green">🟢 {greens} כניסה</span>}
           <span className={`po-src po-src--${liveCount === total && total ? 'live' : 'mock'}`}>
             {liveCount}/{total} LIVE
           </span>
-          {greens > 0 && <span className="po-summary-green">🟢 {greens} כניסה</span>}
-          <button className="po-refresh" onClick={() => setRefreshTick(t => t + 1)} aria-label="רענן ניתוח">⟳ רענן</button>
         </div>
-      </div>
-
-      {/* Methodology disclaimer */}
-      <div className="po-disclaimer">
-        ⚠️ שיטת מסחר ללא סטופ-לוס מבוססת על שכנוע (conviction) במגמה ובגב חיצוני.
-        🔴 = חשד לשבירת מגמה — <strong>אל תעשה DCA</strong>. המידע לצורכי לימוד בלבד, אינו ייעוץ השקעות.
-        <span className="po-disc-na"> ⚠️/* = נתון לא זמין מהפרוקסי (לא פוסל). MOCK = נתוני הדמיה מסומנים.</span>
       </div>
 
       {/* ── Hunter discoveries (Stage 2) — top of page, above watchlist ── */}

@@ -5,7 +5,7 @@
  */
 import './RobotNavTabs.css';
 
-const ROBOT_TABS = [
+export const ROBOT_TABS = [
   { id: 'offir',      label: '➕ +OFFIR' },
   { id: 'tgm',        label: '🛰️ TGM'    },
   { id: 'sot',        label: '🤖 SOT'    },

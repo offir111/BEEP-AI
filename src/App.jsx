@@ -175,9 +175,9 @@ function AppInner() {
       <Header onLogout={logout} username={session.username} isAdmin={session.isAdmin} navigate={navigate} page={page} />
       <NavBar page={page} navigate={navigatePrimary} />
       <AlertBanner />
-      {/* BOOK MAP supplies its own unified robot bar, so it replaces the default
-          PageTopBar (X + title + back). All other shared chrome stays. */}
-      {page !== 'bookmap' && (
+      {/* BOOK MAP and +OFFIR supply their own unified robot bar, so they replace the
+          default PageTopBar (X + title + back). All other shared chrome stays. */}
+      {page !== 'bookmap' && page !== 'offir' && (
         <PageTopBar page={page} session={session} onBack={goBack} onClose={() => { setPageParams(null); setPage('home'); setNavHistory(['home']); window.scrollTo(0,0); }} />
       )}
       <main className="app-main">
