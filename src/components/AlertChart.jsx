@@ -317,7 +317,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
         )}
 
         {newsEnabled && news.length > 0 && (
-          <div className={`pc-news${newsOpen ? ' pc-news--open' : ''}`} dir="rtl">
+          <div className={`pc-news${newsOpen ? ' pc-news--open' : ''}`} dir="ltr">
             <button className="pc-news-head" onClick={() => setNewsOpen(o => !o)} title="חדשות מ-Yahoo Finance">
               <span className={`pc-news-badge ${newsLive ? 'pc-news-badge--live' : 'pc-news-badge--mock'}`}>{newsLive ? 'LIVE' : 'MOCK'}</span>
               <span className="pc-news-ic">📰</span>

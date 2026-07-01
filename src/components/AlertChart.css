@@ -16,8 +16,8 @@
 /* ── חלונית מידע + חדשות (פינה שמאלית עליונה, מתחת ל-X) ── */
 .pc-tl {
   position: absolute;
-  top: 8px;               /* פינה שמאלית-עליונה על הגרף (כמו במקור) */
-  left: 50px;             /* מימין לכפתור ה-X כדי שלא יתנגשו */
+  top: 8px;
+  left: 4px;              /* צמוד לדופן השמאלית של הגרף */
   z-index: 15;
   display: flex;
   flex-direction: column;
@@ -69,7 +69,7 @@
 /* news panel — enlarged ~50% for readability */
 .pc-news-head {
   display: flex; align-items: center; gap: 8px; width: 100%;
-  background: none; border: none; cursor: pointer; text-align: right;
+  background: none; border: none; cursor: pointer; text-align: left;
   padding: 9px 11px; color: var(--text-secondary, #a0a0b0); font-size: 1.05rem; font-weight: 600;
 }
 .pc-news-badge { font-size: 0.82rem; font-weight: 800; border-radius: 6px; padding: 2px 7px; letter-spacing: 0.5px; }
