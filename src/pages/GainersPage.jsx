@@ -157,7 +157,7 @@ export default function GainersPage() {
   const switchMode = (m) => { setMode(m); setLoading(true); setTs(null); setStale(false); };
   const openDetail = (r) => {
     // snapshot the current gainers list so ◄► navigate within it (change% per row)
-    const snap = list.map(x => ({ symbol: x.sym, pct: x.p1d ?? x.p5m ?? null, isCrypto: mode === 'crypto', cgId: x.id || null }));
+    const snap = list.map(x => ({ symbol: x.sym, pct: x.p1d ?? x.p5m ?? null, mcap: x.mc ?? null, isCrypto: mode === 'crypto', cgId: x.id || null }));
     const i = list.findIndex(x => x.sym === r.sym);
     setNavList(snap); setNavIdx(i >= 0 ? i : 0);
     setAlertSym(r.sym); setAlertCg(r.id || null); setAlertPrice(r.price ?? null); setShowBox(false);

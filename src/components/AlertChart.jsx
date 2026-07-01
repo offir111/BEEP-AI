@@ -13,6 +13,15 @@ import { createChart, CandlestickSeries, HistogramSeries, CrosshairMode, ColorTy
 import { apiUrl } from '../utils/apiBase';
 import './AlertChart.css';
 
+// שווי-שוק מקוצר לחלונית המידע ($10.2B / $742M)
+function fmtMcapShort(m) {
+  if (!Number.isFinite(m) || m <= 0) return '—';
+  if (m >= 1e12) return `$${(m / 1e12).toFixed(2)}T`;
+  if (m >= 1e9)  return `$${(m / 1e9).toFixed(2)}B`;
+  if (m >= 1e6)  return `$${(m / 1e6).toFixed(0)}M`;
+  return `$${(m / 1e3).toFixed(0)}K`;
+}
+
 // ── Binance symbols ───────────────────────────────────────────
 const BINANCE = {
   BTC:  'BTCUSDT', ETH:  'ETHUSDT', SOL:  'SOLUSDT', BNB:  'BNBUSDT',
@@ -70,7 +79,7 @@ function makeChartOpts(w, h) {
 
 const PRICE_AXIS_PX = 75;
 
-export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, onAlertRemove, isCrypto, cgId, interval = '1d', limit = 200 }) {
+export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, onAlertRemove, isCrypto, cgId, interval = '1d', limit = 200, changePct = null, marketCap = null, newsEnabled = false }) {
   const containerRef     = useRef(null);   // chart canvas div (= chartDivRef)
   const chartRef         = useRef(null);
   const seriesRef        = useRef(null);
@@ -87,6 +96,9 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
   const [chartReady,     setChartReady]     = useState(false);
   const [loading,        setLoading]        = useState(true);
   const [error,          setError]          = useState(false);
+  const [news,           setNews]           = useState([]);
+  const [newsOpen,       setNewsOpen]       = useState(false);
+  const [newsLive,       setNewsLive]       = useState(false);
   const [lastPrice,      setLastPrice]      = useState(null);
   const [alertPositions, setAlertPositions] = useState({}); // { id: y }
   const [dragState,      setDragState]      = useState(null); // { id } | null
@@ -271,17 +283,62 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
   // ── recompute positions whenever alerts change ───────────────
   useEffect(() => { if (chartReady) recompute(); }, [alerts, chartReady, recompute]);
 
+  // ── stock news (Yahoo) — only when enabled by the wrapper ─────
+  useEffect(() => {
+    setNewsOpen(false); setNews([]); setNewsLive(false);
+    if (!newsEnabled || !symbol) return;
+    let cancelled = false;
+    fetch(apiUrl(`/api/stock-news?symbol=${encodeURIComponent(symbol)}&limit=10`))
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (cancelled || !d) return; setNews(Array.isArray(d.news) ? d.news : []); setNewsLive(!!d.live); })
+      .catch(() => { /* keep empty → no news box */ });
+    return () => { cancelled = true; };
+  }, [symbol, newsEnabled]);
+
   return (
     <div className="alert-chart-wrap">
       <div ref={containerRef} className="alert-chart-canvas" />
 
-      {/* ── תווית מחיר נוכחי (פינה שמאלית עליונה) — כמו במקור ── */}
-      {lastPrice != null && (
-        <div className="pc-price-label" dir="ltr" style={{ pointerEvents: 'none' }}>
-          <span className="pc-price-sym">{symbol}</span>
-          <span className="pc-price-val">${Number(lastPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-        </div>
-      )}
+      {/* ── חלונית מידע + חדשות (פינה שמאלית עליונה, מתחת ל-X) ── */}
+      <div className="pc-tl">
+        {lastPrice != null && (
+          <div className="pc-price-label" dir="ltr">
+            <div className="pc-price-top">
+              <span className="pc-price-sym">{symbol}</span>
+              <span className="pc-price-val">${Number(lastPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              {Number.isFinite(changePct) && (
+                <span className={`pc-price-chg ${changePct >= 0 ? 'pc-up' : 'pc-dn'}`}>
+                  {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
+                </span>
+              )}
+            </div>
+            {Number.isFinite(marketCap) && (
+              <span className="pc-price-mc">M.C {fmtMcapShort(marketCap)}</span>
+            )}
+          </div>
+        )}
+
+        {newsEnabled && news.length > 0 && (
+          <div className={`pc-news${newsOpen ? ' pc-news--open' : ''}`} dir="rtl">
+            <button className="pc-news-head" onClick={() => setNewsOpen(o => !o)} title="חדשות מ-Yahoo Finance">
+              <span className={`pc-news-badge ${newsLive ? 'pc-news-badge--live' : 'pc-news-badge--mock'}`}>{newsLive ? 'LIVE' : 'MOCK'}</span>
+              <span className="pc-news-ic">📰</span>
+              <span className="pc-news-title">{news[0].title}</span>
+              <span className="pc-news-caret">{newsOpen ? '▲' : '▾'}</span>
+            </button>
+            {newsOpen && (
+              <div className="pc-news-list">
+                {news.map((n, i) => (
+                  <a key={i} className="pc-news-item" href={n.url} target="_blank" rel="noreferrer">
+                    <span className="pc-news-item-title">{n.title}</span>
+                    {n.publisher && <span className="pc-news-pub">{n.publisher}</span>}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── שכבת קווי ההתראות — לוכדת את אירועי הגרירה על כל שטח הגרף ── */}
       <div

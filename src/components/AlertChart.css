@@ -13,21 +13,30 @@
   height: 100%;
 }
 
-/* ── תווית מחיר נוכחי — זהה לאפליקציית האם (pc-price-label) ── */
-.pc-price-label {
+/* ── חלונית מידע + חדשות (פינה שמאלית עליונה, מתחת ל-X) ── */
+.pc-tl {
   position: absolute;
-  top: 8px;
+  top: 44px;              /* מתחת לכפתור ה-X של האוברלֵי */
   left: 10px;
   z-index: 15;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 1px;
+  gap: 6px;
+  max-width: min(70%, 340px);
+}
+.pc-price-label {
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   background: #000000;
   border: 1px solid rgba(212,175,55,0.50);
   border-radius: 7px;
-  padding: 8px 10px;
+  padding: 7px 10px;
 }
+.pc-price-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .pc-price-sym {
   color: #FFE447;
   font-size: 0.9rem;
@@ -37,12 +46,46 @@
 }
 .pc-price-val {
   color: #ffffff;
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.5px;
   white-space: nowrap;
 }
+.pc-price-chg { font-size: 0.9rem; font-weight: 800; white-space: nowrap; }
+.pc-price-mc { color: #cbd5e1; font-size: 0.74rem; font-weight: 700; white-space: nowrap; }
+.pc-up { color: #4ade80; }
+.pc-dn { color: #f87171; }
+
+/* news panel */
+.pc-news {
+  pointer-events: auto;
+  width: 100%;
+  background: rgba(0,0,0,0.92);
+  border: 1px solid var(--border, #2a2a3a);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.pc-news-head {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  background: none; border: none; cursor: pointer; text-align: right;
+  padding: 6px 8px; color: var(--text-secondary, #a0a0b0); font-size: 0.72rem; font-weight: 600;
+}
+.pc-news-badge { font-size: 0.58rem; font-weight: 800; border-radius: 5px; padding: 1px 5px; letter-spacing: 0.5px; }
+.pc-news-badge--live { color: #4ade80; background: rgba(74,222,128,0.14); border: 1px solid rgba(74,222,128,0.4); }
+.pc-news-badge--mock { color: #f59e0b; background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.4); }
+.pc-news-ic { font-size: 0.72rem; }
+.pc-news-title { flex: 1; color: var(--text-primary, #fff); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-news--open .pc-news-title { white-space: normal; }
+.pc-news-caret { color: var(--text-muted, #6b7280); font-size: 0.65rem; }
+.pc-news-list { max-height: 210px; overflow-y: auto; border-top: 1px solid var(--border, #2a2a3a); }
+.pc-news-item {
+  display: flex; flex-direction: column; gap: 1px; text-decoration: none;
+  padding: 7px 9px; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.pc-news-item:hover { background: rgba(212,175,55,0.08); }
+.pc-news-item-title { color: var(--text-primary, #fff); font-size: 0.74rem; line-height: 1.35; }
+.pc-news-pub { color: var(--text-muted, #6b7280); font-size: 0.64rem; }
 
 /* Loading / error overlay */
 .alert-chart-overlay {
