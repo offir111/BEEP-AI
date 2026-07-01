@@ -74,6 +74,8 @@ export default function GainersPage() {
   const [alertCg,    setAlertCg]    = useState(null);
   const [alertPrice, setAlertPrice] = useState(null);
   const [showBox,    setShowBox]    = useState(false);
+  const [navList,    setNavList]    = useState(null);   // snapshot for chart arrows
+  const [navIdx,     setNavIdx]     = useState(0);
   const { alerts } = useAlerts();
 
   // Track previous values for flash detection
@@ -153,7 +155,13 @@ export default function GainersPage() {
   }, [mode, rows, stocks, sortKey]);
 
   const switchMode = (m) => { setMode(m); setLoading(true); setTs(null); setStale(false); };
-  const openDetail = (r) => { setAlertSym(r.sym); setAlertCg(r.id || null); setAlertPrice(r.price ?? null); setShowBox(false); };
+  const openDetail = (r) => {
+    // snapshot the current gainers list so ◄► navigate within it (change% per row)
+    const snap = list.map(x => ({ symbol: x.sym, pct: x.p1d ?? x.p5m ?? null, isCrypto: mode === 'crypto', cgId: x.id || null }));
+    const i = list.findIndex(x => x.sym === r.sym);
+    setNavList(snap); setNavIdx(i >= 0 ? i : 0);
+    setAlertSym(r.sym); setAlertCg(r.id || null); setAlertPrice(r.price ?? null); setShowBox(false);
+  };
 
   return (
     <div className="gn-wrap" dir="rtl">
@@ -221,7 +229,8 @@ export default function GainersPage() {
           <div className="gn-detail-box" onClick={e => e.stopPropagation()}>
             {!showBox && (
               <div className="gn-detail-iframe">
-                <AlertChartPanel symbol={alertSym} isCrypto={mode === 'crypto'} defaultTf="1D" />
+                <AlertChartPanel symbol={alertSym} isCrypto={mode === 'crypto'} defaultTf="1D"
+                  navList={navList} navStartIndex={navIdx} navPctLabel="שינוי יומי" />
               </div>
             )}
             <button className="gn-detail-x" onClick={() => setAlertSym(null)} aria-label="סגור גרף">✕</button>

@@ -29,6 +29,7 @@ import './PlusOffirPage.css';
 
 const LS_WATCHLIST = 'beepai_offir_watchlist';
 const LS_HUNT = 'beepai_offir_hunt';
+const LS_BASE = 'beepai_offir_base';   // מחיר-בסיס מרגע ההוספה למעקב (ל"אחוז מאז מעקב")
 const HUNT_REFRESH_MS = 10 * 60 * 1000;   // re-hunt every 10 min while market is open
 const HUNT_REFRESH_LABEL = '10 דק׳';
 
@@ -157,6 +158,8 @@ function loadHuntCache() {
 function saveHuntCache(ranked, ts) {
   try { localStorage.setItem(LS_HUNT, JSON.stringify({ date: todayKey(), ts, ranked })); } catch { /* ignore */ }
 }
+function loadBase() { try { return JSON.parse(localStorage.getItem(LS_BASE)) || {}; } catch { return {}; } }
+function saveBase(m) { try { localStorage.setItem(LS_BASE, JSON.stringify(m)); } catch { /* ignore */ } }
 
 const fmtMcap = (m) => {
   if (!Number.isFinite(m)) return '—';
@@ -291,7 +294,7 @@ function Headline({ info }) {
 }
 
 /* ── one watchlist card ──────────────────────────────────────── */
-function StockCard({ item, data, loading, onEdit, onRemove }) {
+function StockCard({ item, data, loading, onEdit, onRemove, onOpenChart }) {
   const st = data ? STATUS_META[data.analysis.status] : null;
   return (
     <div className={`po-card${st ? ' ' + st.cls : ''}`}>
@@ -318,7 +321,9 @@ function StockCard({ item, data, loading, onEdit, onRemove }) {
           <Recommendation reco={data.reco} />
 
           <div className="po-card-row">
-            <span className="po-price">{fmtPrice(data.price)}</span>
+            <button className="po-price po-price--btn" onClick={() => onOpenChart?.(item.ticker)} title="פתח גרף">
+              {fmtPrice(data.price)} 📈
+            </button>
             <span className={`po-status ${st.cls}`}>{st.dot} {data.analysis.statusLabel}</span>
           </div>
 
@@ -439,7 +444,18 @@ export default function PlusOffirPage({ navigate }) {
   const [huntLoading, setHuntLoading] = useState(false);
   const [huntTs, setHuntTs] = useState(null);
   const [huntMeta, setHuntMeta] = useState(null);   // { universe, shortlist }
-  const [chartSym, setChartSym] = useState(null);    // open chart overlay
+  const [chart, setChart] = useState(null);          // { navList, navIdx, pctLabel } — open chart overlay
+  const [baseMap, setBaseMap] = useState(loadBase);  // ticker → { price, at } (baseline since watching)
+
+  /* Open chart from a daily-hunter discovery — arrows navigate the discoveries (dip%). */
+  const openHunterChart = useCallback((sym) => {
+    setDiscoveries(cur => {
+      const navList = cur.map(c => ({ symbol: c.symbol, pct: c.displayPct, isCrypto: false }));
+      const i = cur.findIndex(c => c.symbol === sym);
+      setChart({ navList, navIdx: i >= 0 ? i : 0, pctLabel: 'עומק ירידה מהשיא' });
+      return cur;
+    });
+  }, []);
 
   const doHunt = useCallback(async () => {
     setHuntLoading(true);
@@ -491,6 +507,14 @@ export default function PlusOffirPage({ navigate }) {
       if (cancelled) return;
       setDataMap(prev => ({ ...prev, [item.ticker]: res }));
       setLoadingSet(prev => ({ ...prev, [item.ticker]: false }));
+      // baseline price the first time we see this ticker → "אחוז מאז מעקב"
+      if (Number.isFinite(res.price)) {
+        setBaseMap(prev => {
+          if (prev[item.ticker]?.price) return prev;
+          const next = { ...prev, [item.ticker]: { price: res.price, at: Date.now() } };
+          saveBase(next); return next;
+        });
+      }
     });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -520,6 +544,20 @@ export default function PlusOffirPage({ navigate }) {
     });
     setEditing(null);
   }, []);
+
+  /* Open chart from a watchlist card — arrows navigate the watchlist; pct = gain since watching. */
+  const openWatchlistChart = useCallback((ticker) => {
+    const navList = watchlist.map(w => {
+      const d = dataMap[w.ticker];
+      const base = baseMap[w.ticker]?.price;
+      const price = d?.price;
+      const gain = (Number.isFinite(price) && Number.isFinite(base) && base > 0)
+        ? ((price - base) / base) * 100 : null;
+      return { symbol: w.apiSymbol || resolveApiSymbol(w.ticker), pct: gain, isCrypto: false };
+    });
+    const i = watchlist.findIndex(w => w.ticker === ticker);
+    setChart({ navList, navIdx: i >= 0 ? i : 0, pctLabel: 'אחוז מאז מעקב' });
+  }, [watchlist, dataMap, baseMap]);
 
   // summary
   const liveCount = Object.values(dataMap).filter(d => d?.source === 'LIVE').length;
@@ -578,7 +616,7 @@ export default function PlusOffirPage({ navigate }) {
         {!huntLoading && discoveries.length === 0 && (
           <span className="po-hunt-empty">אין תגליות כרגע — לא נמצא setup של dip-in-uptrend בשוק.</span>
         )}
-        {discoveries.map(c => <HunterButton key={c.symbol} c={c} onOpen={setChartSym} />)}
+        {discoveries.map(c => <HunterButton key={c.symbol} c={c} onOpen={openHunterChart} />)}
       </div>
       {huntMeta && (
         <div className="po-hunt-note">סרק {huntMeta.universe} מניות חזקות שנתית → {huntMeta.shortlist} מועמדים → {discoveries.length} תגליות שעברו את כל הסינון והבטיחות.</div>
@@ -606,6 +644,7 @@ export default function PlusOffirPage({ navigate }) {
             loading={loadingSet[item.ticker]}
             onEdit={setEditing}
             onRemove={removeItem}
+            onOpenChart={openWatchlistChart}
           />
         ))}
         {watchlist.length === 0 && (
@@ -617,14 +656,18 @@ export default function PlusOffirPage({ navigate }) {
         <EditModal item={editing} onSave={saveEdit} onClose={() => setEditing(null)} />
       )}
 
-      {/* Chart overlay — reuses the existing AlertChartPanel (same as GainersPage) */}
-      {chartSym && (
-        <div className="po-chart-overlay" onClick={() => setChartSym(null)}>
+      {/* Chart overlay — reuses AlertChartPanel; ◄► navigate the context list */}
+      {chart && (
+        <div className="po-chart-overlay" onClick={() => setChart(null)}>
           <div className="po-chart-box" onClick={e => e.stopPropagation()}>
             <div className="po-chart-iframe">
-              <AlertChartPanel symbol={chartSym} isCrypto={false} defaultTf="1D" />
+              <AlertChartPanel
+                symbol={chart.navList?.[chart.navIdx]?.symbol}
+                isCrypto={false} defaultTf="1D"
+                navList={chart.navList} navStartIndex={chart.navIdx} navPctLabel={chart.pctLabel}
+              />
             </div>
-            <button className="po-chart-x" onClick={() => setChartSym(null)} aria-label="סגור גרף">✕</button>
+            <button className="po-chart-x" onClick={() => setChart(null)} aria-label="סגור גרף">✕</button>
           </div>
         </div>
       )}
