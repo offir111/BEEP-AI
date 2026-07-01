@@ -238,10 +238,23 @@
 }
 .po-hunt-refresh:disabled { opacity: 0.55; cursor: default; }
 .po-hunt-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.78rem; color: var(--text-secondary); margin: 0 2px 10px; }
-.po-hunt-strip {
-  display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px;
-  scrollbar-width: thin;
+/* tagline centered above the title */
+.po-tagline { text-align: center; font-size: 0.82rem; color: var(--text-secondary); margin: 2px 4px 8px; line-height: 1.4; }
+
+/* discoveries strip + side arrows (replaces the scrollbar) */
+.po-strip-wrap { display: flex; align-items: stretch; gap: 6px; margin-bottom: 6px; }
+.po-strip-arrow {
+  flex: 0 0 auto; width: 32px; border-radius: 10px; cursor: pointer;
+  background: rgba(212,175,55,0.14); border: 1px solid rgba(212,175,55,0.5);
+  color: #ffcf00; font-size: 1.5rem; font-weight: 900; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
 }
+.po-strip-arrow:hover { background: rgba(212,175,55,0.3); color: #fff; }
+.po-hunt-strip {
+  flex: 1; display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px; min-width: 0;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.po-hunt-strip::-webkit-scrollbar { display: none; }
 .po-hunt-loading, .po-hunt-empty { color: var(--text-muted); font-size: 0.85rem; font-weight: 600; padding: 14px 4px; }
 .po-hunt-note { font-size: 0.72rem; color: var(--text-muted); margin: 0 2px 4px; }
 

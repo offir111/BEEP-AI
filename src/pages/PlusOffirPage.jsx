@@ -559,6 +559,10 @@ export default function PlusOffirPage({ navigate }) {
   const [chart, setChart] = useState(null);          // { navList, navIdx, pctLabel } — open chart overlay
   const [baseMap, setBaseMap] = useState(loadBase);  // ticker → { price, at } (baseline since watching)
   const [paper, setPaper] = useState(loadPaper);     // STRONG BUY virtual tracking book
+  const stripRef = useRef(null);                     // discoveries strip (scrolled by side arrows)
+  const scrollStrip = useCallback((dir) => {
+    stripRef.current?.scrollBy({ left: dir * 220, behavior: 'smooth' });
+  }, []);
 
   /* Open chart from a daily-hunter discovery — arrows navigate the discoveries (dip%). */
   const openHunterChart = useCallback((sym) => {
@@ -730,6 +734,9 @@ export default function PlusOffirPage({ navigate }) {
 
   return (
     <div className="po-wrap" dir="rtl">
+      {/* Tagline — centered, above the title row */}
+      <div className="po-tagline">מניות במגמה שנתית עולה שירדו לנקודת כניסה (dip) — ממוינות לפי עוצמת ההזדמנות (ציון 0–100)</div>
+
       {/* Custom top bar (replaces global PageTopBar for +OFFIR) — no back button */}
       <div className="po-topbar">
         <div className="po-topbar-right">
@@ -759,33 +766,17 @@ export default function PlusOffirPage({ navigate }) {
         </div>
       )}
 
-      {/* ── Hunter discoveries (Stage 2) — top of page, above watchlist ── */}
-      <div className="po-hunt-head">
-        <div className="po-section-title">🔭 תגליות — צייד אוטומטי</div>
-        <div className="po-hunt-meta">
-          <span className={`po-mkt ${clock.isOpen ? 'po-mkt--open' : 'po-mkt--closed'}`} title={`שעון ניו-יורק ${clock.etTime} · ${clock.session}`}>
-            {clock.isOpen ? '🟢 שוק פתוח'
-              : clock.session === 'pre' ? '🌅 טרום-מסחר'
-              : clock.session === 'after' ? '🌆 אחרי-שוק'
-              : '🔴 שוק סגור'}
-          </span>
-          <HuntAge ts={huntTs} />
-          <button className="po-hunt-refresh" onClick={doHunt} disabled={huntLoading} aria-label="סרוק עכשיו">
-            {huntLoading ? '… סורק' : '⟳ סרוק'}
-          </button>
+      {/* ── Hunter discoveries strip — arrows on both sides scroll it (no scrollbar) ── */}
+      <div className="po-strip-wrap">
+        <button className="po-strip-arrow" onClick={() => scrollStrip(1)} aria-label="הזז ימינה" title="הזז">›</button>
+        <div className="po-hunt-strip" ref={stripRef}>
+          {huntLoading && discoveries.length === 0 && <span className="po-hunt-loading">סורק את השוק…</span>}
+          {!huntLoading && discoveries.length === 0 && (
+            <span className="po-hunt-empty">אין תגליות כרגע — לא נמצא setup של dip-in-uptrend בשוק.</span>
+          )}
+          {discoveries.map(c => <HunterButton key={c.symbol} c={c} onOpen={openHunterChart} />)}
         </div>
-      </div>
-      <div className="po-hunt-sub">
-        מניות במגמה שנתית עולה שירדו לנקודת כניסה (dip) — ממוינות לפי עוצמת ההזדמנות (ציון 0–100).
-        <span className="po-hunt-cadence">{clock.isOpen ? `מתרענן כל ${HUNT_REFRESH_LABEL}` : 'מתרענן בפתיחת השוק (16:30)'}</span>
-        <span className="po-src po-src--live">LIVE · TradingView</span>
-      </div>
-      <div className="po-hunt-strip">
-        {huntLoading && discoveries.length === 0 && <span className="po-hunt-loading">סורק את השוק…</span>}
-        {!huntLoading && discoveries.length === 0 && (
-          <span className="po-hunt-empty">אין תגליות כרגע — לא נמצא setup של dip-in-uptrend בשוק.</span>
-        )}
-        {discoveries.map(c => <HunterButton key={c.symbol} c={c} onOpen={openHunterChart} />)}
+        <button className="po-strip-arrow" onClick={() => scrollStrip(-1)} aria-label="הזז שמאלה" title="הזז">‹</button>
       </div>
       {huntMeta && (
         <div className="po-hunt-note">סרק {huntMeta.universe} מניות חזקות שנתית → {huntMeta.shortlist} מועמדים → {discoveries.length} תגליות שעברו את כל הסינון והבטיחות.</div>
