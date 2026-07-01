@@ -34,3 +34,42 @@
   min-height: 0;
   position: relative;
 }
+
+/* ── ניווט בין מניות (opt-in) ── */
+.acp-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-inline-end: 4px;
+}
+.acp-nav-btn {
+  background: rgba(212, 175, 55, 0.14);
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  color: #ffcf00;
+  border-radius: 7px;
+  min-width: 26px;
+  padding: 4px 7px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.acp-nav-btn:hover { background: rgba(212, 175, 55, 0.28); color: #fff; }
+.acp-nav-pos {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted, #6b7280);
+  padding: 0 3px;
+  white-space: nowrap;
+}
+.acp-pct {
+  margin-inline-start: auto;
+  align-self: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 7px;
+}
+.acp-pct--up { color: #4ade80; background: rgba(74, 222, 128, 0.12); }
+.acp-pct--dn { color: #f87171; background: rgba(248, 113, 113, 0.12); }
