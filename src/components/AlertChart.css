@@ -16,14 +16,14 @@
 /* ── חלונית מידע + חדשות (פינה שמאלית עליונה, מתחת ל-X) ── */
 .pc-tl {
   position: absolute;
-  top: 44px;              /* מתחת לכפתור ה-X של האוברלֵי */
-  left: 10px;
+  top: 8px;               /* פינה שמאלית-עליונה על הגרף (כמו במקור) */
+  left: 50px;             /* מימין לכפתור ה-X כדי שלא יתנגשו */
   z-index: 15;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
-  max-width: min(70%, 340px);
+  gap: 7px;
+  max-width: min(80%, 430px);
 }
 .pc-price-label {
   pointer-events: none;
@@ -66,26 +66,27 @@
   border-radius: 8px;
   overflow: hidden;
 }
+/* news panel — enlarged ~50% for readability */
 .pc-news-head {
-  display: flex; align-items: center; gap: 6px; width: 100%;
+  display: flex; align-items: center; gap: 8px; width: 100%;
   background: none; border: none; cursor: pointer; text-align: right;
-  padding: 6px 8px; color: var(--text-secondary, #a0a0b0); font-size: 0.72rem; font-weight: 600;
+  padding: 9px 11px; color: var(--text-secondary, #a0a0b0); font-size: 1.05rem; font-weight: 600;
 }
-.pc-news-badge { font-size: 0.58rem; font-weight: 800; border-radius: 5px; padding: 1px 5px; letter-spacing: 0.5px; }
+.pc-news-badge { font-size: 0.82rem; font-weight: 800; border-radius: 6px; padding: 2px 7px; letter-spacing: 0.5px; }
 .pc-news-badge--live { color: #4ade80; background: rgba(74,222,128,0.14); border: 1px solid rgba(74,222,128,0.4); }
 .pc-news-badge--mock { color: #f59e0b; background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.4); }
-.pc-news-ic { font-size: 0.72rem; }
+.pc-news-ic { font-size: 1.05rem; }
 .pc-news-title { flex: 1; color: var(--text-primary, #fff); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pc-news--open .pc-news-title { white-space: normal; }
-.pc-news-caret { color: var(--text-muted, #6b7280); font-size: 0.65rem; }
-.pc-news-list { max-height: 210px; overflow-y: auto; border-top: 1px solid var(--border, #2a2a3a); }
+.pc-news-caret { color: var(--text-muted, #6b7280); font-size: 0.95rem; }
+.pc-news-list { max-height: 300px; overflow-y: auto; border-top: 1px solid var(--border, #2a2a3a); }
 .pc-news-item {
-  display: flex; flex-direction: column; gap: 1px; text-decoration: none;
-  padding: 7px 9px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  display: flex; flex-direction: column; gap: 2px; text-decoration: none;
+  padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 .pc-news-item:hover { background: rgba(212,175,55,0.08); }
-.pc-news-item-title { color: var(--text-primary, #fff); font-size: 0.74rem; line-height: 1.35; }
-.pc-news-pub { color: var(--text-muted, #6b7280); font-size: 0.64rem; }
+.pc-news-item-title { color: var(--text-primary, #fff); font-size: 1.05rem; line-height: 1.35; }
+.pc-news-pub { color: var(--text-muted, #6b7280); font-size: 0.9rem; }
 
 /* Loading / error overlay */
 .alert-chart-overlay {

@@ -40,7 +40,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-inline-start: auto;   /* דוחף לקצה השמאלי (RTL) */
+  margin-inline-start: 6px;    /* צמוד לכפתור ALL (הטווח האחרון) */
 }
 .acp-nav-btn {
   background: rgba(212, 175, 55, 0.16);

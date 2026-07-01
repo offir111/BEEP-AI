@@ -303,17 +303,15 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
       <div className="pc-tl">
         {lastPrice != null && (
           <div className="pc-price-label" dir="ltr">
-            <div className="pc-price-top">
-              <span className="pc-price-sym">{symbol}</span>
-              <span className="pc-price-val">${Number(lastPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              {Number.isFinite(changePct) && (
-                <span className={`pc-price-chg ${changePct >= 0 ? 'pc-up' : 'pc-dn'}`}>
-                  {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
-                </span>
-              )}
-            </div>
+            <span className="pc-price-sym">{symbol}</span>
+            <span className="pc-price-val">${Number(lastPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             {Number.isFinite(marketCap) && (
               <span className="pc-price-mc">M.C {fmtMcapShort(marketCap)}</span>
+            )}
+            {Number.isFinite(changePct) && (
+              <span className={`pc-price-chg ${changePct >= 0 ? 'pc-up' : 'pc-dn'}`}>
+                {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
+              </span>
             )}
           </div>
         )}
