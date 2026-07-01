@@ -17,7 +17,7 @@
 .pc-tl {
   position: absolute;
   top: 8px;
-  left: 4px;              /* צמוד לדופן השמאלית של הגרף */
+  left: 0;               /* צמוד לגמרי לדופן השמאלית של הגרף */
   z-index: 15;
   display: flex;
   flex-direction: column;
