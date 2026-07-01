@@ -222,6 +222,58 @@
 .po-hunt-pct.po-dn { color: #f87171; }
 .po-hunt-pct.po-up { color: #4ade80; }
 .po-hunt-fire { font-size: 0.8rem; }
+.po-hunt-cadence { font-size: 0.72rem; color: var(--text-muted); }
+
+/* market status pill (Part E) */
+.po-mkt { font-size: 0.72rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.po-mkt--open   { color: #4ade80; background: rgba(74,222,128,0.12); border: 1px solid rgba(74,222,128,0.4); }
+.po-mkt--closed { color: #94a3b8; background: rgba(148,163,184,0.12); border: 1px solid rgba(148,163,184,0.35); }
+
+/* ── recommendation header (Part D) ── */
+.po-reco {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  border-radius: 10px; padding: 7px 11px; margin: 2px 0 8px;
+  border: 1px solid var(--border); background: rgba(255,255,255,0.03);
+}
+.po-reco-label { font-size: 0.92rem; font-weight: 800; letter-spacing: .3px; }
+.po-reco-conv { font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); }
+.po-reco-dca { font-size: 0.7rem; font-weight: 800; color: #0a0a0f; background: #4ade80; border-radius: 6px; padding: 1px 6px; }
+.po-reco-reason { font-size: 0.72rem; color: var(--text-muted); flex-basis: 100%; }
+.po-reco--green  { border-color: rgba(74,222,128,0.5); background: rgba(74,222,128,0.08); }
+.po-reco--green  .po-reco-label { color: #4ade80; }
+.po-reco--blue   { border-color: rgba(96,165,250,0.5); background: rgba(96,165,250,0.08); }
+.po-reco--blue   .po-reco-label { color: #60a5fa; }
+.po-reco--yellow { border-color: rgba(245,196,64,0.5); background: rgba(245,196,64,0.08); }
+.po-reco--yellow .po-reco-label { color: #f5c440; }
+.po-reco--gray   .po-reco-label { color: #cbd5e1; }
+.po-reco--red    { border-color: rgba(248,113,113,0.55); background: rgba(248,113,113,0.09); }
+.po-reco--red    .po-reco-label { color: #f87171; }
+
+/* ── conviction badges (Part B) ── */
+.po-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0 2px; }
+.po-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.68rem; font-weight: 700; padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--border); color: var(--text-muted); background: rgba(255,255,255,0.02);
+}
+.po-badge-ic { font-size: 0.72rem; }
+.po-badge--on { color: #4ade80; border-color: rgba(74,222,128,0.45); background: rgba(74,222,128,0.1); }
+.po-badge--off { opacity: 0.7; }
+.po-badge--na { opacity: 0.45; }
+.po-badge-live { margin-inline-start: auto; }
+
+/* ── news headline (Parts B/C) ── */
+.po-headline {
+  display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap;
+  font-size: 0.76rem; line-height: 1.35; text-decoration: none;
+  color: var(--text-secondary); margin: 6px 0 2px; padding: 6px 8px;
+  border-radius: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--border);
+}
+.po-headline:hover { border-color: var(--accent-gold); }
+.po-headline--strong { border-color: rgba(74,222,128,0.5); background: rgba(74,222,128,0.07); }
+.po-headline-fire { font-size: 0.68rem; font-weight: 800; color: #4ade80; }
+.po-headline-txt { color: var(--text-primary); }
+.po-headline-date { font-size: 0.68rem; color: var(--text-muted); }
 
 /* chart overlay — same pattern as GainersPage */
 .po-chart-overlay {

@@ -167,7 +167,7 @@ export default function GainersPage() {
       {/* filter note */}
       <div className="gn-filter-note">
         {mode === 'stocks'
-          ? <>🇺🇸 מניות אמריקאיות · ווליום מעל 300K · מחיר מעל $2 · <b>TradingView Gainers</b> · מתרענן כל 15ש׳</>
+          ? <>🇺🇸 מניות אמריקאיות · ווליום מעל 300K · מחיר מעל $2 · <b>TradingView Gainers</b> · מתרענן כל 8ש׳</>
           : <>₿ קריפטו · שווי שוק מעל $10M · <b>CoinGecko + Binance</b> · מתרענן כל 3ש׳</>}
       </div>
 

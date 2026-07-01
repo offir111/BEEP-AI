@@ -21,10 +21,16 @@ import {
 import {
   huntPrefilter, buildCandidate, rankCandidates,
 } from '../engine/offirHunter';
+import {
+  detectCatalystHeadline, convictionBadges, recommend,
+} from '../engine/offirConviction';
+import { clockStatus } from '../../api/_marketClock.js';
 import './PlusOffirPage.css';
 
 const LS_WATCHLIST = 'beepai_offir_watchlist';
 const LS_HUNT = 'beepai_offir_hunt';
+const HUNT_REFRESH_MS = 10 * 60 * 1000;   // re-hunt every 10 min while market is open
+const HUNT_REFRESH_LABEL = '10 דק׳';
 
 /* ── persistence ─────────────────────────────────────────────── */
 function loadWatchlist() {
@@ -54,6 +60,7 @@ async function fetchSymbolData(item) {
   let candles = [];
   let marketCap = null, livePrice = null, liveName = null;
   let sector = null, industry = null, week52High = null;
+  let quote = {};   // conviction-layer fields (Stage 3)
 
   // 1y daily candles (TA engine input) — מגמה/תנודתיות/ירידה-מהשיא
   try {
@@ -72,6 +79,11 @@ async function fetchSymbolData(item) {
       if (d.sector) sector = d.sector;
       if (d.industry) industry = d.industry;
       if (d.name && d.name.toUpperCase() !== sym.toUpperCase()) liveName = d.name;
+      quote = {
+        analystRecom: d.analystRecom ?? null, targetPrice: d.targetPrice ?? null,
+        instOwn: d.instOwn ?? null, relVolume: d.relVolume ?? null,
+        avgVolume: d.avgVolume ?? null, headlines: Array.isArray(d.headlines) ? d.headlines : [],
+      };
     }
   } catch { /* keep nulls — criteria mark ⚠️ unknown, never silently pass */ }
 
@@ -87,10 +99,16 @@ async function fetchSymbolData(item) {
   });
   const price = livePrice ?? analysis.last ?? null;
 
+  // ── Conviction layer (Stage 3): badges + catalyst headline + recommendation ──
+  const catalystInfo = detectCatalystHeadline(quote.headlines);
+  const badges = convictionBadges(quote, catalystInfo.strong);
+  const reco = recommend({ analysis, badges, catalystStrong: catalystInfo.strong });
+
   return {
     source: isLive ? 'LIVE' : 'MOCK',
     price, marketCap, sector, industry,
     name: liveName || item.name, analysis,
+    quote, badges, reco, catalystInfo,
   };
 }
 
@@ -213,6 +231,65 @@ function CriteriaList({ criteria }) {
   );
 }
 
+/* ── recommendation header (Part D) ── */
+const RECO_CLS = {
+  green: 'po-reco--green', blue: 'po-reco--blue', yellow: 'po-reco--yellow',
+  gray: 'po-reco--gray', red: 'po-reco--red',
+};
+function Recommendation({ reco }) {
+  if (!reco) return null;
+  return (
+    <div className={`po-reco ${RECO_CLS[reco.color] || 'po-reco--gray'}`}>
+      <span className="po-reco-label">{reco.label}</span>
+      {reco.conviction && <span className="po-reco-conv">רמת שכנוע: {reco.conviction}</span>}
+      {reco.dcaOk && <span className="po-reco-dca">DCA מאושר ✓</span>}
+      <span className="po-reco-reason">{reco.reason}</span>
+    </div>
+  );
+}
+
+/* ── conviction badges (Part B) — green only on real data, tooltip = real value ── */
+function Badges({ badges }) {
+  if (!badges) return null;
+  const items = [
+    { key: 'volume', icon: '📊', label: 'ווליום', b: badges.volume,
+      tip: badges.volume.known ? `נפח יחסי ×${badges.volume.value}` : 'אין נתון נפח' },
+    { key: 'analyst', icon: '👔', label: 'אנליסטים', b: badges.analyst,
+      tip: badges.analyst.known ? `Recom ${badges.analyst.value}${badges.analyst.target ? ` · יעד $${badges.analyst.target}` : ''}` : 'אין המלצת אנליסטים' },
+    { key: 'inst', icon: '🏛️', label: 'מוסדיים', b: badges.institutional,
+      tip: badges.institutional.known ? `אחזקה מוסדית ${badges.institutional.value}%` : 'אין נתון אחזקה' },
+    { key: 'cat', icon: '📰', label: 'קטליסט', b: badges.catalyst,
+      tip: badges.catalyst.on ? 'קטליסט חזק זוהה בכותרות' : badges.catalyst.known ? 'אין קטליסט חזק בכותרות' : 'אין כותרות' },
+  ];
+  return (
+    <div className="po-badges">
+      {items.map(it => {
+        const cls = it.b.on ? 'po-badge--on' : it.b.known ? 'po-badge--off' : 'po-badge--na';
+        return (
+          <span key={it.key} className={`po-badge ${cls}`} title={it.tip}>
+            <span className="po-badge-ic">{it.icon}</span>{it.label}
+          </span>
+        );
+      })}
+      <span className="po-src po-src--live po-badge-live">LIVE</span>
+    </div>
+  );
+}
+
+/* ── latest news headline (real, from Finviz) — user reads & judges ── */
+function Headline({ info }) {
+  const h = info?.latest;
+  if (!h) return null;
+  return (
+    <a className={`po-headline${info.strong ? ' po-headline--strong' : ''}`}
+       href={h.url} target="_blank" rel="noreferrer" title="פתח כתבה במקור">
+      📰 {info.strong && <span className="po-headline-fire">🔥 קטליסט</span>}
+      <span className="po-headline-txt">{h.title}</span>
+      {h.date && <span className="po-headline-date">· {h.date}</span>}
+    </a>
+  );
+}
+
 /* ── one watchlist card ──────────────────────────────────────── */
 function StockCard({ item, data, loading, onEdit, onRemove }) {
   const st = data ? STATUS_META[data.analysis.status] : null;
@@ -237,6 +314,9 @@ function StockCard({ item, data, loading, onEdit, onRemove }) {
 
       {!loading && data && (
         <>
+          {/* Recommendation — top of card (Part D) */}
+          <Recommendation reco={data.reco} />
+
           <div className="po-card-row">
             <span className="po-price">{fmtPrice(data.price)}</span>
             <span className={`po-status ${st.cls}`}>{st.dot} {data.analysis.statusLabel}</span>
@@ -251,6 +331,10 @@ function StockCard({ item, data, loading, onEdit, onRemove }) {
               <CriteriaList criteria={data.analysis.criteria} />
             </div>
           </div>
+
+          {/* Conviction badges + real news headline (Parts B/C) */}
+          <Badges badges={data.badges} />
+          <Headline info={data.catalystInfo} />
 
           <div className="po-reason">{data.analysis.reason}</div>
           {item.catalyst && <div className="po-catalyst">📌 {item.catalyst}</div>}
@@ -377,6 +461,27 @@ export default function PlusOffirPage({ navigate }) {
     else { doHunt(); }
   }, [doHunt]);
 
+  /* Market clock (Part E) — connect the existing _marketClock helper. */
+  const [clock, setClock] = useState(() => clockStatus());
+  useEffect(() => {
+    const iv = setInterval(() => setClock(clockStatus()), 30 * 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  /* Re-hunt on the US-market OPEN transition (16:30 IL). */
+  const prevOpenRef = useRef(clock.isOpen);
+  useEffect(() => {
+    if (clock.isOpen && !prevOpenRef.current) doHunt();
+    prevOpenRef.current = clock.isOpen;
+  }, [clock.isOpen, doHunt]);
+
+  /* While the market is open, refresh every HUNT_REFRESH_MS until close. */
+  useEffect(() => {
+    if (!clock.isOpen) return;
+    const iv = setInterval(() => doHunt(), HUNT_REFRESH_MS);
+    return () => clearInterval(iv);
+  }, [clock.isOpen, doHunt]);
+
   /* Fetch analysis for the whole watchlist (on change / manual refresh). */
   useEffect(() => {
     let cancelled = false;
@@ -451,6 +556,12 @@ export default function PlusOffirPage({ navigate }) {
       <div className="po-hunt-head">
         <div className="po-section-title">🔭 תגליות — צייד אוטומטי</div>
         <div className="po-hunt-meta">
+          <span className={`po-mkt ${clock.isOpen ? 'po-mkt--open' : 'po-mkt--closed'}`} title={`שעון ניו-יורק ${clock.etTime} · ${clock.session}`}>
+            {clock.isOpen ? '🟢 שוק פתוח'
+              : clock.session === 'pre' ? '🌅 טרום-מסחר'
+              : clock.session === 'after' ? '🌆 אחרי-שוק'
+              : '🔴 שוק סגור'}
+          </span>
           <HuntAge ts={huntTs} />
           <button className="po-hunt-refresh" onClick={doHunt} disabled={huntLoading} aria-label="סרוק עכשיו">
             {huntLoading ? '… סורק' : '⟳ סרוק'}
@@ -459,6 +570,7 @@ export default function PlusOffirPage({ navigate }) {
       </div>
       <div className="po-hunt-sub">
         מניות במגמה שנתית עולה שירדו לנקודת כניסה (dip) — ממוינות לפי עוצמת ההזדמנות (ציון 0–100).
+        <span className="po-hunt-cadence">{clock.isOpen ? `מתרענן כל ${HUNT_REFRESH_LABEL}` : 'מתרענן בפתיחת השוק (16:30)'}</span>
         <span className="po-src po-src--live">LIVE · TradingView</span>
       </div>
       <div className="po-hunt-strip">
