@@ -61,6 +61,15 @@
 .charts-lines-overlay > * { pointer-events:all; }
 
 /* Floating bell */
+.charts-nav { display:inline-flex; align-items:center; gap:4px; margin-inline-start:6px; }
+.charts-nav-btn {
+  min-width:30px; height:28px; padding:0 6px; border-radius:8px; cursor:pointer;
+  background:rgba(212,175,55,0.16); border:1px solid rgba(212,175,55,0.5);
+  color:#ffcf00; font-size:1.4rem; font-weight:900; line-height:1;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.charts-nav-btn:hover { background:rgba(212,175,55,0.3); color:#fff; }
+
 .charts-float-bell {
   position:absolute; top:58px; left:50%; transform:translateX(-50%);
   background:rgba(10,10,15,0.88); border:2px solid var(--accent-gold);
