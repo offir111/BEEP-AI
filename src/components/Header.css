@@ -25,7 +25,7 @@
   cursor: pointer;
   user-select: none;
   flex-shrink: 0;
-  background: #000;
+  background: transparent;   /* בצבע רקע ה-Header — החלונית לא נראית */
   border-radius: 10px 0 0 10px;
   padding: 6px 8px 6px 12px;
   height: 100%;
