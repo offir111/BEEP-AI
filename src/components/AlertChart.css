@@ -13,19 +13,12 @@
   height: 100%;
 }
 
-/* ── חלונית מידע + חדשות (פינה שמאלית עליונה, מתחת ל-X) ── */
-.pc-tl {
+/* ── חלונית מחיר — צמודה לפינה שמאל-עליון של הגרף ── */
+.pc-price-label {
   position: absolute;
   top: 8px;
   left: 0;               /* צמוד לגמרי לדופן השמאלית של הגרף */
   z-index: 15;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 7px;
-  max-width: min(80%, 430px);
-}
-.pc-price-label {
   pointer-events: none;
   display: flex;
   flex-direction: column;
@@ -57,10 +50,15 @@
 .pc-up { color: #4ade80; }
 .pc-dn { color: #f87171; }
 
-/* news panel */
+/* news panel — top-center of the chart, below the arrows */
 .pc-news {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 16;
   pointer-events: auto;
-  width: 100%;
+  width: min(56%, 380px);
   background: rgba(0,0,0,0.92);
   border: 1px solid var(--border, #2a2a3a);
   border-radius: 8px;

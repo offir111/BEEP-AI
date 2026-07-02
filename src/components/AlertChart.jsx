@@ -299,44 +299,43 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
     <div className="alert-chart-wrap">
       <div ref={containerRef} className="alert-chart-canvas" />
 
-      {/* ── חלונית מידע + חדשות (פינה שמאלית עליונה, מתחת ל-X) ── */}
-      <div className="pc-tl">
-        {lastPrice != null && (
-          <div className="pc-price-label" dir="ltr">
-            <span className="pc-price-sym">{symbol}</span>
-            <span className="pc-price-val">${Number(lastPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            {Number.isFinite(marketCap) && (
-              <span className="pc-price-mc">M.C {fmtMcapShort(marketCap)}</span>
-            )}
-            {Number.isFinite(changePct) && (
-              <span className={`pc-price-chg ${changePct >= 0 ? 'pc-up' : 'pc-dn'}`}>
-                {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
-              </span>
-            )}
-          </div>
-        )}
+      {/* ── חלונית מחיר — צמודה לפינה שמאל-עליון של הגרף ── */}
+      {lastPrice != null && (
+        <div className="pc-price-label" dir="ltr">
+          <span className="pc-price-sym">{symbol}</span>
+          <span className="pc-price-val">${Number(lastPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          {Number.isFinite(marketCap) && (
+            <span className="pc-price-mc">M.C {fmtMcapShort(marketCap)}</span>
+          )}
+          {Number.isFinite(changePct) && (
+            <span className={`pc-price-chg ${changePct >= 0 ? 'pc-up' : 'pc-dn'}`}>
+              {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
+            </span>
+          )}
+        </div>
+      )}
 
-        {newsEnabled && news.length > 0 && (
-          <div className={`pc-news${newsOpen ? ' pc-news--open' : ''}`} dir="ltr">
-            <button className="pc-news-head" onClick={() => setNewsOpen(o => !o)} title="חדשות מ-Yahoo Finance">
-              <span className={`pc-news-badge ${newsLive ? 'pc-news-badge--live' : 'pc-news-badge--mock'}`}>{newsLive ? 'LIVE' : 'MOCK'}</span>
-              <span className="pc-news-ic">📰</span>
-              <span className="pc-news-title">{news[0].title}</span>
-              <span className="pc-news-caret">{newsOpen ? '▲' : '▾'}</span>
-            </button>
-            {newsOpen && (
-              <div className="pc-news-list">
-                {news.map((n, i) => (
-                  <a key={i} className="pc-news-item" href={n.url} target="_blank" rel="noreferrer">
-                    <span className="pc-news-item-title">{n.title}</span>
-                    {n.publisher && <span className="pc-news-pub">{n.publisher}</span>}
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      {/* ── חדשות — במרכז-עליון של הגרף, מתחת לחיצים ── */}
+      {newsEnabled && news.length > 0 && (
+        <div className={`pc-news${newsOpen ? ' pc-news--open' : ''}`} dir="ltr">
+          <button className="pc-news-head" onClick={() => setNewsOpen(o => !o)} title="חדשות מ-Yahoo Finance">
+            <span className={`pc-news-badge ${newsLive ? 'pc-news-badge--live' : 'pc-news-badge--mock'}`}>{newsLive ? 'LIVE' : 'MOCK'}</span>
+            <span className="pc-news-ic">📰</span>
+            <span className="pc-news-title">{news[0].title}</span>
+            <span className="pc-news-caret">{newsOpen ? '▲' : '▾'}</span>
+          </button>
+          {newsOpen && (
+            <div className="pc-news-list">
+              {news.map((n, i) => (
+                <a key={i} className="pc-news-item" href={n.url} target="_blank" rel="noreferrer">
+                  <span className="pc-news-item-title">{n.title}</span>
+                  {n.publisher && <span className="pc-news-pub">{n.publisher}</span>}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── שכבת קווי ההתראות — לוכדת את אירועי הגרירה על כל שטח הגרף ── */}
       <div
