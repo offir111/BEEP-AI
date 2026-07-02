@@ -103,6 +103,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
   const [newsOpen,       setNewsOpen]       = useState(false);
   const [newsLive,       setNewsLive]       = useState(false);
   const [sectorHeat,     setSectorHeat]     = useState(null);   // { sectors:{name:{score,tier}} }
+  const [fetchedSector,  setFetchedSector]  = useState(null);   // sector looked up per-symbol (e.g. Gainers)
   const [lastPrice,      setLastPrice]      = useState(null);
   const [alertPositions, setAlertPositions] = useState({}); // { id: y }
   const [dragState,      setDragState]      = useState(null); // { id } | null
@@ -299,16 +300,40 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
     return () => { cancelled = true; };
   }, [symbol, newsEnabled]);
 
-  // ── sector heat map (0–100, live from Finviz) — fetched once when enabled ─────
+  // ── sector heat map (0–100, live from Finviz) — fetched when a chart opens ────
   useEffect(() => {
-    if (!newsEnabled || !sector) return;
+    if (!newsEnabled) return;
     let cancelled = false;
     fetch(apiUrl('/api/sector-heat'))
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (!cancelled && d && d.sectors) setSectorHeat(d); })
       .catch(() => { /* keep null → no sector row */ });
     return () => { cancelled = true; };
-  }, [newsEnabled, sector]);
+  }, [newsEnabled]);
+
+  // ── per-symbol sector — use the prop if given (+OFFIR), else look it up (Gainers) ─
+  useEffect(() => {
+    setFetchedSector(null);
+    if (!newsEnabled || sector || isCrypto || !symbol) return;
+    let cancelled = false;
+    fetch(apiUrl(`/api/offir-quote?symbol=${encodeURIComponent(symbol)}&type=STOCK`))
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled && d?.sector) setFetchedSector(d.sector); })
+      .catch(() => { /* no sector → no row */ });
+    return () => { cancelled = true; };
+  }, [symbol, newsEnabled, sector, isCrypto]);
+
+  const effectiveSector = sector || fetchedSector;
+  // normalized match (Finviz per-stock sector may collapse spaces: "Communicationservices")
+  const secEntry = (() => {
+    if (!effectiveSector || !sectorHeat?.sectors) return null;
+    const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
+    const key = norm(effectiveSector);
+    for (const [name, v] of Object.entries(sectorHeat.sectors)) {
+      if (norm(name) === key) return { name, ...v };
+    }
+    return null;
+  })();
 
   return (
     <div className="alert-chart-wrap">
@@ -327,13 +352,11 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
               {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
             </span>
           )}
-          {sector && sectorHeat?.sectors?.[sector] && (
-            <span className="pc-sector" title={`חום סקטור (0–100, חי): ${sector}`}>
-              <span className="pc-sector-dot" style={{ background: SECTOR_TIER_COLOR[sectorHeat.sectors[sector].tier] }} />
-              <span className="pc-sector-name">{sector}</span>
-              <span className="pc-sector-score" style={{ color: SECTOR_TIER_COLOR[sectorHeat.sectors[sector].tier] }}>
-                {sectorHeat.sectors[sector].score}
-              </span>
+          {secEntry && (
+            <span className="pc-sector" title={`חום סקטור (0–100, חי): ${secEntry.name}`}>
+              <span className="pc-sector-dot" style={{ background: SECTOR_TIER_COLOR[secEntry.tier] }} />
+              <span className="pc-sector-name">{secEntry.name}</span>
+              <span className="pc-sector-score" style={{ color: SECTOR_TIER_COLOR[secEntry.tier] }}>{secEntry.score}</span>
             </span>
           )}
         </div>
