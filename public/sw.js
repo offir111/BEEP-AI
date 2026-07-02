@@ -3,7 +3,7 @@
 // "white screen" after every deploy. The browser always goes to network now.
 // Bump SW_BUILD on deploy to force every client's SW to re-activate and nuke
 // any caches left by an older (caching) service-worker version.
-const SW_BUILD = '2026-07-02-offir-v15';
+const SW_BUILD = '2026-07-02-offir-v16';
 
 self.addEventListener('install', () => {
   self.skipWaiting();

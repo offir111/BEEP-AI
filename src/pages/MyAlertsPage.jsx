@@ -257,6 +257,12 @@ export default function MyAlertsPage() {
                 className={`charts-iv-btn ${interval===iv.id?'charts-iv-btn--on':''}`}
                 onClick={()=>setInterval(iv.id)}>{iv.label}</button>
             ))}
+            <span className="charts-nav">
+              <button className="charts-nav-btn" title="הסמל הקודם" aria-label="הסמל הקודם"
+                onClick={() => { const i = SYMBOLS.findIndex(s => s.id === active.id); const n = i < 0 ? 0 : (i - 1 + SYMBOLS.length) % SYMBOLS.length; setActive(SYMBOLS[n]); }}>‹</button>
+              <button className="charts-nav-btn" title="הסמל הבא" aria-label="הסמל הבא"
+                onClick={() => { const i = SYMBOLS.findIndex(s => s.id === active.id); const n = i < 0 ? 0 : (i + 1) % SYMBOLS.length; setActive(SYMBOLS[n]); }}>›</button>
+            </span>
           </div>
           <button className="charts-alert-btn" onClick={()=>setShowAlert(true)}>
             🔔 <span>התראה</span>
@@ -371,6 +377,7 @@ export default function MyAlertsPage() {
           interval={BIN_INTERVAL[interval] || '1d'}
           limit={BIN_LIMIT[interval] || 200}
           alerts={symAlerts}
+          newsEnabled={!active.binance}
           onAlertPriceChange={(id, price) => editAlert(id, { target: price })}
           onAlertRemove={removeAlert}
         />
