@@ -198,7 +198,9 @@ export default function ModelWPage({ navigate }) {
             גרף {selected.short} — 1H
           </div>
           <div className="mw-chart-container">
-            <AlertChartPanel symbol={selected.short} isCrypto defaultTf="1h" />
+            <AlertChartPanel symbol={selected.short} isCrypto defaultTf="1h"
+              navList={COINS.map(c => ({ symbol: c.short, isCrypto: true }))}
+              navStartIndex={Math.max(0, COINS.findIndex(c => c.short === selected.short))} />
           </div>
         </div>
       )}

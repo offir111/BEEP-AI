@@ -104,6 +104,8 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
   const [newsLive,       setNewsLive]       = useState(false);
   const [sectorHeat,     setSectorHeat]     = useState(null);   // { sectors:{name:{score,tier}} }
   const [fetchedSector,  setFetchedSector]  = useState(null);   // sector looked up per-symbol (e.g. Gainers)
+  const [fetchedMcap,    setFetchedMcap]    = useState(null);   // market cap looked up per-symbol
+  const [rangeChange,    setRangeChange]    = useState(null);   // % change across the loaded candles
   const [lastPrice,      setLastPrice]      = useState(null);
   const [alertPositions, setAlertPositions] = useState({}); // { id: y }
   const [dragState,      setDragState]      = useState(null); // { id } | null
@@ -276,6 +278,10 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
         chartRef.current?.timeScale().fitContent();
         const last = candles[candles.length - 1];
         if (last) setLastPrice(last.close);
+        const first = candles[0];
+        if (first && Number.isFinite(first.close) && first.close > 0 && last) {
+          setRangeChange(((last.close - first.close) / first.close) * 100);
+        }
         setError(false);
         setTimeout(() => recomputeRef.current?.(), 30);
       })
@@ -311,19 +317,26 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
     return () => { cancelled = true; };
   }, [newsEnabled]);
 
-  // ── per-symbol sector — use the prop if given (+OFFIR), else look it up (Gainers) ─
+  // ── per-symbol sector + market cap — prop if given, else look up (Gainers/others) ─
   useEffect(() => {
-    setFetchedSector(null);
-    if (!newsEnabled || sector || isCrypto || !symbol) return;
+    setFetchedSector(null); setFetchedMcap(null);
+    if (!newsEnabled || isCrypto || !symbol) return;
+    if (sector && Number.isFinite(marketCap)) return;   // already have both
     let cancelled = false;
     fetch(apiUrl(`/api/offir-quote?symbol=${encodeURIComponent(symbol)}&type=STOCK`))
       .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (!cancelled && d?.sector) setFetchedSector(d.sector); })
-      .catch(() => { /* no sector → no row */ });
+      .then(d => {
+        if (cancelled || !d) return;
+        if (d.sector) setFetchedSector(d.sector);
+        if (Number.isFinite(d.marketCap)) setFetchedMcap(d.marketCap);
+      })
+      .catch(() => { /* no data → row simply omitted */ });
     return () => { cancelled = true; };
-  }, [symbol, newsEnabled, sector, isCrypto]);
+  }, [symbol, newsEnabled, sector, isCrypto, marketCap]);
 
   const effectiveSector = sector || fetchedSector;
+  const effectiveMcap = Number.isFinite(marketCap) ? marketCap : fetchedMcap;
+  const effectiveChange = Number.isFinite(changePct) ? changePct : rangeChange;
   // normalized match (Finviz per-stock sector may collapse spaces: "Communicationservices")
   const secEntry = (() => {
     if (!effectiveSector || !sectorHeat?.sectors) return null;
@@ -344,12 +357,12 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
         <div className="pc-price-label" dir="ltr">
           <span className="pc-price-sym">{symbol}</span>
           <span className="pc-price-val">${Number(lastPrice).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-          {Number.isFinite(marketCap) && (
-            <span className="pc-price-mc">M.C {fmtMcapShort(marketCap)}</span>
+          {Number.isFinite(effectiveMcap) && (
+            <span className="pc-price-mc">M.C {fmtMcapShort(effectiveMcap)}</span>
           )}
-          {Number.isFinite(changePct) && (
-            <span className={`pc-price-chg ${changePct >= 0 ? 'pc-up' : 'pc-dn'}`}>
-              {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
+          {Number.isFinite(effectiveChange) && (
+            <span className={`pc-price-chg ${effectiveChange >= 0 ? 'pc-up' : 'pc-dn'}`}>
+              {effectiveChange >= 0 ? '+' : ''}{effectiveChange.toFixed(1)}%
             </span>
           )}
           {secEntry && (
@@ -366,7 +379,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
       {newsEnabled && news.length > 0 && (
         <div className={`pc-news${newsOpen ? ' pc-news--open' : ''}`} dir="ltr">
           <button className="pc-news-head" onClick={() => setNewsOpen(o => !o)} title="חדשות מ-Yahoo Finance">
-            <span className={`pc-news-badge ${newsLive ? 'pc-news-badge--live' : 'pc-news-badge--mock'}`}>{newsLive ? 'LIVE' : 'MOCK'}</span>
+            <span className="pc-news-badge pc-news-badge--live">NEWS</span>
             <span className="pc-news-ic">📰</span>
             <span className="pc-news-title">{news[0].title}</span>
             <span className="pc-news-caret">{newsOpen ? '▲' : '▾'}</span>

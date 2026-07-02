@@ -141,7 +141,9 @@ export default function ModelSmcPage({ navigate }) {
             גרף {selected.symbol} — {selected.name} — 1D
           </div>
           <div className="smc-chart-container">
-            <AlertChartPanel symbol={selected.symbol} isCrypto={false} defaultTf="1D" />
+            <AlertChartPanel symbol={selected.symbol} isCrypto={false} defaultTf="1D"
+              navList={STOCKS.map(s => ({ symbol: s.symbol, isCrypto: false }))}
+              navStartIndex={Math.max(0, STOCKS.findIndex(s => s.symbol === selected.symbol))} />
           </div>
         </div>
       )}

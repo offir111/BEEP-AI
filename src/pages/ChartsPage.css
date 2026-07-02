@@ -62,7 +62,7 @@
 
 /* Floating bell */
 .charts-float-bell {
-  position:absolute; top:12px; left:50%; transform:translateX(-50%);
+  position:absolute; top:58px; left:50%; transform:translateX(-50%);
   background:rgba(10,10,15,0.88); border:2px solid var(--accent-gold);
   border-radius:10px; color:var(--accent-gold); font-size:1.1rem;
   padding:8px 13px; display:flex; align-items:center; gap:7px;

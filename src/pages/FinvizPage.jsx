@@ -199,7 +199,9 @@ function LivePatternResult({ data, onSelect, criterion }) {
 }
 
 // ── Per-stock chart modal — same AlertChartPanel the Gainers page uses ──────────
-function FvChartModal({ symbol, price, onClose }) {
+function FvChartModal({ symbol, price, navList = null, onClose }) {
+  const nav = Array.isArray(navList) && navList.length ? navList : null;
+  const navIdx = nav ? Math.max(0, nav.findIndex(x => x.symbol === symbol)) : 0;
   const [showAlert, setShowAlert] = useState(false);
   const { alerts } = useAlerts();
   const pending = alerts.filter(a => !a.triggered && a.symbol === symbol.toUpperCase()).length;
@@ -217,7 +219,8 @@ function FvChartModal({ symbol, price, onClose }) {
       >
         {!showAlert && (
           <div style={{ position: 'absolute', inset: 0 }}>
-            <AlertChartPanel symbol={symbol} isCrypto={false} defaultTf="1D" />
+            <AlertChartPanel symbol={symbol} isCrypto={false} defaultTf="1D"
+              navList={nav} navStartIndex={navIdx} navPctLabel="שינוי יומי" />
           </div>
         )}
         <button
@@ -392,7 +395,11 @@ export default function FinvizPage({ navigate }) {
 
       {/* Per-stock chart modal (same chart as the Gainers page) */}
       {detailSym && (
-        <FvChartModal symbol={detailSym} price={detailPrice} onClose={() => setDetailSym(null)} />
+        <FvChartModal
+          symbol={detailSym} price={detailPrice}
+          navList={(liveData?.patterns || []).flatMap(p => (p.stocks || []).map(s => ({ symbol: s.ticker, pct: s.change, isCrypto: false })))}
+          onClose={() => setDetailSym(null)}
+        />
       )}
 
     </div>
