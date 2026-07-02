@@ -13,6 +13,9 @@ import { createChart, CandlestickSeries, HistogramSeries, CrosshairMode, ColorTy
 import { apiUrl } from '../utils/apiBase';
 import './AlertChart.css';
 
+// צבעי רמזור לחום-סקטור (ירוק חם / כתום בינוני / אדום קר)
+const SECTOR_TIER_COLOR = { green: '#4ade80', amber: '#EF9F27', red: '#f87171' };
+
 // שווי-שוק מקוצר לחלונית המידע ($10.2B / $742M)
 function fmtMcapShort(m) {
   if (!Number.isFinite(m) || m <= 0) return '—';
@@ -79,7 +82,7 @@ function makeChartOpts(w, h) {
 
 const PRICE_AXIS_PX = 75;
 
-export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, onAlertRemove, isCrypto, cgId, interval = '1d', limit = 200, changePct = null, marketCap = null, newsEnabled = false }) {
+export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, onAlertRemove, isCrypto, cgId, interval = '1d', limit = 200, changePct = null, marketCap = null, newsEnabled = false, sector = null }) {
   const containerRef     = useRef(null);   // chart canvas div (= chartDivRef)
   const chartRef         = useRef(null);
   const seriesRef        = useRef(null);
@@ -99,6 +102,7 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
   const [news,           setNews]           = useState([]);
   const [newsOpen,       setNewsOpen]       = useState(false);
   const [newsLive,       setNewsLive]       = useState(false);
+  const [sectorHeat,     setSectorHeat]     = useState(null);   // { sectors:{name:{score,tier}} }
   const [lastPrice,      setLastPrice]      = useState(null);
   const [alertPositions, setAlertPositions] = useState({}); // { id: y }
   const [dragState,      setDragState]      = useState(null); // { id } | null
@@ -295,6 +299,17 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
     return () => { cancelled = true; };
   }, [symbol, newsEnabled]);
 
+  // ── sector heat map (0–100, live from Finviz) — fetched once when enabled ─────
+  useEffect(() => {
+    if (!newsEnabled || !sector) return;
+    let cancelled = false;
+    fetch(apiUrl('/api/sector-heat'))
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled && d && d.sectors) setSectorHeat(d); })
+      .catch(() => { /* keep null → no sector row */ });
+    return () => { cancelled = true; };
+  }, [newsEnabled, sector]);
+
   return (
     <div className="alert-chart-wrap">
       <div ref={containerRef} className="alert-chart-canvas" />
@@ -310,6 +325,15 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
           {Number.isFinite(changePct) && (
             <span className={`pc-price-chg ${changePct >= 0 ? 'pc-up' : 'pc-dn'}`}>
               {changePct >= 0 ? '+' : ''}{changePct.toFixed(1)}%
+            </span>
+          )}
+          {sector && sectorHeat?.sectors?.[sector] && (
+            <span className="pc-sector" title={`חום סקטור (0–100, חי): ${sector}`}>
+              <span className="pc-sector-dot" style={{ background: SECTOR_TIER_COLOR[sectorHeat.sectors[sector].tier] }} />
+              <span className="pc-sector-name">{sector}</span>
+              <span className="pc-sector-score" style={{ color: SECTOR_TIER_COLOR[sectorHeat.sectors[sector].tier] }}>
+                {sectorHeat.sectors[sector].score}
+              </span>
             </span>
           )}
         </div>

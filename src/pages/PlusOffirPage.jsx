@@ -36,7 +36,7 @@ const LS_BASE = 'beepai_offir_base';   // מחיר-בסיס מרגע ההוספ�
 const LS_PAPER = 'beepai_offir_paper'; // מעקב STRONG BUY וירטואלי (paper tracking)
 const HUNT_REFRESH_MS = 10 * 60 * 1000;   // re-hunt every 10 min while market is open
 const HUNT_REFRESH_LABEL = '10 דק׳';
-const OFFIR_VERSION = 'v9';               // bump each deploy → visible freshness check
+const OFFIR_VERSION = 'v10';               // bump each deploy → visible freshness check
 
 /* ── persistence ─────────────────────────────────────────────── */
 function loadWatchlist() {
@@ -568,7 +568,7 @@ export default function PlusOffirPage({ navigate }) {
   /* Open chart from a daily-hunter discovery — arrows navigate the discoveries (dip%). */
   const openHunterChart = useCallback((sym) => {
     setDiscoveries(cur => {
-      const navList = cur.map(c => ({ symbol: c.symbol, pct: c.displayPct, mcap: c.marketCap, isCrypto: false }));
+      const navList = cur.map(c => ({ symbol: c.symbol, pct: c.displayPct, mcap: c.marketCap, sector: c.sector, isCrypto: false }));
       const i = cur.findIndex(c => c.symbol === sym);
       setChart({ navList, navIdx: i >= 0 ? i : 0, pctLabel: 'עומק ירידה מהשיא' });
       return cur;
@@ -671,7 +671,7 @@ export default function PlusOffirPage({ navigate }) {
       const price = d?.price;
       const gain = (Number.isFinite(price) && Number.isFinite(base) && base > 0)
         ? ((price - base) / base) * 100 : null;
-      return { symbol: w.apiSymbol || resolveApiSymbol(w.ticker), pct: gain, mcap: d?.marketCap, isCrypto: false };
+      return { symbol: w.apiSymbol || resolveApiSymbol(w.ticker), pct: gain, mcap: d?.marketCap, sector: d?.sector, isCrypto: false };
     });
     const i = watchlist.findIndex(w => w.ticker === ticker);
     setChart({ navList, navIdx: i >= 0 ? i : 0, pctLabel: 'אחוז מאז מעקב' });

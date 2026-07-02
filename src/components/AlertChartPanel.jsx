@@ -83,6 +83,7 @@ export default function AlertChartPanel({
           alerts={symAlerts}
           changePct={pctNum}
           marketCap={active && Number.isFinite(active.mcap) ? active.mcap : null}
+          sector={active ? (active.sector || null) : null}
           newsEnabled={!!nav}
           onAlertPriceChange={(id, price) => editAlert(id, { target: price })}
           onAlertRemove={removeAlert}

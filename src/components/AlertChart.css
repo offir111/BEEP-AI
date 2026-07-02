@@ -47,6 +47,10 @@
 }
 .pc-price-chg { font-size: 0.9rem; font-weight: 800; white-space: nowrap; }
 .pc-price-mc { color: #cbd5e1; font-size: 0.74rem; font-weight: 700; white-space: nowrap; }
+.pc-sector { display: inline-flex; align-items: center; gap: 5px; margin-top: 1px; white-space: nowrap; }
+.pc-sector-dot { width: 11px; height: 11px; border-radius: 3px; flex: 0 0 auto; }
+.pc-sector-name { color: #cbd5e1; font-size: 0.72rem; font-weight: 700; }
+.pc-sector-score { font-size: 0.78rem; font-weight: 800; }
 .pc-up { color: #4ade80; }
 .pc-dn { color: #f87171; }
 
