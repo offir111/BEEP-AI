@@ -377,7 +377,7 @@ export default function MyAlertsPage() {
           interval={BIN_INTERVAL[interval] || '1d'}
           limit={BIN_LIMIT[interval] || 200}
           alerts={symAlerts}
-          newsEnabled={!active.binance}
+          newsEnabled={true}
           onAlertPriceChange={(id, price) => editAlert(id, { target: price })}
           onAlertRemove={removeAlert}
         />

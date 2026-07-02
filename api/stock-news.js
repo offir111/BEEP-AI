@@ -17,11 +17,13 @@ export default async function handler(req, res) {
   const symbol = (req.query?.symbol || '').trim().toUpperCase();
   const limit = Math.min(Math.max(parseInt(req.query?.limit, 10) || 8, 1), 20);
   if (!symbol) return res.status(400).json({ error: 'symbol required', news: [] });
+  // optional query override — crypto passes the coin name ("Bitcoin") for good news
+  const query = (req.query?.q || symbol).trim();
 
   for (const host of ['query1', 'query2']) {
     try {
       const r = await fetch(
-        `https://${host}.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&newsCount=${limit}&quotesCount=0&enableFuzzyQuery=false`,
+        `https://${host}.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&newsCount=${limit}&quotesCount=0&enableFuzzyQuery=false`,
         { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(9000) }
       );
       if (!r.ok) continue;

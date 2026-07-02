@@ -16,6 +16,13 @@ import './AlertChart.css';
 // צבעי רמזור לחום-סקטור (ירוק חם / כתום בינוני / אדום קר)
 const SECTOR_TIER_COLOR = { green: '#4ade80', amber: '#EF9F27', red: '#f87171' };
 
+// שם מלא למטבע קריפטו — לחיפוש חדשות איכותי ב-Yahoo (BTC → "Bitcoin")
+const CRYPTO_NAME = {
+  BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana', BNB: 'BNB', XRP: 'XRP',
+  DOGE: 'Dogecoin', ADA: 'Cardano', AVAX: 'Avalanche', LINK: 'Chainlink',
+  MATIC: 'Polygon', DOT: 'Polkadot', LTC: 'Litecoin',
+};
+
 // שווי-שוק מקוצר לחלונית המידע ($10.2B / $742M)
 function fmtMcapShort(m) {
   if (!Number.isFinite(m) || m <= 0) return '—';
@@ -298,13 +305,17 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
   useEffect(() => {
     setNewsOpen(false); setNews([]); setNewsLive(false);
     if (!newsEnabled || !symbol) return;
+    // crypto → search by full coin name for relevant news; unknown coin → skip
+    const coinName = isCrypto ? CRYPTO_NAME[String(symbol).toUpperCase()] : null;
+    if (isCrypto && !coinName) return;
+    const qParam = coinName ? `&q=${encodeURIComponent(coinName)}` : '';
     let cancelled = false;
-    fetch(apiUrl(`/api/stock-news?symbol=${encodeURIComponent(symbol)}&limit=10`))
+    fetch(apiUrl(`/api/stock-news?symbol=${encodeURIComponent(symbol)}&limit=10${qParam}`))
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (cancelled || !d) return; setNews(Array.isArray(d.news) ? d.news : []); setNewsLive(!!d.live); })
       .catch(() => { /* keep empty → no news box */ });
     return () => { cancelled = true; };
-  }, [symbol, newsEnabled]);
+  }, [symbol, newsEnabled, isCrypto]);
 
   // ── sector heat map (0–100, live from Finviz) — fetched when a chart opens ────
   useEffect(() => {
@@ -317,20 +328,28 @@ export default function AlertChart({ symbol, alerts = [], onAlertPriceChange, on
     return () => { cancelled = true; };
   }, [newsEnabled]);
 
-  // ── per-symbol sector + market cap — prop if given, else look up (Gainers/others) ─
+  // ── per-symbol market cap (+ sector for stocks) — prop if given, else look up ──
   useEffect(() => {
     setFetchedSector(null); setFetchedMcap(null);
-    if (!newsEnabled || isCrypto || !symbol) return;
-    if (sector && Number.isFinite(marketCap)) return;   // already have both
+    if (!newsEnabled || !symbol) return;
     let cancelled = false;
-    fetch(apiUrl(`/api/offir-quote?symbol=${encodeURIComponent(symbol)}&type=STOCK`))
-      .then(r => (r.ok ? r.json() : null))
-      .then(d => {
-        if (cancelled || !d) return;
-        if (d.sector) setFetchedSector(d.sector);
-        if (Number.isFinite(d.marketCap)) setFetchedMcap(d.marketCap);
-      })
-      .catch(() => { /* no data → row simply omitted */ });
+    if (isCrypto) {
+      // crypto → market cap from CoinGecko (no stock sector)
+      fetch(apiUrl(`/api/crypto-meta?symbol=${encodeURIComponent(symbol)}`))
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => { if (!cancelled && d && Number.isFinite(d.marketCap)) setFetchedMcap(d.marketCap); })
+        .catch(() => {});
+    } else if (!(sector && Number.isFinite(marketCap))) {
+      // stock → sector + market cap from Finviz (offir-quote)
+      fetch(apiUrl(`/api/offir-quote?symbol=${encodeURIComponent(symbol)}&type=STOCK`))
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => {
+          if (cancelled || !d) return;
+          if (d.sector) setFetchedSector(d.sector);
+          if (Number.isFinite(d.marketCap)) setFetchedMcap(d.marketCap);
+        })
+        .catch(() => {});
+    }
     return () => { cancelled = true; };
   }, [symbol, newsEnabled, sector, isCrypto, marketCap]);
 
