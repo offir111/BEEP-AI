@@ -175,26 +175,26 @@
 .gn-detail-x:hover { background: #ef4444; color: #fff; }
 .gn-detail-bell {
   position: absolute;
-  /* מרכז-עליון, ~1ס"מ מתחת לשורת טווחי הזמן */
-  top: calc(36px + 1cm); bottom: auto; left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 9px 20px;
-  border-radius: 999px;
-  border: 2px solid var(--accent-gold, #d4af37);
+  /* בשורת ה-X, צמוד מימין לכפתור הסגירה */
+  top: 8px; left: 46px; bottom: auto;
+  z-index: 30;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(212,175,55,0.6);
   background: rgba(10,10,15,0.9);
   color: #ffcf00;
-  font-size: 0.9rem; font-weight: 800;
+  font-size: 1rem; font-weight: 800;
   font-family: inherit;
   cursor: pointer;
 }
 .gn-detail-bell:hover { background: rgba(212,175,55,0.18); }
 .gn-detail-bell-badge {
+  position: absolute; top: -5px; left: -5px;
   background: #ef4444; color: #fff;
-  font-size: 0.62rem; font-weight: 700;
-  min-width: 16px; height: 16px; border-radius: 8px;
-  display: inline-flex; align-items: center; justify-content: center; padding: 0 4px;
+  font-size: 0.58rem; font-weight: 700;
+  min-width: 15px; height: 15px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center; padding: 0 3px;
 }
 
 /* live price flash */

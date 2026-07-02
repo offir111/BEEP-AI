@@ -235,8 +235,8 @@ export default function GainersPage() {
             )}
             <button className="gn-detail-x" onClick={() => setAlertSym(null)} aria-label="סגור גרף">✕</button>
             {!showBox && (
-              <button className="gn-detail-bell" onClick={() => setShowBox(true)}>
-                🔔 <span>התראה</span>
+              <button className="gn-detail-bell" onClick={() => setShowBox(true)} aria-label="הוסף התראה" title="הוסף התראה">
+                🔔
                 {alerts.filter(a => !a.triggered && a.symbol === alertSym.toUpperCase()).length > 0 && (
                   <span className="gn-detail-bell-badge">
                     {alerts.filter(a => !a.triggered && a.symbol === alertSym.toUpperCase()).length}

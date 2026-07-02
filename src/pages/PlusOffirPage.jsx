@@ -36,7 +36,7 @@ const LS_BASE = 'beepai_offir_base';   // מחיר-בסיס מרגע ההוספ�
 const LS_PAPER = 'beepai_offir_paper'; // מעקב STRONG BUY וירטואלי (paper tracking)
 const HUNT_REFRESH_MS = 10 * 60 * 1000;   // re-hunt every 10 min while market is open
 const HUNT_REFRESH_LABEL = '10 דק׳';
-const OFFIR_VERSION = 'v8';               // bump each deploy → visible freshness check
+const OFFIR_VERSION = 'v9';               // bump each deploy → visible freshness check
 
 /* ── persistence ─────────────────────────────────────────────── */
 function loadWatchlist() {
