@@ -44,6 +44,7 @@
   object-fit: contain;
   display: block;
   filter: invert() sepia(0.68) saturate(1.44) hue-rotate(5deg);
+  mix-blend-mode: screen;   /* הרקע השחור (תוצר ה-invert) מתמזג ברקע הכהה */
 }
 .hdr-logo-fire {
   position: absolute;
