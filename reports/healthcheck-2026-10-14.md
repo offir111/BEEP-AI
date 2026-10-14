@@ -1,19 +1,19 @@
 # Healthcheck — 2026-10-14
 
-**זמן ריצה:** 2026-10-14T11:32:23.768Z  
+**זמן ריצה:** 2026-10-14T18:08:30.602Z  
 **בסיס בדיקה (app):** https://beep-ai.vercel.app  
 **תוצאה כוללת:** 🟢 תקין — ✅ 9 · ⚠️ 0 · ❌ 0
 
 | סטטוס | פיד | קבוצה | זמן | פירוט |
 |---|---|---|---|---|
-| ✅ 🔑 | Crypto BTC (price + volume) | Crypto | 177ms | BTC=$83,302 · vol=$26.47B (coingecko) |
-| ✅ | Crypto Fear & Greed (alternative.me) | Sentiment | 110ms | index=62 (Greed) |
-| ✅ | https://beep-ai.vercel.app/api/health | App | 861ms | 3/3 feeds healthy |
-| ✅ | https://beep-ai.vercel.app/api/market?symbol=AAPL | Stocks | 208ms | AAPL=$342.94 (live) |
-| ✅ | https://beep-ai.vercel.app/api/tv-screener?period=1d | Stocks | 376ms | 31 gainers |
-| ✅ | https://beep-ai.vercel.app/api/crypto-gainers | Crypto | 2054ms | 250 coins |
-| ✅ | https://beep-ai.vercel.app/api/finviz-model | Stocks | 890ms | 7 stocks across 3 patterns |
-| ✅ | https://beep-ai.vercel.app/api/fng-stocks | Sentiment | 242ms | index=45 |
-| ✅ | https://beep-ai.vercel.app/api/tgm-leads | TGM | 368ms | 27 leads stored |
+| ✅ 🔑 | Crypto BTC (price + volume) | Crypto | 188ms | BTC=$81,590 · vol=$32.46B (coingecko) |
+| ✅ | Crypto Fear & Greed (alternative.me) | Sentiment | 4006ms | index=62 (Greed) |
+| ✅ | https://beep-ai.vercel.app/api/health | App | 990ms | 3/3 feeds healthy |
+| ✅ | https://beep-ai.vercel.app/api/market?symbol=AAPL | Stocks | 314ms | AAPL=$342.575 (live) |
+| ✅ | https://beep-ai.vercel.app/api/tv-screener?period=1d | Stocks | 331ms | 31 gainers |
+| ✅ | https://beep-ai.vercel.app/api/crypto-gainers | Crypto | 1985ms | 250 coins |
+| ✅ | https://beep-ai.vercel.app/api/finviz-model | Stocks | 712ms | 8 stocks across 1 patterns |
+| ✅ | https://beep-ai.vercel.app/api/fng-stocks | Sentiment | 237ms | index=31 |
+| ✅ | https://beep-ai.vercel.app/api/tgm-leads | TGM | 425ms | 27 leads stored |
 
 > 🔑 = פיד קריטי · ⚠️ = אזהרה לא־קריטית · נוצר ע"י `scripts/healthcheck.mjs`
